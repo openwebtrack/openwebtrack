@@ -86,3 +86,7 @@ We welcome contributions! Please check our [Contributing Guidelines](CONTRIBUTIN
 ## License
 
 See [LICENSE](LICENSE) for full details.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=openwebtrack/openwebtrack&type=date&legend=top-left&r=1)](https://www.star-history.com/#openwebtrack/openwebtrack&type=date&legend=top-left)
