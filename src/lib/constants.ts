@@ -1,0 +1,111 @@
+export const SESSION_EXPIRY_MINUTES = 30;
+export const GEO_CACHE_TTL_MS = 60 * 60 * 1000;
+export const GEO_CACHE_MAX_SIZE = 1000;
+
+export const RATE_LIMIT_MAX_REQUESTS = 100;
+export const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+
+export const MAX_DATE_RANGE_DAYS = 365;
+
+export const VALID_EVENT_TYPES = ['pageview', 'custom', 'identify', 'payment', 'heartbeat'] as const;
+
+export const SEARCH_ENGINES = ['google', 'bing', 'yahoo', 'duckduckgo', 'baidu', 'yandex', 'ask', 'aol', 'ecosia'];
+
+export const SOCIAL_NETWORKS = [
+	'facebook',
+	'twitter',
+	'x.com',
+	'instagram',
+	'linkedin',
+	'tiktok',
+	'pinterest',
+	'reddit',
+	'youtube',
+	'tumblr',
+	'snapchat',
+	'whatsapp',
+	'telegram',
+	'discord',
+	'twitch',
+	'vk',
+	'weibo',
+	'mastodon',
+	'threads'
+];
+
+export const TIMEZONES = [
+	'UTC',
+	'Pacific/Honolulu',
+	'America/Anchorage',
+	'America/Los_Angeles',
+	'America/Denver',
+	'America/Chicago',
+	'America/New_York',
+	'America/Toronto',
+	'America/Vancouver',
+	'America/Mexico_City',
+	'America/Bogota',
+	'America/Lima',
+	'America/Santiago',
+	'America/Sao_Paulo',
+	'America/Buenos_Aires',
+	'Atlantic/Reykjavik',
+	'Europe/London',
+	'Europe/Dublin',
+	'Europe/Lisbon',
+	'Europe/Paris',
+	'Europe/Berlin',
+	'Europe/Brussels',
+	'Europe/Amsterdam',
+	'Europe/Rome',
+	'Europe/Madrid',
+	'Europe/Athens',
+	'Europe/Bucharest',
+	'Europe/Moscow',
+	'Africa/Lagos',
+	'Africa/Cairo',
+	'Africa/Johannesburg',
+	'Asia/Dubai',
+	'Asia/Tehran',
+	'Asia/Karachi',
+	'Asia/Mumbai',
+	'Asia/Kolkata',
+	'Asia/Bangkok',
+	'Asia/Singapore',
+	'Asia/Hong_Kong',
+	'Asia/Shanghai',
+	'Asia/Seoul',
+	'Asia/Tokyo',
+	'Australia/Perth',
+	'Australia/Adelaide',
+	'Australia/Sydney',
+	'Australia/Brisbane',
+	'Pacific/Auckland'
+] as const;
+
+export const MAX_STRING_LENGTHS = {
+	websiteId: 36,
+	domain: 255,
+	href: 2048,
+	referrer: 2048,
+	visitorId: 36,
+	sessionId: 36,
+	language: 50,
+	timezone: 100,
+	browser: 50,
+	browserVersion: 20,
+	os: 50,
+	osVersion: 20,
+	deviceType: 20,
+	title: 500,
+	eventName: 255,
+	filterValue: 100
+} as const;
+
+export const DEFAULT_QUERY_LIMITS = {
+	pageviews: 10000,
+	visitors: 5000,
+	sessions: 500,
+	events: 50,
+	metrics: 100
+} as const;
