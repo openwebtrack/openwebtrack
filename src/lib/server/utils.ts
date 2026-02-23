@@ -277,6 +277,13 @@ export const buildFilterConditions = (filters: Filter[]) => {
 			case 'device':
 				sessionConditions.push(and(ilike(analyticsSession.deviceType, `%${filter.value}%`)));
 				break;
+			case 'pwa':
+				if (filter.value.toLowerCase() === 'yes' || filter.value.toLowerCase() === 'true') {
+					sessionConditions.push(and(eq(analyticsSession.isPwa, true)));
+				} else {
+					sessionConditions.push(and(eq(analyticsSession.isPwa, false)));
+				}
+				break;
 		}
 	}
 

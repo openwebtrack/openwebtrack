@@ -25,7 +25,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 
-	type FilterType = 'referrer' | 'campaign' | 'country' | 'region' | 'city' | 'goal' | 'hostname' | 'page' | 'entryPage' | 'browser' | 'os' | 'device';
+	type FilterType = 'referrer' | 'campaign' | 'country' | 'region' | 'city' | 'goal' | 'hostname' | 'page' | 'entryPage' | 'browser' | 'os' | 'device' | 'pwa';
 
 	interface Filter {
 		type: FilterType;
@@ -455,6 +455,8 @@
 	onMount(() => {
 		initFromUrl();
 		fetchData();
+		const interval = setInterval(fetchData, 20000);
+		return () => clearInterval(interval);
 	});
 </script>
 

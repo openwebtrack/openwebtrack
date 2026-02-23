@@ -6,7 +6,7 @@
 	import { Filter as FilterIcon, X, Loader2, Search } from 'lucide-svelte';
 	import axios from 'axios';
 
-	type FilterType = 'referrer' | 'campaign' | 'country' | 'region' | 'city' | 'goal' | 'hostname' | 'page' | 'entryPage' | 'browser' | 'os' | 'device';
+	type FilterType = 'referrer' | 'campaign' | 'country' | 'region' | 'city' | 'goal' | 'hostname' | 'page' | 'entryPage' | 'browser' | 'os' | 'device' | 'pwa';
 
 	interface Filter {
 		type: FilterType;
@@ -83,7 +83,8 @@
 			items: [
 				{ label: 'Browser', type: 'browser' as const },
 				{ label: 'OS', type: 'os' as const },
-				{ label: 'Device', type: 'device' as const }
+				{ label: 'Device', type: 'device' as const },
+				{ label: 'PWA', type: 'pwa' as const }
 			]
 		}
 	];
@@ -172,13 +173,25 @@
 			entryPage: 'Entry page',
 			browser: 'Browser',
 			os: 'OS',
-			device: 'Device'
+			device: 'Device',
+			pwa: 'PWA'
 		};
 		return labels[type] || type;
 	};
 
 	const hasOptions = (type: FilterType): boolean => {
 		return type in filterTypeToMetricType;
+	};
+
+	const isBooleanFilter = (type: FilterType): boolean => {
+		return type === 'pwa';
+	};
+
+	const booleanOptions: Record<'pwa', { label: string; value: string }[]> = {
+		pwa: [
+			{ label: 'Yes', value: 'true' },
+			{ label: 'No', value: 'false' }
+		]
 	};
 
 	let filteredOptions = $derived(searchQuery && !filterTypeToMetricType[activeFilterType!] ? options.filter((o) => o.label.toLowerCase().includes(searchQuery.toLowerCase())) : options);
@@ -246,6 +259,21 @@
 								</button>
 							{/if}
 						{/if}
+					</div>
+				{:else if isBooleanFilter(activeFilterType)}
+					<div class="max-h-60 overflow-y-auto rounded-md border border-border">
+						{#each booleanOptions[activeFilterType as 'pwa'] as option}
+							<button
+								onclick={() => {
+									onAdd(activeFilterType!, option.label);
+									resetState();
+									isOpen = false;
+								}}
+								class="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
+							>
+								<span class="truncate">{option.label}</span>
+							</button>
+						{/each}
 					</div>
 				{:else}
 					<div class="space-y-3">

@@ -1,6 +1,6 @@
 <script lang="ts">
+	import { Lightbulb } from 'lucide-svelte';
 	import Chart from 'chart.js/auto';
-	import { onMount } from 'svelte';
 
 	interface ChannelItem {
 		label: string;
@@ -110,7 +110,10 @@
 
 <div class="relative flex h-48 w-full items-center justify-center">
 	{#if data.length === 0 || data.every((d) => d.value === 0)}
-		<div class="text-sm text-muted-foreground">No channel data yet</div>
+		<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+			<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
+			<p>No channel data yet.</p>
+		</div>
 	{:else}
 		<canvas bind:this={canvas}></canvas>
 	{/if}
