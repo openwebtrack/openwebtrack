@@ -63,7 +63,7 @@
 			return;
 		}
 
-		// Custom plugin to draw callout labels
+		// Custom plugin to draw callout labels with collision detection
 		const outerLabelsPlugin = {
 			id: 'outerLabels',
 			afterDraw: (chart: Chart) => {
@@ -75,6 +75,18 @@
 				const centerY = top + height / 2;
 
 				ctx.save();
+
+				const labelItems: Array<{
+					index: number;
+					startX: number;
+					startY: number;
+					elbowX: number;
+					elbowY: number;
+					endX: number;
+					endY: number;
+					isRightSide: boolean;
+					label: string;
+				}> = [];
 
 				chart.data.datasets.forEach((dataset, i) => {
 					const meta = chart.getDatasetMeta(i);
@@ -96,24 +108,67 @@
 						const endX = isRightSide ? elbowX + labelOffset : elbowX - labelOffset;
 						const endY = elbowY;
 
-						ctx.beginPath();
-						ctx.moveTo(startX, startY);
-						ctx.lineTo(elbowX, elbowY);
-						ctx.lineTo(endX, endY);
-						ctx.strokeStyle = mutedForeground;
-						ctx.lineWidth = 1;
-						ctx.stroke();
-
-						const label = chart.data.labels?.[index] as string;
-
-						ctx.font = '12px sans-serif';
-						ctx.fillStyle = foreground;
-						ctx.textBaseline = 'middle';
-						ctx.textAlign = isRightSide ? 'left' : 'right';
-
-						const textX = isRightSide ? endX + 5 : endX - 5;
-						ctx.fillText(label, textX, endY);
+						labelItems.push({
+							index,
+							startX,
+							startY,
+							elbowX,
+							elbowY,
+							endX,
+							endY,
+							isRightSide,
+							label: chart.data.labels?.[index] as string
+						});
 					});
+				});
+
+				const minSpacing = 16; // 12px font + 4px padding
+
+				// Function to adjust Y positions to prevent overlap
+				const adjustPositions = (items: typeof labelItems) => {
+					// Sort by Y position (top to bottom)
+					items.sort((a, b) => a.endY - b.endY);
+
+					for (let i = 1; i < items.length; i++) {
+						const prev = items[i - 1];
+						const curr = items[i];
+
+						if (curr.endY < prev.endY + minSpacing) {
+							const diff = prev.endY + minSpacing - curr.endY;
+							curr.endY += diff;
+							curr.elbowY += diff;
+						}
+					}
+				};
+
+				const leftItems = labelItems.filter((item) => !item.isRightSide);
+				const rightItems = labelItems.filter((item) => item.isRightSide);
+
+				adjustPositions(leftItems);
+				adjustPositions(rightItems);
+
+				[...leftItems, ...rightItems].forEach((item) => {
+					const { startX, startY, elbowX, elbowY, isRightSide, label } = item;
+
+					// Recalculate endX based on the original offset logic but using new elbowY (which is same as endY)
+					const labelOffset = 20;
+					const finalEndX = isRightSide ? elbowX + labelOffset : elbowX - labelOffset;
+					
+					ctx.beginPath();
+					ctx.moveTo(startX, startY);
+					ctx.lineTo(elbowX, elbowY);
+					ctx.lineTo(finalEndX, elbowY);
+					ctx.strokeStyle = mutedForeground;
+					ctx.lineWidth = 1;
+					ctx.stroke();
+
+					ctx.font = '12px sans-serif';
+					ctx.fillStyle = foreground;
+					ctx.textBaseline = 'middle';
+					ctx.textAlign = isRightSide ? 'left' : 'right';
+
+					const textX = isRightSide ? finalEndX + 5 : finalEndX - 5;
+					ctx.fillText(label, textX, elbowY);
 				});
 
 				ctx.restore();
