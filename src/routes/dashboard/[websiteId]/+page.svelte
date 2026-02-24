@@ -2,6 +2,7 @@
 	import { Lightbulb, RefreshCw, Settings, Search, Loader2, Users } from 'lucide-svelte';
 	import { generateVisitorName } from '$lib/visitor-utils';
 	import getCountryCode from '$lib/utils/country-mapping';
+	import { getBrowserIcon, getOsIcon, getDeviceIcon, getCountryFlag, getRegionIcon, getCityIcon } from '$lib/utils/icons';
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
@@ -48,19 +49,19 @@
 
 	interface ApiData {
 		stats: Stats;
-		topPages: { label: string; value: number }[];
-		entryPages: { label: string; value: number }[];
-		exitLinks: { label: string; value: number }[];
-		topReferrers: { label: string; value: number }[];
-		channelData: { label: string; value: number }[];
-		customEvents: { type: string; name: string | null; value: number }[];
-		deviceStats: { label: string; value: number }[];
-		browserStats: { label: string; value: number }[];
-		osStats: { label: string; value: number }[];
-		deviceTypeStats: { label: string; value: number }[];
-		countryStats: { label: string; value: number }[];
-		regionStats: { label: string; value: number }[];
-		cityStats: { label: string; value: number }[];
+		topPages: { label: string; value: number; icon?: string }[];
+		entryPages: { label: string; value: number; icon?: string }[];
+		exitLinks: { label: string; value: number; icon?: string }[];
+		topReferrers: { label: string; value: number; icon?: string }[];
+		channelData: { label: string; value: number; icon?: string }[];
+		customEvents: { type: string; name: string | null; value: number; icon?: string }[];
+		deviceStats: { label: string; value: number; icon?: string }[];
+		browserStats: { label: string; value: number; icon?: string }[];
+		osStats: { label: string; value: number; icon?: string }[];
+		deviceTypeStats: { label: string; value: number; icon?: string }[];
+		countryStats: { label: string; value: number; icon?: string }[];
+		regionStats: { label: string; value: number; icon?: string }[];
+		cityStats: { label: string; value: number; icon?: string }[];
 		timeSeries: TimeSeriesPoint[];
 	}
 
@@ -292,28 +293,6 @@
 		return isToday ? `Today at ${time}` : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at ' + time;
 	};
 
-	const getOsIcon = (os: string | null) => {
-		if (!os) return 'https://api.iconify.design/lucide:monitor.svg?color=%2371717a';
-		const lower = os.toLowerCase();
-		if (lower.includes('win')) return 'https://api.iconify.design/logos:microsoft-windows.svg';
-		if (lower.includes('mac')) return 'https://api.iconify.design/logos:apple.svg?color=white';
-		if (lower.includes('android')) return 'https://api.iconify.design/logos:android-icon.svg';
-		if (lower.includes('ios')) return 'https://api.iconify.design/logos:apple.svg?color=white';
-		if (lower.includes('linux')) return 'https://api.iconify.design/logos:linux-tux.svg';
-		return 'https://api.iconify.design/lucide:monitor.svg?color=%2371717a';
-	};
-
-	const getBrowserIcon = (browser: string | null) => {
-		if (!browser) return 'https://api.iconify.design/lucide:globe.svg?color=%2371717a';
-		const lower = browser.toLowerCase();
-		if (lower.includes('chrome')) return 'https://api.iconify.design/logos:chrome.svg';
-		if (lower.includes('firefox')) return 'https://api.iconify.design/logos:firefox.svg';
-		if (lower.includes('safari')) return 'https://api.iconify.design/logos:safari.svg';
-		if (lower.includes('edge')) return 'https://api.iconify.design/logos:microsoft-edge.svg';
-		if (lower.includes('opera')) return 'https://api.iconify.design/logos:opera.svg';
-		return 'https://api.iconify.design/lucide:globe.svg?color=%2371717a';
-	};
-
 	const getSourceDomain = (referrer: string | null) => {
 		if (!referrer) return { hostname: 'Direct', domain: data.website.domain };
 		try {
@@ -375,7 +354,17 @@
 				axios.get(`/api/websites/${data.website.id}/visitors?t=${timestamp}`),
 				axios.get(`/api/websites/${data.website.id}/events?limit=50&t=${timestamp}`)
 			]);
-			apiData = statsRes.data;
+			const statsData = statsRes.data;
+			apiData = {
+				...statsData,
+				countryStats: Array.isArray(statsData.countryStats) ? statsData.countryStats.map((s: any) => ({ ...s, icon: getCountryFlag(s.label) })) : [],
+				browserStats: Array.isArray(statsData.browserStats) ? statsData.browserStats.map((s: any) => ({ ...s, icon: getBrowserIcon(s.label) })) : [],
+				osStats: Array.isArray(statsData.osStats) ? statsData.osStats.map((s: any) => ({ ...s, icon: getOsIcon(s.label) })) : [],
+				deviceStats: Array.isArray(statsData.deviceStats) ? statsData.deviceStats.map((s: any) => ({ ...s, icon: getDeviceIcon(s.label) })) : [],
+				deviceTypeStats: Array.isArray(statsData.deviceTypeStats) ? statsData.deviceTypeStats.map((s: any) => ({ ...s, icon: getDeviceIcon(s.label) })) : [],
+				regionStats: Array.isArray(statsData.regionStats) ? statsData.regionStats.map((s: any) => ({ ...s, icon: getRegionIcon() })) : [],
+				cityStats: Array.isArray(statsData.cityStats) ? statsData.cityStats.map((s: any) => ({ ...s, icon: getCityIcon() })) : []
+			};
 			visitors = visitorsRes.data.map((v: Visitor) => {
 				const countryCode = getCountryCode(v.country);
 				const source = getSourceDomain(v.referrer);
@@ -587,10 +576,10 @@
 						else if (channelActiveTab === 1) openMetricDetails('referrers', 'Referrers');
 					}}
 					count={stats.visitors}
-					class="h-[339px]"
+					class="h-[340px]"
 				>
 					{#if channelActiveTab === 0}
-						<div class="flex h-64 items-center justify-center">
+						<div class="flex h-full w-full items-center justify-center p-8">
 							<DonutChart data={channelData} />
 						</div>
 					{:else if channelActiveTab === 1}

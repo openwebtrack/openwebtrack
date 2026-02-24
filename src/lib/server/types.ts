@@ -21,7 +21,7 @@ export interface GeoData {
 export interface TrackingPayload {
 	websiteId: string;
 	domain: string;
-	type: 'pageview' | 'custom' | 'identify' | 'payment' | 'heartbeat';
+	type: 'pageview' | 'custom' | 'identify' | 'heartbeat';
 	href: string;
 	referrer?: string | null;
 	visitorId: string;

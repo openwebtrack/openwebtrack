@@ -55,9 +55,14 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 		return json({ error: validation.error, errors: validation.errors }, { status: 400 });
 	}
 
-	const { domain, timezone = access.site.timezone } = validation.data;
+	const { domain, timezone = access.site.timezone, excludedIps, excludedPaths, excludedCountries } = validation.data;
 
-	const [updated] = await db.update(website).set({ domain, timezone }).where(eq(website.id, params.id)).returning();
+	const updateData: Record<string, unknown> = { domain, timezone };
+	if (excludedIps !== undefined) updateData.excludedIps = excludedIps;
+	if (excludedPaths !== undefined) updateData.excludedPaths = excludedPaths;
+	if (excludedCountries !== undefined) updateData.excludedCountries = excludedCountries;
+
+	const [updated] = await db.update(website).set(updateData).where(eq(website.id, params.id)).returning();
 
 	return json(updated);
 };

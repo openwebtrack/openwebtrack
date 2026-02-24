@@ -2,21 +2,21 @@
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 </script>
 
-<div class="flex h-[339px] flex-col overflow-hidden rounded-2xl border border-border bg-card">
+<div class="flex h-[400px] max-h-[400px] min-h-[400px] flex-col overflow-hidden rounded-2xl border border-border bg-card">
 	<div class="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-3">
+		<!-- Tabs -->
 		<div class="flex items-center gap-2">
-			<!-- Tabs -->
-			<div class="flex items-center gap-2">
-				<Skeleton class="h-8 w-20 rounded-lg" />
-				<Skeleton class="h-8 w-20 rounded-lg" />
-			</div>
+			<Skeleton class="h-8 w-20 rounded-lg" />
+			<Skeleton class="h-8 w-20 rounded-lg" />
 		</div>
+		<!-- Scan button -->
+		<Skeleton class="h-7 w-7 rounded-md" />
 	</div>
 
 	<div class="flex-1 p-4">
 		<!-- List Items -->
 		<div class="flex flex-col gap-2">
-			{#each Array(8) as _}
+			{#each Array(6) as _}
 				<div class="relative flex h-8 items-center overflow-hidden rounded">
 					<!-- Progress bar background skeleton -->
 					<div class="absolute inset-y-0 left-0 w-3/4 bg-primary/5"></div>
@@ -34,10 +34,5 @@
 				</div>
 			{/each}
 		</div>
-	</div>
-
-	<!-- Details footer -->
-	<div class="flex items-center justify-center border-t border-border bg-muted/30 px-4 py-3">
-		<Skeleton class="h-4 w-16" />
 	</div>
 </div>

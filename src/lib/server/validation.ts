@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { VALID_EVENT_TYPES, MAX_STRING_LENGTHS } from '$lib/constants';
+import { MAX_STRING_LENGTHS } from '$lib/constants';
 
 const uuidSchema = z.string().uuid();
 
@@ -18,6 +18,8 @@ const domainSchema = z
 
 const timezoneSchema = z.string().max(100).default('UTC');
 
+const stringArraySchema = z.array(z.string().max(500)).max(100).default([]);
+
 export const websiteCreateSchema = z.object({
 	domain: domainSchema,
 	timezone: timezoneSchema.optional()
@@ -25,14 +27,17 @@ export const websiteCreateSchema = z.object({
 
 export const websiteUpdateSchema = z.object({
 	domain: domainSchema,
-	timezone: timezoneSchema.optional()
+	timezone: timezoneSchema.optional(),
+	excludedIps: stringArraySchema.optional(),
+	excludedPaths: stringArraySchema.optional(),
+	excludedCountries: stringArraySchema.optional()
 });
 
 export const teamInviteSchema = z.object({
 	email: z.string().email('Invalid email address').toLowerCase().trim()
 });
 
-const eventTypeSchema = z.enum(['pageview', 'custom', 'identify', 'payment', 'heartbeat']);
+const eventTypeSchema = z.enum(['pageview', 'custom', 'identify', 'heartbeat']);
 
 export const trackingPayloadSchema = z.object({
 	websiteId: z.string().uuid('Invalid website ID'),

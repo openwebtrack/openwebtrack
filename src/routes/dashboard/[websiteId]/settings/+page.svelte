@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Settings, ArrowLeft, Check, Copy, Trash2, Loader2, AlertTriangle, Users, UserPlus, X, Database, Download, Upload } from 'lucide-svelte';
-	import { TIMEZONES } from '$lib/constants';
+	import { Settings, ArrowLeft, Check, Copy, Trash2, Loader2, AlertTriangle, Users, UserPlus, X, Database, Download, Upload, Filter } from 'lucide-svelte';
+	import { TIMEZONES, COUNTRY_OPTIONS } from '$lib/constants';
 	import { browser } from '$app/environment';
 	import type { PageData } from './$types';
 	import { fade } from 'svelte/transition';
@@ -20,8 +20,14 @@
 
 	let originalTimezone = $state(data.website.timezone);
 	let originalDomain = $state(data.website.domain);
+	let originalExcludedIps = $state<string[]>((data.website.excludedIps as string[]) || []);
+	let originalExcludedPaths = $state<string[]>((data.website.excludedPaths as string[]) || []);
+	let originalExcludedCountries = $state<string[]>((data.website.excludedCountries as string[]) || []);
 	let timezone = $state(data.website.timezone);
 	let domain = $state(data.website.domain);
+	let excludedIps = $state<string[]>((data.website.excludedIps as string[]) || []);
+	let excludedPaths = $state<string[]>((data.website.excludedPaths as string[]) || []);
+	let excludedCountries = $state<string[]>((data.website.excludedCountries as string[]) || []);
 	let activeTab = $state('general');
 	let saveSuccess = $state(false);
 	let isSaving = $state(false);
@@ -40,7 +46,89 @@
 
 	let scriptCode = $derived(`<script defer data-website-id="${data.website.id}" data-domain="${domain}" src="${browser ? window.location.origin : ''}/script.js"><\/script>`);
 
-	const hasChanges = $derived(domain !== originalDomain || timezone !== originalTimezone);
+	const hasChanges = $derived(
+		domain !== originalDomain ||
+			timezone !== originalTimezone ||
+			JSON.stringify(excludedIps) !== JSON.stringify(originalExcludedIps) ||
+			JSON.stringify(excludedPaths) !== JSON.stringify(originalExcludedPaths) ||
+			JSON.stringify(excludedCountries) !== JSON.stringify(originalExcludedCountries)
+	);
+
+	let newIp = $state('');
+	let newPath = $state('');
+	let newCountry = $state('');
+	let ipError = $state('');
+	let pathError = $state('');
+
+	const isValidIp = (ip: string): boolean => {
+		const trimmed = ip.trim();
+		if (!trimmed) return false;
+
+		if (trimmed.includes('/')) {
+			const [ipPart, maskPart] = trimmed.split('/');
+			const mask = parseInt(maskPart, 10);
+			if (isNaN(mask) || mask < 0 || mask > 32) return false;
+			return isValidIpBase(ipPart, true);
+		}
+
+		return isValidIpBase(trimmed, true);
+	};
+
+	const isValidIpBase = (ip: string, allowWildcards: boolean): boolean => {
+		const parts = ip.split('.');
+		if (parts.length !== 4) return false;
+
+		for (const part of parts) {
+			if (allowWildcards && part === '*') continue;
+			if (part.includes('*')) return false;
+			const num = parseInt(part, 10);
+			if (isNaN(num) || num < 0 || num > 255) return false;
+			if (part !== String(num)) return false;
+		}
+
+		return true;
+	};
+
+	const isValidPath = (path: string): boolean => {
+		const trimmed = path.trim();
+		if (!trimmed) return false;
+		if (!trimmed.startsWith('/')) return false;
+		if (trimmed.length > 500) return false;
+		if (/[<>\"'\\]/.test(trimmed)) return false;
+		return true;
+	};
+
+	const addIp = () => {
+		ipError = '';
+		const trimmed = newIp.trim();
+		if (!trimmed) return;
+		if (!isValidIp(trimmed)) {
+			ipError = 'Invalid IP format. Use: 192.168.1.1, 192.168.*.*, or 10.0.0.0/24';
+			return;
+		}
+		if (excludedIps.includes(trimmed)) {
+			ipError = 'This IP is already in the list';
+			return;
+		}
+		excludedIps = [...excludedIps, trimmed];
+		newIp = '';
+	};
+
+	const addPath = () => {
+		pathError = '';
+		const trimmed = newPath.trim();
+		if (!trimmed) return;
+		if (!isValidPath(trimmed)) {
+			pathError = 'Invalid path. Must start with / and contain no special characters like < > " \' \\';
+			return;
+		}
+		if (excludedPaths.includes(trimmed)) {
+			pathError = 'This path is already in the list';
+			return;
+		}
+		excludedPaths = [...excludedPaths, trimmed];
+		newPath = '';
+	};
 
 	const copyToClipboard = () => navigator.clipboard.writeText(scriptCode);
 
@@ -67,9 +155,18 @@
 		saveSuccess = false;
 
 		try {
-			await axios.put(`/api/websites/${data.website.id}`, { domain, timezone });
+			await axios.put(`/api/websites/${data.website.id}`, {
+				domain,
+				timezone,
+				excludedIps,
+				excludedPaths,
+				excludedCountries
+			});
 			originalDomain = domain;
 			originalTimezone = timezone;
+			originalExcludedIps = [...excludedIps];
+			originalExcludedPaths = [...excludedPaths];
+			originalExcludedCountries = [...excludedCountries];
 			saveSuccess = true;
 			setTimeout(() => (saveSuccess = false), 2000);
 		} catch (e) {
@@ -238,6 +335,7 @@
 
 	const sidebarItems = [
 		{ id: 'general', label: 'General', icon: Settings },
+		{ id: 'exclusions', label: 'Exclusions', icon: Filter },
 		{ id: 'team', label: 'Team', icon: Users },
 		{ id: 'data', label: 'Data', icon: Database }
 	];
@@ -372,6 +470,185 @@
 							<Button variant="ghost" size="sm" onclick={() => (showDeleteModal = true)} class="text-muted-foreground hover:text-destructive">
 								<Trash2 size={12} class="mr-1" />
 								Delete website
+							</Button>
+						</div>
+					</div>
+				{:else if activeTab === 'exclusions'}
+					<div in:fade={{ duration: 200 }}>
+						<Card.Root>
+							<Card.Header>
+								<Card.Title>Excluded IPs</Card.Title>
+								<Card.Description>Exclude tracking from specific IP addresses. Supports wildcards (e.g., 192.168.*.*) and CIDR notation (e.g., 10.0.0.0/24).</Card.Description>
+							</Card.Header>
+							<Card.Content>
+								<div class="mb-4 flex gap-2">
+									<div class="flex-1">
+										<Input
+											type="text"
+											bind:value={newIp}
+											placeholder="e.g., 192.168.1.1 or 10.0.*.*"
+											onkeydown={(e) => {
+												if (e.key === 'Enter') {
+													e.preventDefault();
+													addIp();
+												}
+											}}
+										/>
+										{#if ipError}
+											<p class="mt-1 text-sm text-destructive">{ipError}</p>
+										{/if}
+									</div>
+									<Button onclick={addIp}>Add</Button>
+								</div>
+								{#if excludedIps.length > 0}
+									<div class="space-y-2">
+										{#each excludedIps as ip, index}
+											<div class="flex items-center justify-between rounded-lg border bg-muted/50 px-3 py-2">
+												<code class="text-sm">{ip}</code>
+												<Button
+													variant="ghost"
+													size="icon-sm"
+													onclick={() => {
+														excludedIps = excludedIps.filter((_, i) => i !== index);
+													}}
+													class="text-muted-foreground hover:text-destructive"
+												>
+													<X size={14} />
+												</Button>
+											</div>
+										{/each}
+									</div>
+								{:else}
+									<p class="text-sm text-muted-foreground">No IPs excluded. Add IP addresses to exclude from tracking.</p>
+								{/if}
+							</Card.Content>
+						</Card.Root>
+
+						<Card.Root class="mt-6">
+							<Card.Header>
+								<Card.Title>Excluded Paths</Card.Title>
+								<Card.Description>Exclude tracking from specific URL paths. Supports wildcards (e.g., /admin/*).</Card.Description>
+							</Card.Header>
+							<Card.Content>
+								<div class="mb-4 flex gap-2">
+									<div class="flex-1">
+										<Input
+											type="text"
+											bind:value={newPath}
+											placeholder="e.g., /admin or /api/*"
+											onkeydown={(e) => {
+												if (e.key === 'Enter') {
+													e.preventDefault();
+													addPath();
+												}
+											}}
+										/>
+										{#if pathError}
+											<p class="mt-1 text-sm text-destructive">{pathError}</p>
+										{/if}
+									</div>
+									<Button onclick={addPath}>Add</Button>
+								</div>
+								{#if excludedPaths.length > 0}
+									<div class="space-y-2">
+										{#each excludedPaths as path, index}
+											<div class="flex items-center justify-between rounded-lg border bg-muted/50 px-3 py-2">
+												<code class="text-sm">{path}</code>
+												<Button
+													variant="ghost"
+													size="icon-sm"
+													onclick={() => {
+														excludedPaths = excludedPaths.filter((_, i) => i !== index);
+													}}
+													class="text-muted-foreground hover:text-destructive"
+												>
+													<X size={14} />
+												</Button>
+											</div>
+										{/each}
+									</div>
+								{:else}
+									<p class="text-sm text-muted-foreground">No paths excluded. Add URL paths to exclude from tracking.</p>
+								{/if}
+							</Card.Content>
+						</Card.Root>
+
+						<Card.Root class="mt-6">
+							<Card.Header>
+								<Card.Title>Excluded Countries</Card.Title>
+								<Card.Description>Exclude tracking from visitors in specific countries.</Card.Description>
+							</Card.Header>
+							<Card.Content>
+								<div class="mb-4">
+									<Select.Root bind:value={newCountry} type="single">
+										<Select.Trigger class="w-full">
+											{newCountry || 'Select a country...'}
+										</Select.Trigger>
+										<Select.Content>
+											{#each COUNTRY_OPTIONS as country}
+												<Select.Item value={country} label={country} />
+											{/each}
+										</Select.Content>
+									</Select.Root>
+								</div>
+								<div class="mb-4">
+									<Button
+										onclick={() => {
+											if (newCountry && !excludedCountries.includes(newCountry)) {
+												excludedCountries = [...excludedCountries, newCountry];
+												newCountry = '';
+											}
+										}}
+										disabled={!newCountry || excludedCountries.includes(newCountry)}
+									>
+										Add Country
+									</Button>
+								</div>
+								{#if excludedCountries.length > 0}
+									<div class="flex flex-wrap gap-2">
+										{#each excludedCountries as country, index}
+											<div class="flex items-center gap-1 rounded-full border bg-muted/50 px-3 py-1">
+												<span class="text-sm">{country}</span>
+												<Button
+													variant="ghost"
+													size="icon-sm"
+													onclick={() => {
+														excludedCountries = excludedCountries.filter((_, i) => i !== index);
+													}}
+													class="h-4 w-4 text-muted-foreground hover:text-destructive"
+												>
+													<X size={12} />
+												</Button>
+											</div>
+										{/each}
+									</div>
+								{:else}
+									<p class="text-sm text-muted-foreground">No countries excluded. Add countries to exclude from tracking.</p>
+								{/if}
+							</Card.Content>
+						</Card.Root>
+
+						{#if saveError}
+							<Alert.Root variant="destructive" class="mt-6">
+								<Alert.Description>{saveError}</Alert.Description>
+							</Alert.Root>
+						{/if}
+
+						{#if saveSuccess}
+							<Alert.Root class="mt-6 border-green-500/50 bg-green-500/10 text-green-500">
+								<Check size={16} />
+								<Alert.Title>Settings saved successfully!</Alert.Title>
+							</Alert.Root>
+						{/if}
+
+						<div class="mt-6 flex justify-end gap-2">
+							<Button onclick={saveSettings} disabled={!hasChanges || isSaving}>
+								{#if isSaving}
+									<Loader2 size={14} class="animate-spin" />
+								{:else if saveSuccess}
+									<Check size={14} />
+								{/if}
+								Save changes
 							</Button>
 						</div>
 					</div>

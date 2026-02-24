@@ -1,6 +1,16 @@
 <script lang="ts">
 	import { Lightbulb } from 'lucide-svelte';
-	import Chart from 'chart.js/auto';
+	import { Tooltip, ArcElement, DoughnutController } from 'chart.js';
+	import Chart, { type ChartConfiguration } from 'chart.js/auto';
+
+	// Register custom positioner to make tooltip follow mouse cursor
+	// @ts-ignore - Tooltip.positioners type doesn't include custom positioners
+	Tooltip.positioners.followMouse = function (elements: any, eventPosition: { x: number; y: number }) {
+		return {
+			x: eventPosition.x,
+			y: eventPosition.y
+		};
+	};
 
 	interface ChannelItem {
 		label: string;
@@ -10,9 +20,8 @@
 	let { data = [] }: { data?: ChannelItem[] } = $props();
 
 	let canvas: HTMLCanvasElement | undefined = $state();
+	let tooltipEl: HTMLDivElement | undefined = $state();
 	let chart: Chart | undefined;
-
-	const chartColors = ['var(--primary)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', '#ec4899'];
 
 	const createChart = () => {
 		if (!canvas) return;
@@ -54,7 +63,124 @@
 			return;
 		}
 
-		chart = new Chart(ctx, {
+		// Custom plugin to draw callout labels
+		const outerLabelsPlugin = {
+			id: 'outerLabels',
+			afterDraw: (chart: Chart) => {
+				const {
+					ctx,
+					chartArea: { width, height, top, left }
+				} = chart;
+				const centerX = left + width / 2;
+				const centerY = top + height / 2;
+
+				ctx.save();
+
+				chart.data.datasets.forEach((dataset, i) => {
+					const meta = chart.getDatasetMeta(i);
+					const outerRadius = (meta.data[0] as ArcElement).outerRadius;
+
+					meta.data.forEach((element: any, index: number) => {
+						const { startAngle, endAngle } = element;
+						const midAngle = startAngle + (endAngle - startAngle) / 2;
+
+						const startX = centerX + Math.cos(midAngle) * outerRadius;
+						const startY = centerY + Math.sin(midAngle) * outerRadius;
+
+						const lineLen = 20;
+						const elbowX = centerX + Math.cos(midAngle) * (outerRadius + lineLen);
+						const elbowY = centerY + Math.sin(midAngle) * (outerRadius + lineLen);
+
+						const labelOffset = 20;
+						const isRightSide = Math.cos(midAngle) >= 0;
+						const endX = isRightSide ? elbowX + labelOffset : elbowX - labelOffset;
+						const endY = elbowY;
+
+						ctx.beginPath();
+						ctx.moveTo(startX, startY);
+						ctx.lineTo(elbowX, elbowY);
+						ctx.lineTo(endX, endY);
+						ctx.strokeStyle = mutedForeground;
+						ctx.lineWidth = 1;
+						ctx.stroke();
+
+						const label = chart.data.labels?.[index] as string;
+
+						ctx.font = '12px sans-serif';
+						ctx.fillStyle = foreground;
+						ctx.textBaseline = 'middle';
+						ctx.textAlign = isRightSide ? 'left' : 'right';
+
+						const textX = isRightSide ? endX + 5 : endX - 5;
+						ctx.fillText(label, textX, endY);
+					});
+				});
+
+				ctx.restore();
+			}
+		};
+
+		const externalTooltipHandler = (context: any) => {
+			const { chart, tooltip } = context;
+			if (!tooltipEl) return;
+
+			const el = tooltipEl;
+
+			if (tooltip.opacity === 0) {
+				el.style.opacity = '0';
+				return;
+			}
+
+			if (tooltip.body) {
+				const dataPoints = tooltip.dataPoints;
+
+				el.textContent = '';
+
+				const container = document.createElement('div');
+				container.className = 'flex flex-col gap-1';
+
+				dataPoints.forEach((dataPoint: any, i: number) => {
+					const colors = tooltip.labelColors[i];
+					const label = dataPoint.label;
+					const value = dataPoint.formattedValue;
+
+					const row = document.createElement('div');
+					row.className = 'flex items-center justify-between gap-4 text-xs text-muted-foreground';
+
+					const leftSide = document.createElement('div');
+					leftSide.className = 'flex items-center gap-2';
+
+					const dot = document.createElement('div');
+					dot.className = 'h-2 w-2 rounded-full';
+					dot.style.backgroundColor = colors.backgroundColor;
+					dot.style.boxShadow = `0 0 8px color-mix(in srgb, ${colors.backgroundColor}, transparent 20%)`;
+
+					const labelSpan = document.createElement('span');
+					labelSpan.textContent = label;
+
+					leftSide.appendChild(dot);
+					leftSide.appendChild(labelSpan);
+
+					const valueSpan = document.createElement('span');
+					valueSpan.className = 'font-medium text-foreground';
+					valueSpan.textContent = value;
+
+					row.appendChild(leftSide);
+					row.appendChild(valueSpan);
+					container.appendChild(row);
+				});
+
+				el.appendChild(container);
+			}
+
+			const { offsetLeft: positionX, offsetTop: positionY } = chart.canvas;
+
+			el.style.opacity = '1';
+			el.style.left = positionX + tooltip.caretX + 'px';
+			el.style.top = positionY + tooltip.caretY + 'px';
+		};
+
+		const config: ChartConfiguration<'doughnut'> = {
 			type: 'doughnut',
 			data: {
 				labels,
@@ -63,34 +189,33 @@
 						data: values,
 						backgroundColor: colors,
 						borderWidth: 0,
-						hoverOffset: 4
+						hoverOffset: 4,
+						borderRadius: 10,
+						spacing: 5
 					}
 				]
 			},
 			options: {
 				responsive: true,
 				maintainAspectRatio: false,
-				cutout: '60%',
+				cutout: '70%',
+				layout: {
+					padding: 24
+				},
 				plugins: {
 					legend: {
 						display: false
 					},
 					tooltip: {
-						backgroundColor: card,
-						titleColor: foreground,
-						bodyColor: mutedForeground,
-						borderColor: border,
-						borderWidth: 1,
-						padding: 10,
-						cornerRadius: 8,
-						displayColors: true,
-						callbacks: {
-							label: (context) => ` ${context.label}: ${context.raw}`
-						}
+						enabled: false,
+						position: 'followMouse' as 'nearest',
+						external: externalTooltipHandler
 					}
 				}
-			}
-		});
+			},
+			plugins: [outerLabelsPlugin]
+		};
+		chart = new Chart(ctx, config);
 	};
 
 	$effect(() => {
@@ -108,7 +233,7 @@
 	});
 </script>
 
-<div class="relative flex h-48 w-full items-center justify-center">
+<div class="relative flex h-full w-full items-center justify-center">
 	{#if data.length === 0 || data.every((d) => d.value === 0)}
 		<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 			<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -116,19 +241,10 @@
 		</div>
 	{:else}
 		<canvas bind:this={canvas}></canvas>
+		<div
+			bind:this={tooltipEl}
+			class="pointer-events-none absolute z-50 min-w-[140px] rounded-lg border border-border bg-popover px-3 py-2 text-sm text-popover-foreground shadow-xl transition-opacity duration-200"
+			style="opacity: 0; transform: translate(-50%, -100%) translateY(-8px);"
+		></div>
 	{/if}
 </div>
-
-{#if data.length > 0 && !data.every((d) => d.value === 0)}
-	<div class="mt-4 flex flex-col justify-center gap-2">
-		{#each data as item, i}
-			<div class="flex items-center justify-between text-sm">
-				<div class="flex items-center gap-2">
-					<div class="h-2 w-2 rounded-full" style="background-color: {chartColors[i]}"></div>
-					<span class="text-muted-foreground">{item.label}</span>
-				</div>
-				<span class="font-medium">{item.value}</span>
-			</div>
-		{/each}
-	</div>
-{/if}

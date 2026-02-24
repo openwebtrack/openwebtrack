@@ -26,3 +26,4 @@ vite.config.ts.timestamp-*
 # Other
 /static/script.js
 telemetry-id
+/scripts

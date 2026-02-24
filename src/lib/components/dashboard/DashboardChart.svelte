@@ -1,5 +1,15 @@
 <script lang="ts">
+	import { Tooltip } from 'chart.js';
 	import Chart from 'chart.js/auto';
+
+	// Register custom positioner to make tooltip follow mouse cursor
+	// @ts-ignore - Tooltip.positioners type doesn't include custom positioners
+	Tooltip.positioners.followMouse = function (elements: any, eventPosition: { x: number; y: number }) {
+		return {
+			x: eventPosition.x,
+			y: eventPosition.y
+		};
+	};
 
 	interface TimeSeriesPoint {
 		date: string;
@@ -26,6 +36,7 @@
 	} = $props();
 
 	let canvas: HTMLCanvasElement | undefined = $state();
+	let tooltipEl: HTMLDivElement | undefined = $state();
 	let chart: Chart | null = null;
 
 	const formatLabel = (dateStr: string): string => {
@@ -95,6 +106,75 @@
 
 		const maxTicksLimit = granularity === 'hourly' ? 24 : granularity === 'monthly' ? 12 : 8;
 
+		const externalTooltipHandler = (context: any) => {
+			const { chart, tooltip } = context;
+			if (!tooltipEl) return;
+
+			const el = tooltipEl;
+
+			if (tooltip.opacity === 0) {
+				el.style.opacity = '0';
+				return;
+			}
+
+			if (tooltip.body) {
+				const titleLines = tooltip.title || [];
+				const bodyLines = tooltip.body.map((b: any) => b.lines);
+
+				el.textContent = '';
+
+				titleLines.forEach((title: string) => {
+					const titleDiv = document.createElement('div');
+					titleDiv.className = 'mb-2 font-medium';
+					titleDiv.textContent = title;
+					el.appendChild(titleDiv);
+				});
+
+				const bodyContainer = document.createElement('div');
+				bodyContainer.className = 'flex flex-col gap-1';
+
+				bodyLines.forEach((body: string, i: number) => {
+					const colors = tooltip.labelColors[i];
+					const parts = body[0].split(': ');
+					const label = parts[0];
+					const value = parts[1];
+
+					const row = document.createElement('div');
+					row.className = 'flex items-center justify-between gap-4 text-xs text-muted-foreground';
+
+					const leftSide = document.createElement('div');
+					leftSide.className = 'flex items-center gap-2';
+
+					const dot = document.createElement('div');
+					dot.className = 'h-2 w-2 rounded-full';
+					dot.style.backgroundColor = colors.borderColor;
+					dot.style.boxShadow = `0 0 8px color-mix(in srgb, ${colors.borderColor}, transparent 20%)`;
+
+					const labelSpan = document.createElement('span');
+					labelSpan.textContent = label;
+
+					leftSide.appendChild(dot);
+					leftSide.appendChild(labelSpan);
+
+					const valueSpan = document.createElement('span');
+					valueSpan.className = 'font-medium text-foreground';
+					valueSpan.textContent = value;
+
+					row.appendChild(leftSide);
+					row.appendChild(valueSpan);
+					bodyContainer.appendChild(row);
+				});
+
+				el.appendChild(bodyContainer);
+			}
+
+			const { offsetLeft: positionX, offsetTop: positionY } = chart.canvas;
+
+			el.style.opacity = '1';
+			el.style.left = positionX + tooltip.caretX + 'px';
+			el.style.top = positionY + tooltip.caretY + 'px';
+		};
+
 		return new Chart(ctx, {
 			type: 'line',
 			data: {
@@ -144,14 +224,9 @@
 						display: false
 					},
 					tooltip: {
-						backgroundColor: card,
-						titleColor: foreground,
-						bodyColor: mutedForeground,
-						borderColor: border,
-						borderWidth: 1,
-						padding: 12,
-						cornerRadius: 12,
-						displayColors: true
+						enabled: false,
+						position: 'followMouse' as 'nearest',
+						external: externalTooltipHandler
 					}
 				},
 				scales: {
@@ -250,6 +325,16 @@
 			<div class="text-2xl font-bold tracking-tight">{stats.pageviews}</div>
 		</div>
 
+		<div class="relative overflow-hidden rounded-xl bg-muted/50 transition-all hover:bg-muted">
+			<div class="p-4">
+				<div class="mb-2 flex items-center gap-2">
+					<span class="text-xs font-medium text-muted-foreground">Online</span>
+					<div class="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
+				</div>
+				<div class="text-2xl font-bold tracking-tight">{stats.online}</div>
+			</div>
+		</div>
+
 		<div class="p-4">
 			<div class="mb-2">
 				<span class="text-xs font-medium text-muted-foreground">Sessions</span>
@@ -263,18 +348,15 @@
 			</div>
 			<div class="text-2xl font-bold">{formatDuration(stats.avgSessionDuration)}</div>
 		</div>
-
-		<div class="p-4">
-			<div class="mb-2 flex items-center gap-2">
-				<span class="text-xs font-medium text-muted-foreground">Online</span>
-				<div class="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
-			</div>
-			<div class="text-2xl font-bold">{stats.online}</div>
-		</div>
 	</div>
 
 	<div class="relative h-[300px] w-full">
 		<canvas bind:this={canvas}></canvas>
+		<div
+			bind:this={tooltipEl}
+			class="pointer-events-none absolute z-50 min-w-[140px] rounded-lg border border-border bg-popover px-3 py-2 text-sm text-popover-foreground shadow-xl transition-opacity duration-200"
+			style="opacity: 0; transform: translate(-50%, -100%) translateY(-8px);"
+		></div>
 		{#if !timeSeries || timeSeries.length === 0}
 			<div class="absolute inset-0 flex items-center justify-center text-muted-foreground">
 				<p>No data for selected period</p>

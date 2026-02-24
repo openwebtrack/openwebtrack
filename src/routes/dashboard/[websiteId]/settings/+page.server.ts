@@ -21,6 +21,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	return {
 		user: locals.user,
-		website: site
+		website: {
+			...site,
+			excludedIps: site.excludedIps || [],
+			excludedPaths: site.excludedPaths || [],
+			excludedCountries: site.excludedCountries || []
+		}
 	};
 };

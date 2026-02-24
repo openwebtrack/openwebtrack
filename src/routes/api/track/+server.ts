@@ -1,4 +1,4 @@
-import { SESSION_EXPIRY_MINUTES, GEO_CACHE_TTL_MS, GEO_CACHE_MAX_SIZE, MAX_STRING_LENGTHS, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS } from '$lib/constants';
+import { SESSION_EXPIRY_MINUTES, GEO_CACHE_TTL_MS, GEO_CACHE_MAX_SIZE, MAX_STRING_LENGTHS, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS, COUNTRY_OPTIONS } from '$lib/constants';
 import { website, visitor, analyticsSession, pageview, analyticsEvent } from '$lib/server/db/schema';
 import { sanitizeString, extractPathname, extractUtmParams } from '$lib/server/utils';
 import { generateVisitorName, generateAvatarUrl } from '$lib/server/visitor-utils';
@@ -97,6 +97,66 @@ const isPrivateIP = (ip: string): boolean => {
 	if (ip === 'localhost' || ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') return true;
 	const privateRanges = [/^10\./, /^172\.(1[6-9]|2[0-9]|3[0-1])\./, /^192\.168\./, /^169\.254\./, /^fc00:/i, /^fe80:/i];
 	return privateRanges.some((range) => range.test(ip));
+};
+
+const matchIp = (clientIp: string, pattern: string): boolean => {
+	const normalizedClient = clientIp.toLowerCase().trim();
+	const normalizedPattern = pattern.toLowerCase().trim();
+
+	if (normalizedPattern.includes('/')) {
+		return matchIpCidr(normalizedClient, normalizedPattern);
+	}
+
+	if (normalizedPattern.includes('*')) {
+		const patternOctets = normalizedPattern.split('.');
+		const clientOctets = normalizedClient.split('.');
+
+		if (patternOctets.length !== 4 || clientOctets.length !== 4) return false;
+
+		for (let i = 0; i < 4; i++) {
+			const patternOctet = patternOctets[i];
+			const clientOctet = clientOctets[i];
+
+			if (patternOctet !== '*' && patternOctet !== clientOctet) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	return normalizedClient === normalizedPattern;
+};
+
+const matchIpCidr = (ip: string, cidr: string): boolean => {
+	try {
+		const [range, bitsStr] = cidr.split('/');
+		const bits = parseInt(bitsStr, 10);
+
+		if (ip.includes(':') || range.includes(':')) {
+			return false;
+		}
+
+		const ipNum = ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
+		const rangeNum = range.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
+		const mask = bits === 0 ? 0 : ~((1 << (32 - bits)) - 1) >>> 0;
+
+		return (ipNum & mask) === (rangeNum & mask);
+	} catch {
+		return false;
+	}
+};
+
+const matchPath = (pathname: string, pattern: string): boolean => {
+	const normalizedPath = pathname.toLowerCase();
+	const normalizedPattern = pattern.toLowerCase();
+
+	if (normalizedPattern.includes('*')) {
+		const escapedPattern = normalizedPattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+		const regexPattern = escapedPattern.replace(/\*/g, '[^/]*');
+		return new RegExp(`^${regexPattern}$`).test(normalizedPath);
+	}
+
+	return normalizedPath === normalizedPattern;
 };
 
 const geoCache = new Map<string, GeoCacheEntry>();
@@ -238,6 +298,39 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		return json({ error: 'Website not found' }, { status: 404, headers: CORS_HEADERS });
 	}
 
+	const clientIP = getClientIP(request, socketIP);
+	const pathname = extractPathname(payload.href);
+
+	const excludedIps = (site.excludedIps as string[] | null) || [];
+	const excludedPaths = (site.excludedPaths as string[] | null) || [];
+	const excludedCountries = (site.excludedCountries as string[] | null) || [];
+
+	if (clientIP && excludedIps.length > 0) {
+		for (const excludedIp of excludedIps) {
+			if (!excludedIp) continue;
+			if (matchIp(clientIP, excludedIp)) {
+				return json({ success: true, excluded: true }, { status: 200, headers: CORS_HEADERS });
+			}
+		}
+	}
+
+	if (excludedPaths.length > 0 && pathname) {
+		for (const excludedPath of excludedPaths) {
+			if (!excludedPath) continue;
+			if (matchPath(pathname, excludedPath)) {
+				return json({ success: true, excluded: true }, { status: 200, headers: CORS_HEADERS });
+			}
+		}
+	}
+
+	const geoData = await getGeoData(clientIP);
+
+	if (excludedCountries.length > 0 && geoData.country) {
+		if (COUNTRY_OPTIONS.includes(geoData.country as any) && excludedCountries.includes(geoData.country)) {
+			return json({ success: true, excluded: true }, { status: 200, headers: CORS_HEADERS });
+		}
+	}
+
 	const requestDomain = payload.domain
 		.toLowerCase()
 		.replace(/^www\./, '')
@@ -253,10 +346,6 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 
 	const now = new Date();
 	const sessionExpiry = new Date(now.getTime() + SESSION_EXPIRY_MINUTES * 60 * 1000);
-
-	const clientIP = getClientIP(request, socketIP);
-
-	const geoData = await getGeoData(clientIP);
 
 	const [existingVisitor, existingSession] = await Promise.all([
 		db
