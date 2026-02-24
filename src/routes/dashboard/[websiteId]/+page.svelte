@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { Lightbulb, RefreshCw, Settings, Search, Loader2, Users } from 'lucide-svelte';
+	import { getBrowserIcon, getOsIcon, getDeviceIcon, getCountryFlag, getRegionIcon, getCityIcon } from '$lib/utils/icons';
+	import { Lightbulb, RefreshCw, Settings, Search, Loader2, Users, ChevronDown, Check } from 'lucide-svelte';
 	import { generateVisitorName } from '$lib/visitor-utils';
 	import getCountryCode from '$lib/utils/country-mapping';
-	import { getBrowserIcon, getOsIcon, getDeviceIcon, getCountryFlag, getRegionIcon, getCityIcon } from '$lib/utils/icons';
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
@@ -17,7 +17,7 @@
 	import DashboardChart from '$lib/components/dashboard/DashboardChart.svelte';
 	import FilterPicker from '$lib/components/dashboard/FilterPicker.svelte';
 	import DonutChart from '$lib/components/dashboard/DonutChart.svelte';
-	import * as HoverCard from '$lib/components/ui/hover-card/index.js';
+	import * as Popover from '$lib/components/ui/popover/index.js';
 	import TabbedCard from '$lib/components/dashboard/TabbedCard.svelte';
 	import EventList from '$lib/components/dashboard/EventList.svelte';
 	import Skeleton from '$lib/components/dashboard/Skeleton.svelte';
@@ -121,6 +121,7 @@
 	}
 
 	let { data }: { data: PageData } = $props();
+	let currentWebsiteId = $state<string | null>(null);
 	let browserActiveTab = $state(0);
 	let channelActiveTab = $state(0);
 	let pageActiveTab = $state(1);
@@ -447,40 +448,71 @@
 		const interval = setInterval(fetchData, 20000);
 		return () => clearInterval(interval);
 	});
+
+	$effect(() => {
+		if (data.website.id && data.website.id !== currentWebsiteId) {
+			currentWebsiteId = data.website.id;
+			apiData = null;
+			visitors = [];
+			events = [];
+			fetchData();
+		}
+	});
 </script>
 
 <div class="relative min-h-screen bg-background pb-32 selection:bg-primary/30">
 	<main class="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
 		<div class="glass-panel sticky top-4 z-50 mt-6 flex flex-wrap items-center gap-4 rounded-2xl border-border bg-card/60 p-2 backdrop-blur-xl">
-			{#if data.isOwner}
-				<!-- svelte-ignore a11y_click_events_have_key_events -->
-				<!-- svelte-ignore a11y_no_static_element_interactions -->
-				<div
-					class="group ml-1 flex cursor-pointer items-center rounded-xl border border-border bg-muted/50 px-2 py-1.5 pr-3 transition-colors hover:bg-muted"
-					onclick={() => goto(`/dashboard/${data.website.id}/settings`)}
-				>
+			<Popover.Root>
+				<Popover.Trigger class="group ml-1 flex cursor-pointer items-center rounded-xl border border-border bg-muted/50 px-2 py-1.5 pr-3 transition-colors hover:bg-muted">
 					<img src="https://icons.duckduckgo.com/ip3/{data.website.domain}.ico" alt={data.website.domain} class="mr-2 size-4" />
 					<span class="mr-2 text-sm font-semibold tracking-tight transition-colors group-hover:text-foreground">{data.website.domain}</span>
-					<Settings class="h-3.5 w-3.5 text-muted-foreground" />
-				</div>
-			{:else}
-				<div class="ml-1 flex items-center rounded-xl border border-border bg-muted/50 px-2 py-1.5">
-					<img src="https://icons.duckduckgo.com/ip3/{data.website.domain}.ico" alt={data.website.domain} class="mr-2 size-4" />
-					<span class="mr-2 text-sm font-semibold tracking-tight">{data.website.domain}</span>
-					<HoverCard.Root>
-						<HoverCard.Trigger>
-							<span class="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-								<Users class="h-3 w-3" />
-								Shared
-							</span>
-						</HoverCard.Trigger>
-						<HoverCard.Content side="bottom" align="start" class="max-w-fit">
-							<div class="text-sm">{(data.website.owner as any)?.name || 'Unknown'}</div>
-							<div class="text-xs text-muted-foreground">{(data.website.owner as any)?.email || 'Unknown'}</div>
-						</HoverCard.Content>
-					</HoverCard.Root>
-				</div>
-			{/if}
+					{#if !data.isOwner}
+						<div title="Shared">
+							<Users class="h-3 w-3 text-primary" />
+						</div>
+					{/if}
+					<ChevronDown class="h-3.5 w-3.5 text-muted-foreground" />
+				</Popover.Trigger>
+				<Popover.Content class="w-64 p-2" align="start">
+					<div class="mb-2 px-2 text-xs font-medium text-muted-foreground">Switch Website</div>
+					<div class="max-h-64 overflow-y-auto">
+						{#each data.websites as site}
+							<button
+								class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+								onclick={() => {
+									if (site.id !== data.website.id) {
+										goto(`/dashboard/${site.id}`);
+									}
+								}}
+							>
+								<img src="https://icons.duckduckgo.com/ip3/{site.domain}.ico" alt={site.domain} class="size-4 shrink-0" />
+								<span class="flex-1 truncate font-medium">{site.domain}</span>
+								{#if !site.isOwner}
+									<span class="flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+										<Users class="h-2.5 w-2.5" />
+										Shared
+									</span>
+								{/if}
+								{#if site.id === data.website.id}
+									<Check class="h-4 w-4 text-primary" />
+								{/if}
+							</button>
+						{/each}
+					</div>
+					{#if data.isOwner}
+						<div class="mt-2 border-t pt-2">
+							<button
+								class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+								onclick={() => goto(`/dashboard/${data.website.id}/settings`)}
+							>
+								<Settings class="h-4 w-4 text-muted-foreground" />
+								<span>Website Settings</span>
+							</button>
+						</div>
+					{/if}
+				</Popover.Content>
+			</Popover.Root>
 
 			<div class="mx-2 h-6 w-px bg-border"></div>
 
@@ -512,14 +544,26 @@
 				<div class="mb-8 grid grid-cols-2 gap-6 md:grid-cols-6">
 					{#each Array(2) as _}
 						<div class="relative overflow-hidden rounded-xl bg-muted/50 p-4">
-							<Skeleton class="mb-2 h-4 w-16" />
-							<Skeleton class="h-8 w-12" />
+							<div class="mb-2 flex items-center gap-2">
+								<Skeleton class="h-2 w-2 rounded-full" />
+								<Skeleton class="h-3 w-16" />
+							</div>
+							<Skeleton class="h-7 w-12" />
 						</div>
 					{/each}
-					{#each Array(3) as _}
+					<div class="relative overflow-hidden rounded-xl bg-muted/50">
 						<div class="p-4">
-							<Skeleton class="mb-2 h-4 w-16" />
-							<Skeleton class="h-8 w-12" />
+							<div class="mb-2 flex items-center gap-2">
+								<Skeleton class="h-3 w-14" />
+								<Skeleton class="h-1.5 w-1.5 rounded-full" />
+							</div>
+							<Skeleton class="h-7 w-8" />
+						</div>
+					</div>
+					{#each Array(2) as _}
+						<div class="p-4">
+							<Skeleton class="mb-2 h-3 w-16" />
+							<Skeleton class="h-7 w-12" />
 						</div>
 					{/each}
 				</div>
