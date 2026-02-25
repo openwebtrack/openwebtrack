@@ -29,7 +29,6 @@
 		const ctx = canvas.getContext('2d');
 		if (!ctx) return;
 
-		// Resolve colors
 		const computedStyle = getComputedStyle(document.documentElement);
 		const primary = computedStyle.getPropertyValue('--primary').trim() || '#3b82f6';
 		const chart2 = computedStyle.getPropertyValue('--chart-2').trim() || '#a855f7';
@@ -97,11 +96,11 @@
 						const startX = centerX + Math.cos(midAngle) * outerRadius;
 						const startY = centerY + Math.sin(midAngle) * outerRadius;
 
-						const lineLen = 30;
+						const lineLen = 20;
 						const elbowX = centerX + Math.cos(midAngle) * (outerRadius + lineLen);
 						const elbowY = centerY + Math.sin(midAngle) * (outerRadius + lineLen);
 
-						const labelOffset = 30;
+						const labelOffset = 20;
 						const isRightSide = Math.cos(midAngle) >= 0;
 						const endX = isRightSide ? elbowX + labelOffset : elbowX - labelOffset;
 						const endY = elbowY;
@@ -120,11 +119,9 @@
 					});
 				});
 
-				const minSpacing = 16; // 12px font + 4px padding
+				const minSpacing = 16;
 
-				// Function to adjust Y positions to prevent overlap
 				const adjustPositions = (items: typeof labelItems) => {
-					// Sort by Y position (top to bottom)
 					items.sort((a, b) => a.endY - b.endY);
 
 					for (let i = 1; i < items.length; i++) {
@@ -148,7 +145,6 @@
 				[...leftItems, ...rightItems].forEach((item) => {
 					const { startX, startY, elbowX, elbowY, isRightSide, label } = item;
 
-					// Recalculate endX based on the original offset logic but using new elbowY (which is same as endY)
 					const labelOffset = 20;
 					const finalEndX = isRightSide ? elbowX + labelOffset : elbowX - labelOffset;
 
@@ -253,7 +249,12 @@
 				maintainAspectRatio: false,
 				cutout: '55%',
 				layout: {
-					padding: 24
+					padding: {
+						top: 30,
+						bottom: 30,
+						left: 80,
+						right: 80
+					}
 				},
 				plugins: {
 					legend: {
@@ -268,6 +269,7 @@
 			},
 			plugins: [outerLabelsPlugin]
 		};
+
 		chart = new Chart(ctx, config);
 	};
 
@@ -286,14 +288,14 @@
 	});
 </script>
 
-<div class="relative flex h-full w-full items-center justify-center">
+<div class="relative flex h-full w-full items-center justify-center overflow-visible">
 	{#if data.length === 0 || data.every((d) => d.value === 0)}
 		<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 			<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
 			<p>No channel data yet.</p>
 		</div>
 	{:else}
-		<canvas bind:this={canvas}></canvas>
+		<canvas bind:this={canvas} style="overflow: visible;"></canvas>
 		<div
 			bind:this={tooltipEl}
 			class="pointer-events-none absolute z-50 min-w-[140px] rounded-lg border border-border bg-popover px-3 py-2 text-sm text-popover-foreground shadow-xl transition-opacity duration-200"
