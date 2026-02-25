@@ -1,4 +1,4 @@
-import { SESSION_EXPIRY_MINUTES, GEO_CACHE_TTL_MS, GEO_CACHE_MAX_SIZE, MAX_STRING_LENGTHS, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS, COUNTRY_OPTIONS } from '$lib/constants';
+import { SESSION_EXPIRY_MINUTES, GEO_CACHE_TTL_MS, GEO_CACHE_MAX_SIZE, MAX_STRING_LENGTHS, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS, COUNTRY_OPTIONS } from '@/utils/constants';
 import { website, visitor, analyticsSession, pageview, analyticsEvent } from '$lib/server/db/schema';
 import { sanitizeString, extractPathname, extractUtmParams } from '$lib/server/utils';
 import { generateVisitorName, generateAvatarUrl } from '$lib/server/visitor-utils';

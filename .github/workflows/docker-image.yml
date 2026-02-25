@@ -36,7 +36,7 @@ jobs:
         id: tag
         run: |
           if [ "${{ github.event_name }}" == "release" ]; then
-            echo "DOCKER_TAG=${{ github.ref_name }}" >> $GITHUB_ENV
+            echo "DOCKER_TAG=latest" >> $GITHUB_ENV
           else
             echo "DOCKER_TAG=${{ github.event.inputs.tag || 'latest' }}" >> $GITHUB_ENV
           fi

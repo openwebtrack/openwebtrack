@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ArrowLeft, Check, Copy, Loader2 } from 'lucide-svelte';
-	import { TIMEZONES } from '$lib/constants';
+	import { TIMEZONES } from '$lib/utils/constants';
 	import { browser } from '$app/environment';
 	import { fade } from 'svelte/transition';
 	import { goto } from '$app/navigation';

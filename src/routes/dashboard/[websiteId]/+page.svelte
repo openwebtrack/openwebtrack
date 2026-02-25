@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getBrowserIcon, getOsIcon, getDeviceIcon, getCountryFlag, getRegionIcon, getCityIcon } from '$lib/utils/icons';
 	import { Lightbulb, RefreshCw, Settings, Search, Loader2, Users, ChevronDown, Check } from 'lucide-svelte';
-	import { generateVisitorName } from '$lib/visitor-utils';
+	import { generateVisitorName } from '$lib/utils/visitor';
 	import getCountryCode from '$lib/utils/country-mapping';
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
@@ -54,6 +54,7 @@
 		exitLinks: { label: string; value: number; icon?: string }[];
 		topReferrers: { label: string; value: number; icon?: string }[];
 		channelData: { label: string; value: number; icon?: string }[];
+		campaignData: { label: string; value: number; icon?: string }[];
 		customEvents: { type: string; name: string | null; value: number; icon?: string }[];
 		deviceStats: { label: string; value: number; icon?: string }[];
 		browserStats: { label: string; value: number; icon?: string }[];
@@ -257,6 +258,7 @@
 	let exitLinks = $derived(apiData?.exitLinks || []);
 	let topReferrers = $derived(apiData?.topReferrers || []);
 	let channelData = $derived(apiData?.channelData || []);
+	let campaignData = $derived(apiData?.campaignData || []);
 	let deviceStats = $derived(apiData?.deviceStats || []);
 	let browserStats = $derived(apiData?.browserStats || []);
 	let osStats = $derived(apiData?.osStats || []);
@@ -305,7 +307,6 @@
 	};
 
 	const openVisitorDetails = (event: EventItem) => {
-		console.log('Opening visitor details for event:', event);
 		selectedVisitor = {
 			visitorId: event.visitor.id,
 			name: event.visitor.name,
@@ -612,12 +613,13 @@
 
 			<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 				<TabbedCard
-					tabs={['Channel', 'Referrer']}
+					tabs={['Channel', 'Referrer', 'Campaign']}
 					activeTab={channelActiveTab}
 					onTabChange={(i) => (channelActiveTab = i)}
 					onDetails={() => {
 						if (channelActiveTab === 0) openMetricDetails('channels', 'Channels');
 						else if (channelActiveTab === 1) openMetricDetails('referrers', 'Referrers');
+						else if (channelActiveTab === 2) openMetricDetails('campaigns', 'Campaigns');
 					}}
 					count={stats.visitors}
 					class="h-[340px]"
@@ -633,6 +635,15 @@
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
 								<p>No referrers yet.</p>
+							</div>
+						{/if}
+					{:else if channelActiveTab === 2}
+						{#if campaignData.length > 0}
+							<BarList items={campaignData} />
+						{:else}
+							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
+								<p>No campaign data yet.</p>
 							</div>
 						{/if}
 					{/if}

@@ -5,7 +5,7 @@ import { json, error } from '@sveltejs/kit';
 import db from '$lib/server/db';
 import { parseDateRange, parseFilters, escapeLikePattern, buildFilterConditions, categorizeChannel, checkWebsiteAccess, isValidUUID } from '$lib/server/utils';
 import { metricsQuerySchema, validateQuery } from '$lib/server/validation';
-import { DEFAULT_QUERY_LIMITS } from '$lib/constants';
+import { DEFAULT_QUERY_LIMITS } from '@/utils/constants';
 
 export const GET: RequestHandler = async ({ locals, params, url }) => {
 	if (!locals.user) {
@@ -140,6 +140,37 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			data = Array.from(channelCounts.entries())
 				.map(([label, value]) => ({ label, value }))
 				.sort((a, b) => b.value - a.value)
+				.slice(0, limit);
+			break;
+		}
+		case 'campaigns': {
+			const rows = await db
+				.select({
+					utmSource: analyticsSession.utmSource,
+					utmMedium: analyticsSession.utmMedium,
+					utmCampaign: analyticsSession.utmCampaign,
+					count: count()
+				})
+				.from(analyticsSession)
+				.where(
+					and(
+						baseSessionWhere,
+						sql`(${analyticsSession.utmSource} IS NOT NULL AND ${analyticsSession.utmSource} != '') OR (${analyticsSession.utmMedium} IS NOT NULL AND ${analyticsSession.utmMedium} != '') OR (${analyticsSession.utmCampaign} IS NOT NULL AND ${analyticsSession.utmCampaign} != '')`
+					)
+				)
+				.groupBy(analyticsSession.utmSource, analyticsSession.utmMedium, analyticsSession.utmCampaign)
+				.orderBy(desc(count()))
+				.limit(limit * 2);
+
+			data = rows
+				.map((c) => {
+					const parts: string[] = [];
+					if (c.utmSource) parts.push(`utm_source=${c.utmSource}`);
+					if (c.utmMedium) parts.push(`utm_medium=${c.utmMedium}`);
+					if (c.utmCampaign) parts.push(`utm_campaign=${c.utmCampaign}`);
+					return { label: parts.length > 0 ? `?${parts.join('&')}` : 'Unknown', value: c.count };
+				})
+				.filter((d) => !search || d.label.toLowerCase().includes(search.toLowerCase()))
 				.slice(0, limit);
 			break;
 		}

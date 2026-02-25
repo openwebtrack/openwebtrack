@@ -20,7 +20,7 @@ import {
 } from '$lib/server/utils';
 import { statsQuerySchema, validateQuery } from '$lib/server/validation';
 import type { Granularity } from '$lib/server/types';
-import { DEFAULT_QUERY_LIMITS } from '$lib/constants';
+import { DEFAULT_QUERY_LIMITS } from '@/utils/constants';
 
 interface TimeSeriesPoint {
 	date: string;
@@ -255,6 +255,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		exitLinks,
 		topReferrers,
 		sessionReferrers,
+		campaignData,
 		customEvents,
 		recentSessions,
 		deviceStats,
@@ -316,6 +317,23 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			.groupBy(analyticsSession.referrer, analyticsSession.utmSource, analyticsSession.utmMedium)
 			.orderBy(desc(count()))
 			.limit(50),
+		db
+			.select({
+				utmSource: analyticsSession.utmSource,
+				utmMedium: analyticsSession.utmMedium,
+				utmCampaign: analyticsSession.utmCampaign,
+				count: count()
+			})
+			.from(analyticsSession)
+			.where(
+				and(
+					baseSessionWhere,
+					sql`(${analyticsSession.utmSource} IS NOT NULL AND ${analyticsSession.utmSource} != '') OR (${analyticsSession.utmMedium} IS NOT NULL AND ${analyticsSession.utmMedium} != '') OR (${analyticsSession.utmCampaign} IS NOT NULL AND ${analyticsSession.utmCampaign} != '')`
+				)
+			)
+			.groupBy(analyticsSession.utmSource, analyticsSession.utmMedium, analyticsSession.utmCampaign)
+			.orderBy(desc(count()))
+			.limit(20),
 		db
 			.select({ type: analyticsEvent.type, name: analyticsEvent.name, count: count() })
 			.from(analyticsEvent)
@@ -435,6 +453,13 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			return { label, value: r.count };
 		}),
 		channelData: data,
+		campaignData: campaignData.map((c) => {
+			const parts: string[] = [];
+			if (c.utmSource) parts.push(`utm_source=${c.utmSource}`);
+			if (c.utmMedium) parts.push(`utm_medium=${c.utmMedium}`);
+			if (c.utmCampaign) parts.push(`utm_campaign=${c.utmCampaign}`);
+			return { label: parts.length > 0 ? `?${parts.join('&')}` : 'Unknown', value: c.count };
+		}),
 		customEvents: customEvents.map((e) => ({ type: e.type, name: e.name, value: e.count })),
 		recentSessions,
 		deviceStats: deviceStats.map((d) => ({ label: `${d.screenWidth}x${d.screenHeight}`, value: d.count })),

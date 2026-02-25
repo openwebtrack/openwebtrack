@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Lightbulb } from 'lucide-svelte';
-	import { Tooltip, ArcElement, DoughnutController } from 'chart.js';
 	import Chart, { type ChartConfiguration } from 'chart.js/auto';
+	import { Tooltip, ArcElement } from 'chart.js';
+	import { Lightbulb } from 'lucide-svelte';
 
 	// Register custom positioner to make tooltip follow mouse cursor
 	// @ts-ignore - Tooltip.positioners type doesn't include custom positioners
@@ -36,10 +36,8 @@
 		const chart3 = computedStyle.getPropertyValue('--chart-3').trim() || '#22c55e';
 		const chart4 = computedStyle.getPropertyValue('--chart-4').trim() || '#eab308';
 		const chart5 = computedStyle.getPropertyValue('--chart-5').trim() || '#f97316';
-		const card = computedStyle.getPropertyValue('--card').trim() || '#fff';
 		const foreground = computedStyle.getPropertyValue('--foreground').trim() || '#000';
 		const mutedForeground = computedStyle.getPropertyValue('--muted-foreground').trim() || '#71717a';
-		const border = computedStyle.getPropertyValue('--border').trim() || '#e4e4e7';
 
 		const resolvedColors = [primary, chart2, chart3, chart4, chart5, '#ec4899'];
 
@@ -99,11 +97,11 @@
 						const startX = centerX + Math.cos(midAngle) * outerRadius;
 						const startY = centerY + Math.sin(midAngle) * outerRadius;
 
-						const lineLen = 20;
+						const lineLen = 30;
 						const elbowX = centerX + Math.cos(midAngle) * (outerRadius + lineLen);
 						const elbowY = centerY + Math.sin(midAngle) * (outerRadius + lineLen);
 
-						const labelOffset = 20;
+						const labelOffset = 30;
 						const isRightSide = Math.cos(midAngle) >= 0;
 						const endX = isRightSide ? elbowX + labelOffset : elbowX - labelOffset;
 						const endY = elbowY;
@@ -153,7 +151,7 @@
 					// Recalculate endX based on the original offset logic but using new elbowY (which is same as endY)
 					const labelOffset = 20;
 					const finalEndX = isRightSide ? elbowX + labelOffset : elbowX - labelOffset;
-					
+
 					ctx.beginPath();
 					ctx.moveTo(startX, startY);
 					ctx.lineTo(elbowX, elbowY);
@@ -253,7 +251,7 @@
 			options: {
 				responsive: true,
 				maintainAspectRatio: false,
-				cutout: '70%',
+				cutout: '55%',
 				layout: {
 					padding: 24
 				},

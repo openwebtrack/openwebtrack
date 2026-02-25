@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MAX_STRING_LENGTHS } from '$lib/constants';
+import { MAX_STRING_LENGTHS } from '@/utils/constants';
 
 const uuidSchema = z.string().uuid();
 
@@ -69,7 +69,7 @@ export const trackingPayloadSchema = z.object({
 });
 
 export const metricsQuerySchema = z.object({
-	type: z.enum(['pages', 'entry_pages', 'exit_links', 'referrers', 'channels', 'countries', 'regions', 'cities', 'browsers', 'os', 'devices', 'screens', 'hostnames']).optional(),
+	type: z.enum(['pages', 'entry_pages', 'exit_links', 'referrers', 'channels', 'campaigns', 'countries', 'regions', 'cities', 'browsers', 'os', 'devices', 'screens', 'hostnames']).optional(),
 	search: z.string().max(100).optional(),
 	limit: z.coerce.number().int().min(1).max(1000).default(50),
 	startDate: z.string().optional(),

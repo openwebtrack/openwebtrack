@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Settings, ArrowLeft, Check, Copy, Trash2, Loader2, AlertTriangle, Users, UserPlus, X, Database, Download, Upload, Filter } from 'lucide-svelte';
-	import { TIMEZONES, COUNTRY_OPTIONS } from '$lib/constants';
+	import { TIMEZONES, COUNTRY_OPTIONS } from '$lib/utils/constants';
 	import { browser } from '$app/environment';
 	import type { PageData } from './$types';
 	import { fade } from 'svelte/transition';

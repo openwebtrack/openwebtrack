@@ -2,6 +2,8 @@
 
 A free and open-source website analytics platform.
 
+<img src="./.github/preview.png" alt="OpenWebTrack Preview" width="800" />
+
 ### Quick Start
 
 ```bash

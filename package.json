@@ -2,7 +2,7 @@
 	"name": "openwebtrack",
 	"private": true,
 	"author": "Ge0rg3e",
-	"version": "0.0.5",
+	"version": "0.0.6",
 	"licence": "AGPL-3.0",
 	"type": "module",
 	"scripts": {
@@ -13,6 +13,7 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
 		"db:push": "drizzle-kit push",
+		"db:seed": "npx tsx scripts/seed-campaigns.ts",
 		"format": "prettier --write .",
 		"lint": "prettier --check .",
 		"preview": "vite preview",

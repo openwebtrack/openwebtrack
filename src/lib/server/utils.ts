@@ -1,4 +1,4 @@
-import { SEARCH_ENGINES, SOCIAL_NETWORKS, MAX_STRING_LENGTHS, MAX_DATE_RANGE_DAYS } from '$lib/constants';
+import { SEARCH_ENGINES, SOCIAL_NETWORKS, MAX_STRING_LENGTHS, MAX_DATE_RANGE_DAYS } from '@/utils/constants';
 import type { Filter, DateRange, Granularity } from './types';
 import { ilike, and, or, eq } from 'drizzle-orm';
 import { pageview, analyticsSession, analyticsEvent, website, teamMember } from './db/schema';
