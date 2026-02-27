@@ -1,5 +1,5 @@
 <script lang="ts">
-	let { items = [] } = $props();
+	let { items = [], revenueItems = [] } = $props();
 
 	let maxVal = $derived(Math.max(...items.map((i: any) => i.value)));
 
@@ -10,6 +10,12 @@
 			const [key, value] = p.split('=');
 			return { key: key || '', value: value || '' };
 		});
+	};
+
+	const getRevenue = (label: string): string => {
+		if (!revenueItems || revenueItems.length === 0) return '';
+		const item = revenueItems.find((r: any) => r.label === label);
+		return item ? `$${item.value.toLocaleString()}` : '';
 	};
 </script>
 
@@ -35,7 +41,12 @@
 						{/if}
 					</span>
 				</div>
-				<span class="text-xs text-muted-foreground">{item.value}</span>
+				<div class="flex items-center gap-2">
+					{#if revenueItems.length > 0}
+						<span class="text-xs text-green-600 dark:text-green-400">{getRevenue(item.label)}</span>
+					{/if}
+					<span class="text-xs text-muted-foreground">{item.value}</span>
+				</div>
 			</div>
 		</div>
 	{/each}

@@ -1,4 +1,4 @@
-import { website, visitor, analyticsSession, pageview, analyticsEvent, teamMember } from '$lib/server/db/schema';
+import { website, visitor, analyticsSession, pageview, analyticsEvent, payment } from '$lib/server/db/schema';
 import { eq, and, count, desc, sql, gte, lte, inArray } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
@@ -26,6 +26,7 @@ interface TimeSeriesPoint {
 	date: string;
 	visitors: number;
 	pageviews: number;
+	revenue?: number;
 }
 
 const calculateAvgSessionDuration = async (websiteId: string, start: Date, end: Date): Promise<number> => {
@@ -150,6 +151,31 @@ const calculateTimeSeries = async (
 	return { pageviewMap, visitorMap };
 };
 
+const calculateRevenueTimeSeries = async (websiteId: string, start: Date, end: Date, granularity: Granularity, timezone: string): Promise<Map<string, number>> => {
+	const payments = await db
+		.select({ timestamp: payment.timestamp, amount: payment.amount })
+		.from(payment)
+		.where(and(eq(payment.websiteId, websiteId), gte(payment.timestamp, start), lte(payment.timestamp, end)))
+		.limit(DEFAULT_QUERY_LIMITS.pageviews);
+
+	const revenueMap = new Map<string, number>();
+	for (const p of payments) {
+		let dateStr: string;
+		if (granularity === 'hourly') {
+			dateStr = getHourKey(p.timestamp, timezone);
+		} else if (granularity === 'weekly') {
+			dateStr = getWeekKey(p.timestamp, timezone);
+		} else if (granularity === 'monthly') {
+			dateStr = getMonthKey(p.timestamp, timezone);
+		} else {
+			dateStr = getDayKey(p.timestamp, timezone);
+		}
+		revenueMap.set(dateStr, (revenueMap.get(dateStr) || 0) + Number(p.amount));
+	}
+
+	return revenueMap;
+};
+
 const buildTimeSeries = (pageviewMap: Map<string, number>, visitorMap: Map<string, number>, start: Date, end: Date, granularity: Granularity, timezone: string): TimeSeriesPoint[] => {
 	const timeSeries: TimeSeriesPoint[] = [];
 
@@ -244,6 +270,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 
 	const basePageviewWhere = and(eq(pageview.websiteId, site.id), gte(pageview.timestamp, start), lte(pageview.timestamp, end), ...pageviewConditions);
 	const baseSessionWhere = and(eq(analyticsSession.websiteId, site.id), gte(analyticsSession.startedAt, start), lte(analyticsSession.startedAt, end), ...sessionConditions);
+	const basePaymentWhere = and(eq(payment.websiteId, site.id), gte(payment.timestamp, start), lte(payment.timestamp, end));
 	const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
 	const [
@@ -264,7 +291,18 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		deviceTypeStats,
 		countryStats,
 		regionStats,
-		cityStats
+		cityStats,
+		totalRevenue,
+		customerCount,
+		revenueByCountry,
+		revenueByRegion,
+		revenueByCity,
+		revenueByOs,
+		revenueByBrowser,
+		revenueByDeviceType,
+		revenueByChannel,
+		revenueByHostname,
+		revenueByPage
 	] = await Promise.all([
 		db
 			.select({ count: count() })
@@ -403,16 +441,104 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			.where(and(baseSessionWhere, sql`${analyticsSession.city} IS NOT NULL AND ${analyticsSession.city} != ''`))
 			.groupBy(analyticsSession.city)
 			.orderBy(desc(count()))
+			.limit(10),
+		db
+			.select({ totalRevenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)` })
+			.from(payment)
+			.where(basePaymentWhere)
+			.then((r) => r[0]),
+		db
+			.select({ count: count() })
+			.from(visitor)
+			.where(and(eq(visitor.websiteId, site.id), eq(visitor.isCustomer, true), gte(visitor.lastSeen, start), lte(visitor.lastSeen, end)))
+			.then((r) => r[0]),
+		db
+			.select({ country: analyticsSession.country, revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)` })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.where(and(basePaymentWhere, sql`${analyticsSession.country} IS NOT NULL`))
+			.groupBy(analyticsSession.country)
+			.orderBy(desc(sql<number>`COALESCE(SUM(${payment.amount}), 0)`))
+			.limit(10),
+		db
+			.select({ region: analyticsSession.region, revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)` })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.where(and(basePaymentWhere, sql`${analyticsSession.region} IS NOT NULL`))
+			.groupBy(analyticsSession.region)
+			.orderBy(desc(sql<number>`COALESCE(SUM(${payment.amount}), 0)`))
+			.limit(10),
+		db
+			.select({ city: analyticsSession.city, revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)` })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.where(and(basePaymentWhere, sql`${analyticsSession.city} IS NOT NULL`))
+			.groupBy(analyticsSession.city)
+			.orderBy(desc(sql<number>`COALESCE(SUM(${payment.amount}), 0)`))
+			.limit(10),
+		db
+			.select({ os: analyticsSession.os, revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)` })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.where(and(basePaymentWhere, sql`${analyticsSession.os} IS NOT NULL`))
+			.groupBy(analyticsSession.os)
+			.orderBy(desc(sql<number>`COALESCE(SUM(${payment.amount}), 0)`))
+			.limit(10),
+		db
+			.select({ browser: analyticsSession.browser, revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)` })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.where(and(basePaymentWhere, sql`${analyticsSession.browser} IS NOT NULL`))
+			.groupBy(analyticsSession.browser)
+			.orderBy(desc(sql<number>`COALESCE(SUM(${payment.amount}), 0)`))
+			.limit(10),
+		db
+			.select({ deviceType: analyticsSession.deviceType, revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)` })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.where(and(basePaymentWhere, sql`${analyticsSession.deviceType} IS NOT NULL`))
+			.groupBy(analyticsSession.deviceType)
+			.orderBy(desc(sql<number>`COALESCE(SUM(${payment.amount}), 0)`))
+			.limit(10),
+		db
+			.select({ referrer: analyticsSession.referrer, utmSource: analyticsSession.utmSource, utmMedium: analyticsSession.utmMedium, revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)` })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.where(basePaymentWhere)
+			.groupBy(analyticsSession.referrer, analyticsSession.utmSource, analyticsSession.utmMedium)
+			.orderBy(desc(sql<number>`COALESCE(SUM(${payment.amount}), 0)`))
+			.limit(20),
+		db
+			.select({ full_url: sql<string>`${pageview.url}::text`.as('full_url'), revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)` })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.innerJoin(pageview, and(eq(pageview.sessionId, analyticsSession.id), gte(pageview.timestamp, start), lte(pageview.timestamp, end)))
+			.where(eq(payment.websiteId, site.id))
+			.groupBy(sql<string>`${pageview.url}::text`)
+			.orderBy(desc(sql<number>`COALESCE(SUM(${payment.amount}), 0)`))
+			.limit(10),
+		db
+			.select({ pathname: pageview.pathname, revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)` })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.innerJoin(pageview, and(eq(pageview.sessionId, analyticsSession.id), gte(pageview.timestamp, start), lte(pageview.timestamp, end)))
+			.where(and(eq(payment.websiteId, site.id), sql`${pageview.pathname} IS NOT NULL`))
+			.groupBy(pageview.pathname)
+			.orderBy(desc(sql<number>`COALESCE(SUM(${payment.amount}), 0)`))
 			.limit(10)
 	]);
 
-	const [avgSessionDurationMs, entryPages, { pageviewMap, visitorMap }] = await Promise.all([
+	const [avgSessionDurationMs, entryPages, { pageviewMap, visitorMap }, revenueMap] = await Promise.all([
 		calculateAvgSessionDuration(site.id, start, end),
 		calculateEntryPages(site.id, start, end),
-		calculateTimeSeries(site.id, start, end, basePageviewWhere, granularity, site.timezone)
+		calculateTimeSeries(site.id, start, end, basePageviewWhere, granularity, site.timezone),
+		calculateRevenueTimeSeries(site.id, start, end, granularity, site.timezone)
 	]);
 
-	const timeSeries = buildTimeSeries(pageviewMap, visitorMap, start, end, granularity, site.timezone);
+	const timeSeries = buildTimeSeries(pageviewMap, visitorMap, start, end, granularity, site.timezone).map((point) => ({
+		...point,
+		revenue: revenueMap.get(point.date) || 0
+	}));
 
 	const filteredReferrers = topReferrers.filter((r) => !isInternalReferrer(r.referrer)).slice(0, 10);
 
@@ -426,6 +552,18 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		.sort((a, b) => b[1] - a[1])
 		.map(([label, value]) => ({ label, value }));
 
+	const revenueChannelData: { label: string; value: number }[] = [];
+	const channelRevenueMap = new Map<string, number>();
+	for (const item of revenueByChannel) {
+		const channel = categorizeChannel(item.referrer, item.utmSource, item.utmMedium);
+		channelRevenueMap.set(channel, (channelRevenueMap.get(channel) || 0) + Number(item.revenue));
+	}
+	Array.from(channelRevenueMap.entries())
+		.sort((a, b) => b[1] - a[1])
+		.forEach(([label, value]) => {
+			revenueChannelData.push({ label, value });
+		});
+
 	return json({
 		website: site,
 		stats: {
@@ -433,9 +571,11 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			pageviews: pageviewStats?.count || 0,
 			sessions: sessionStats?.count || 0,
 			avgSessionDuration: avgSessionDurationMs,
-			online: onlineCount?.count || 0
+			online: onlineCount?.count || 0,
+			revenue: totalRevenue?.totalRevenue || 0,
+			customers: customerCount?.count || 0
 		},
-		topPages: topPages.map((p) => ({ label: p.pathname, value: p.count })),
+		topPages: topPages.map((p) => ({ label: p.pathname || '/', value: p.count })),
 		entryPages: entryPages.map((p) => ({ label: p.pathname, value: Number(p.count) })),
 		exitLinks: exitLinks.map((e) => {
 			const data = e.data as Record<string, unknown> | null;
@@ -453,6 +593,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			return { label, value: r.count };
 		}),
 		channelData: data,
+		revenueByChannel: revenueChannelData,
 		campaignData: campaignData.map((c) => {
 			const parts: string[] = [];
 			if (c.utmSource) parts.push(`utm_source=${c.utmSource}`);
@@ -469,6 +610,23 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		countryStats: countryStats.map((c) => ({ label: c.country || 'Unknown', value: c.count })),
 		regionStats: regionStats.map((r) => ({ label: r.region || 'Unknown', value: r.count })),
 		cityStats: cityStats.map((c) => ({ label: c.city || 'Unknown', value: c.count })),
+		revenueByCountry: revenueByCountry.map((c) => ({ label: c.country || 'Unknown', value: Number(c.revenue) })),
+		revenueByRegion: revenueByRegion.map((r) => ({ label: r.region || 'Unknown', value: Number(r.revenue) })),
+		revenueByCity: revenueByCity.map((c) => ({ label: c.city || 'Unknown', value: Number(c.revenue) })),
+		revenueByOs: revenueByOs.map((o) => ({ label: o.os || 'Unknown', value: Number(o.revenue) })),
+		revenueByBrowser: revenueByBrowser.map((b) => ({ label: b.browser || 'Unknown', value: Number(b.revenue) })),
+		revenueByDeviceType: revenueByDeviceType.map((d) => ({ label: d.deviceType || 'Unknown', value: Number(d.revenue) })),
+		revenueByHostname: revenueByHostname.map((h) => {
+			let label = h.full_url || site.domain;
+			try {
+				const url = new URL(h.full_url || '');
+				label = url.hostname.replace(/^www\./, '');
+			} catch (e) {
+				console.error('Failed to parse URL:', h.full_url, e);
+			}
+			return { label, value: Number(h.revenue), icon: `https://icons.duckduckgo.com/ip3/${label}.ico` };
+		}),
+		revenueByPage: revenueByPage.map((p) => ({ label: p.pathname || '/', value: Number(p.revenue) })),
 		timeSeries,
 		timezone: site.timezone,
 		dateRange: {

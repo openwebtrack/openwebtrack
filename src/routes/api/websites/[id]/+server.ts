@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import db from '$lib/server/db';
-import { website, visitor, analyticsSession, pageview, analyticsEvent, teamMember } from '$lib/server/db/schema';
-import { eq, and, count, desc, sql, gte, lte } from 'drizzle-orm';
+import { website } from '$lib/server/db/schema';
+import { eq } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { checkWebsiteAccess, isValidUUID } from '$lib/server/utils';
 import { websiteUpdateSchema, validateBody } from '$lib/server/validation';

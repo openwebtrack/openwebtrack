@@ -274,7 +274,9 @@ export const MAX_STRING_LENGTHS = {
 	deviceType: 20,
 	title: 500,
 	eventName: 255,
-	filterValue: 100
+	filterValue: 100,
+	currency: 10,
+	transactionId: 255
 } as const;
 
 export const DEFAULT_QUERY_LIMITS = {

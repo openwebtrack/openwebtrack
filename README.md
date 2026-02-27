@@ -78,14 +78,16 @@ volumes:
 - **Detailed Pageviews**: Track URLs, titles, and referrers.
 - **Session Recording**: Monitor session duration and activity.
 - **Custom Events**: Track specific user interactions (clicks, signups, etc.).
+- **Customer Identification**: Identify and track customers based on payment data.
 - **Geolocation Data**: See where your users are coming from (Country, Region, City).
 - **Device & Tech Specs**: Analyze Browsers, OS, Device Types, and Screen Sizes.
 - **UTM Tracking**: Measure campaign performance with automatic UTM parameter extraction.
 - **Traffic Spike Alerts**: Get instant notifications when your website experiences unusual traffic spikes.
+- **Revenue Tracking**: Track payments and revenue.
 
 ### Notifications & Alerts
 
-- **Weekly Summary**: Receive automated weekly email reports with key analytics metrics.
+- **Weekly Summary**: Receive automated weekly email reports with key analytics metrics including revenue data.
 - **Traffic Spike Detection**: Configure thresholds to get notified when visitor counts exceed expectations.
 - **Multi-Provider Support**: Send notifications via Resend, Maileroo, or custom SMTP servers.
 

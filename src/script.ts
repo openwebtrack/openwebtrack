@@ -1,7 +1,7 @@
 interface TrackingPayload {
 	websiteId: string;
 	domain: string;
-	type: 'pageview' | 'custom';
+	type: 'pageview' | 'custom' | 'payment';
 	href: string;
 	referrer: string | null;
 	visitorId: string;
@@ -20,6 +20,9 @@ interface TrackingPayload {
 	title?: string;
 	name?: string;
 	data?: Record<string, unknown>;
+	amount?: number;
+	currency?: string;
+	transactionId?: string;
 }
 
 interface TrackerWindow extends Window {
@@ -330,6 +333,19 @@ const OS_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
 		transmit(payload, cb);
 	};
 
+	const recordPayment = (amount: number, currency?: string, transactionId?: string, cb?: (status: number) => void) => {
+		if (!active) return cb?.(200);
+
+		const payload = createPayload();
+		if (!payload) return cb?.(500);
+
+		payload.type = 'payment';
+		payload.amount = Math.round(amount);
+		payload.currency = currency || 'USD';
+		payload.transactionId = cleanseValue(transactionId);
+		transmit(payload, cb);
+	};
+
 	const processGoalClick = (el: Element) => {
 		const goal = el.getAttribute('data-owt-goal')?.trim();
 		if (!goal) return;
@@ -376,7 +392,8 @@ const OS_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
 	};
 
 	(w as unknown as Record<string, unknown>).owt = {
-		trackEvent: (n: string, d?: Record<string, unknown>, c?: (s: number) => void) => dispatch(n, d, c)
+		trackEvent: (n: string, d?: Record<string, unknown>, c?: (s: number) => void) => dispatch(n, d, c),
+		trackPayment: (a: number, cr?: string, tId?: string, c?: (s: number) => void) => recordPayment(a, cr, tId, c)
 	};
 	delete (w.owt as unknown as Record<string, unknown>)?.q;
 

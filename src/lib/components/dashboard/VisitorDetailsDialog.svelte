@@ -184,7 +184,12 @@
 					<img src={visitor.avatar} alt={visitor.name} class="h-20 w-20 rounded-full bg-muted" />
 
 					<div class="flex flex-col gap-4">
-						<h2 class="text-2xl font-bold">{visitor.name}</h2>
+						<div class="flex items-center gap-3">
+							<h2 class="text-2xl font-bold">{visitor.name}</h2>
+							{#if details?.visitor?.isCustomer}
+								<Badge class="bg-[#3b82f6] hover:bg-[#3b82f6]/90">Customer</Badge>
+							{/if}
+						</div>
 
 						<div class="flex flex-col gap-2.5 text-sm text-muted-foreground">
 							<div class="flex items-center gap-3">

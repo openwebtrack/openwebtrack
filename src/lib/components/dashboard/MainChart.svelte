@@ -12,7 +12,7 @@
 		// Get computed styles for correct theme colors
 		const computedStyle = getComputedStyle(document.documentElement);
 		const chart1 = computedStyle.getPropertyValue('--chart-1').trim() || '#3b82f6';
-		const chart2 = computedStyle.getPropertyValue('--chart-2').trim() || '#a855f7';
+		const chart3 = computedStyle.getPropertyValue('--chart-3').trim() || '#3b82f6';
 		const card = computedStyle.getPropertyValue('--card').trim() || '#fff';
 		const foreground = computedStyle.getPropertyValue('--foreground').trim() || '#000';
 		const mutedForeground = computedStyle.getPropertyValue('--muted-foreground').trim() || '#71717a';
@@ -23,14 +23,14 @@
 		gradientVisitors.addColorStop(0, `color-mix(in srgb, ${chart1}, transparent 75%)`);
 		gradientVisitors.addColorStop(1, `color-mix(in srgb, ${chart1}, transparent 100%)`);
 
-		const gradientPageviews = ctx.createLinearGradient(0, 0, 0, 300);
-		gradientPageviews.addColorStop(0, `color-mix(in srgb, ${chart2}, transparent 75%)`);
-		gradientPageviews.addColorStop(1, `color-mix(in srgb, ${chart2}, transparent 100%)`);
+		const gradientRevenue = ctx.createLinearGradient(0, 0, 0, 300);
+		gradientRevenue.addColorStop(0, `color-mix(in srgb, ${chart3}, transparent 75%)`);
+		gradientRevenue.addColorStop(1, `color-mix(in srgb, ${chart3}, transparent 100%)`);
 
 		// Mock Data
 		const labels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
 		const visitors = Array.from({ length: 24 }, () => Math.floor(Math.random() * 50) + 10);
-		const pageviews = visitors.map((v) => v * (Math.random() * 0.5 + 1.2));
+		const revenue = Array.from({ length: 24 }, () => Math.floor(Math.random() * 500) + 100);
 
 		chart = new Chart(ctx, {
 			type: 'line',
@@ -47,24 +47,23 @@
 						fill: true,
 						pointRadius: 0,
 						pointHoverRadius: 6,
-						pointHoverBackgroundColor: chart1,
-						pointHoverBorderColor: '#fff',
-						pointHoverBorderWidth: 2
+						hoverBackgroundColor: chart1,
+						hoverBorderColor: '#fff',
+						hoverBorderWidth: 2
 					},
 					{
-						label: 'Pageviews',
-						data: pageviews,
-						borderColor: chart2,
-						backgroundColor: gradientPageviews,
+						label: 'Revenue',
+						data: revenue,
+						borderColor: chart3,
+						backgroundColor: gradientRevenue,
 						borderWidth: 2,
-						borderDash: [5, 5],
 						tension: 0.4,
 						fill: true,
 						pointRadius: 0,
 						pointHoverRadius: 6,
-						pointHoverBackgroundColor: chart2,
-						pointHoverBorderColor: '#fff',
-						pointHoverBorderWidth: 2
+						hoverBackgroundColor: chart3,
+						hoverBorderColor: '#fff',
+						hoverBorderWidth: 2
 					}
 				]
 			},
@@ -107,6 +106,16 @@
 						bodyFont: {
 							family: 'Geist',
 							size: 12
+						},
+						callbacks: {
+							label: function (context) {
+								const label = context.dataset.label || '';
+								const value = context.parsed.y ?? 0;
+								if (label.toLowerCase().includes('revenue')) {
+									return `${label}: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)}`;
+								}
+								return `${label}: ${value}`;
+							}
 						}
 					}
 				},

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import cn from '@/utils/helpers';
 	import { Tooltip } from 'chart.js';
 	import Chart from 'chart.js/auto';
 
@@ -14,20 +15,21 @@
 	interface TimeSeriesPoint {
 		date: string;
 		visitors: number;
-		pageviews: number;
+		revenue?: number;
 	}
 
 	interface Stats {
 		visitors: number;
-		pageviews: number;
 		sessions: number;
 		avgSessionDuration: number;
 		online: number;
+		revenue?: number;
+		customers?: number;
 	}
 
 	let {
 		timeSeries = [],
-		stats = { visitors: 0, pageviews: 0, sessions: 0, avgSessionDuration: 0, online: 0 },
+		stats = { visitors: 0, sessions: 0, avgSessionDuration: 0, online: 0, revenue: 0, customers: 0 },
 		granularity = 'daily'
 	}: {
 		timeSeries?: TimeSeriesPoint[];
@@ -38,6 +40,14 @@
 	let canvas: HTMLCanvasElement | undefined = $state();
 	let tooltipEl: HTMLDivElement | undefined = $state();
 	let chart: Chart | null = null;
+
+	let showVisitors = $state(true);
+	let showRevenue = $state(true);
+	let activeCard: string | null = $state(null);
+
+	const toggleCard = (card: string) => {
+		activeCard = activeCard === card ? null : card;
+	};
 
 	const formatLabel = (dateStr: string): string => {
 		if (granularity === 'hourly') {
@@ -79,7 +89,6 @@
 		// Resolve theme colors
 		const computedStyle = getComputedStyle(document.documentElement);
 		const primary = computedStyle.getPropertyValue('--primary').trim() || '#3b82f6';
-		const chart2 = computedStyle.getPropertyValue('--chart-2').trim() || '#a855f7';
 		const card = computedStyle.getPropertyValue('--card').trim() || '#fff';
 		const foreground = computedStyle.getPropertyValue('--foreground').trim() || '#000';
 		const mutedForeground = computedStyle.getPropertyValue('--muted-foreground').trim() || '#71717a';
@@ -93,15 +102,13 @@
 		gradientVisitors.addColorStop(0, `color-mix(in srgb, ${primary}, transparent 75%)`);
 		gradientVisitors.addColorStop(1, `color-mix(in srgb, ${primary}, transparent 100%)`);
 
-		const gradientPageviews = ctx.createLinearGradient(0, 0, 0, 300);
-		gradientPageviews.addColorStop(0, `color-mix(in srgb, ${chart2}, transparent 75%)`);
-		gradientPageviews.addColorStop(1, `color-mix(in srgb, ${chart2}, transparent 100%)`);
-
 		const labels = timeSeries.map((p) => formatLabel(p.date));
 		const visitorsData = timeSeries.map((p) => p.visitors);
-		const pageviewsData = timeSeries.map((p) => p.pageviews);
+		const revenueData = timeSeries.map((p) => p.revenue || 0);
 
-		const maxValue = Math.max(...visitorsData, ...pageviewsData, 5);
+		const hasRevenue = revenueData.some((r) => r > 0) && showRevenue;
+
+		const maxValue = Math.max(...(showVisitors ? visitorsData : []), 5);
 		const yMax = Math.ceil(maxValue * 1.2);
 
 		const maxTicksLimit = granularity === 'hourly' ? 24 : granularity === 'monthly' ? 12 : 8;
@@ -182,33 +189,39 @@
 				datasets: [
 					{
 						label: 'Visitors',
-						data: visitorsData,
+						data: showVisitors ? visitorsData : [],
 						borderColor: primary,
 						backgroundColor: gradientVisitors,
 						borderWidth: 2,
 						tension: 0.4,
 						pointRadius: 0,
 						pointHoverRadius: 6,
-						pointHoverBackgroundColor: primary,
-						pointHoverBorderColor: '#fff',
-						pointHoverBorderWidth: 2,
-						fill: true
-					},
-					{
-						label: 'Pageviews',
-						data: pageviewsData,
-						borderColor: chart2,
-						backgroundColor: gradientPageviews,
-						borderWidth: 2,
-						tension: 0.4,
-						pointRadius: 0,
-						pointHoverRadius: 6,
-						pointHoverBackgroundColor: chart2,
-						pointHoverBorderColor: '#fff',
-						pointHoverBorderWidth: 2,
+						hoverBackgroundColor: primary,
+						hoverBorderColor: '#fff',
+						hoverBorderWidth: 2,
 						fill: true,
-						borderDash: [5, 5]
-					}
+						yAxisID: 'y'
+					},
+					...(hasRevenue
+						? [
+								{
+									label: 'Revenue',
+									type: 'bar' as const,
+									data: revenueData,
+									backgroundColor: '#3b82f6',
+									borderRadius: 2,
+									borderColor: '#3b82f6',
+									hoverBackgroundColor: '#3b82f6',
+									hoverBorderColor: '#fff',
+									barPercentage: 1,
+									categoryPercentage: 1,
+									order: 1,
+									barThickness: 50,
+									maxBarThickness: 50,
+									yAxisID: 'y1'
+								}
+							]
+						: [])
 				]
 			},
 			options: {
@@ -220,13 +233,21 @@
 					intersect: false
 				},
 				plugins: {
-					legend: {
-						display: false
-					},
+					legend: { display: false },
 					tooltip: {
 						enabled: false,
 						position: 'followMouse' as 'nearest',
-						external: externalTooltipHandler
+						external: externalTooltipHandler,
+						callbacks: {
+							label: function (context: any) {
+								const label = context.dataset.label || '';
+								const value = context.parsed.y;
+								if (label.toLowerCase().includes('revenue')) {
+									return `${label}: $${(value / 100).toFixed(2)}`;
+								}
+								return `${label}: ${value}`;
+							}
+						}
 					}
 				},
 				scales: {
@@ -253,7 +274,25 @@
 						border: {
 							display: false
 						}
-					}
+					},
+					...(hasRevenue
+						? {
+								y1: {
+									position: 'right' as const,
+									beginAtZero: true,
+									grid: {
+										display: false
+									},
+									ticks: {
+										color: '#3b82f6',
+										callback: ((value: string | number) => `$${(Number(value) / 100).toFixed(0)}`) as any
+									},
+									border: {
+										display: false
+									}
+								}
+							}
+						: {})
 				}
 			}
 		});
@@ -264,19 +303,21 @@
 
 		const labels = timeSeries.map((p) => formatLabel(p.date));
 		const visitorsData = timeSeries.map((p) => p.visitors);
-		const pageviewsData = timeSeries.map((p) => p.pageviews);
+		const revenueData = timeSeries.map((p) => p.revenue || 0);
 
-		const maxValue = Math.max(...visitorsData, ...pageviewsData, 5);
+		const hasRevenue = revenueData.some((r) => r > 0) && showRevenue;
+
+		const maxValue = Math.max(...(showVisitors ? visitorsData : []), 5);
 		const yMax = Math.ceil(maxValue * 1.2);
 
 		const maxTicksLimit = granularity === 'hourly' ? 24 : granularity === 'monthly' ? 12 : 8;
 
 		chart.data.labels = labels;
 		if (chart.data.datasets[0]) {
-			chart.data.datasets[0].data = visitorsData;
+			chart.data.datasets[0].data = showVisitors ? visitorsData : [];
 		}
 		if (chart.data.datasets[1]) {
-			chart.data.datasets[1].data = pageviewsData;
+			chart.data.datasets[1].data = hasRevenue ? revenueData : [];
 		}
 
 		if (chart.options.scales?.y) {
@@ -308,31 +349,29 @@
 </script>
 
 <div class="rounded-2xl border border-border bg-card p-6">
-	<div class="mb-8 grid grid-cols-2 gap-6 md:grid-cols-6">
-		<div class="relative overflow-hidden rounded-xl bg-muted/50 p-4 transition-all hover:bg-muted">
-			<div class="mb-2 flex items-center gap-2">
-				<div class="h-2 w-2 rounded-full" style="background-color: var(--primary); box-shadow: 0 0 8px color-mix(in srgb, var(--primary), transparent 50%)"></div>
+	<div class="mb-8 grid grid-cols-2 gap-6 md:grid-cols-7">
+		<button class="relative cursor-pointer overflow-hidden rounded-xl bg-muted/50 p-4 transition-all hover:bg-muted" onclick={() => (showRevenue = !showRevenue)}>
+			<div class="mb-2 flex items-center justify-between">
+				<span class="text-xs font-medium text-muted-foreground">Revenue</span>
+				<div class={cn('size-4 rounded-full border border-blue-500', showRevenue && 'bg-blue-500')}></div>
+			</div>
+			<div class="text-left text-2xl font-bold tracking-tight">${((stats.revenue || 0) / 100).toFixed(2)}</div>
+		</button>
+
+		<button class="relative cursor-pointer overflow-hidden rounded-xl bg-muted/50 p-4 transition-all hover:bg-muted" onclick={() => (showVisitors = !showVisitors)}>
+			<div class="mb-2 flex items-center justify-between">
 				<span class="text-xs font-medium text-muted-foreground">Visitors</span>
+				<div class={cn('size-4 rounded-full border border-primary', showVisitors && 'bg-primary')}></div>
 			</div>
-			<div class="text-2xl font-bold tracking-tight">{stats.visitors}</div>
-		</div>
+			<div class="text-left text-2xl font-bold tracking-tight">{stats.visitors}</div>
+		</button>
 
-		<div class="relative overflow-hidden rounded-xl bg-muted/50 p-4 transition-all hover:bg-muted">
+		<div class="p-4">
 			<div class="mb-2 flex items-center gap-2">
-				<div class="h-2 w-2 rounded-full" style="background-color: var(--chart-2); box-shadow: 0 0 8px color-mix(in srgb, var(--chart-2), transparent 50%)"></div>
-				<span class="text-xs font-medium text-muted-foreground">Pageviews</span>
+				<span class="text-xs font-medium text-muted-foreground">Online</span>
+				<div class="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
 			</div>
-			<div class="text-2xl font-bold tracking-tight">{stats.pageviews}</div>
-		</div>
-
-		<div class="relative overflow-hidden rounded-xl bg-muted/50 transition-all hover:bg-muted">
-			<div class="p-4">
-				<div class="mb-2 flex items-center gap-2">
-					<span class="text-xs font-medium text-muted-foreground">Online</span>
-					<div class="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
-				</div>
-				<div class="text-2xl font-bold tracking-tight">{stats.online}</div>
-			</div>
+			<div class="text-2xl font-bold tracking-tight">{stats.online}</div>
 		</div>
 
 		<div class="p-4">

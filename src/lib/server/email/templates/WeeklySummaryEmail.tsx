@@ -7,6 +7,8 @@ interface WeeklySummaryEmailProps {
 	topPages: { pathname: string; views: number }[];
 	totalPageviews: number;
 	totalVisitors: number;
+	totalRevenue: number;
+	currency: string;
 	dashboardUrl: string;
 	generatedAt: string;
 	periodStart: string;
@@ -23,8 +25,21 @@ const safeText = (v: string, fallback: string) => {
 	return s.length ? s : fallback;
 };
 
-const WeeklySummaryEmail = ({ domain, periodStart, periodEnd, totalVisitors, totalPageviews, topPages, topReferrers, topCountries, dashboardUrl, generatedAt }: WeeklySummaryEmailProps) => {
-	const previewText = `${nf.format(totalVisitors)} visitors • ${domain} • Weekly summary`;
+const WeeklySummaryEmail = ({
+	domain,
+	periodStart,
+	periodEnd,
+	totalVisitors,
+	totalPageviews,
+	totalRevenue,
+	currency,
+	topPages,
+	topReferrers,
+	topCountries,
+	dashboardUrl,
+	generatedAt
+}: WeeklySummaryEmailProps) => {
+	const previewText = `${nf.format(totalVisitors)} visitors • ${new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format((totalRevenue || 0) / 100)} revenue • ${domain} • Weekly summary`;
 
 	const pages = clampTop(topPages, 5);
 	const refs = clampTop(topReferrers, 5);
@@ -73,10 +88,22 @@ const WeeklySummaryEmail = ({ domain, periodStart, periodEnd, totalVisitors, tot
 									</Section>
 								</Column>
 							</Row>
-							<Section className="border-line mt-4 rounded-lg border px-5 py-4">
-								<Text className="text-sub m-0 text-[11px] font-bold tracking-wide uppercase">Pages / visitor</Text>
-								<Text className="text-ink mt-2 mb-0 text-[22px] font-bold tracking-tight">{pagesPerVisitor}</Text>
-							</Section>
+							<Row>
+								<Column className="pr-3">
+									<Section className="border-line mt-4 rounded-lg border px-5 py-4">
+										<Text className="text-sub m-0 text-[11px] font-bold tracking-wide uppercase">Pages / visitor</Text>
+										<Text className="text-ink mt-2 mb-0 text-[22px] font-bold tracking-tight">{pagesPerVisitor}</Text>
+									</Section>
+								</Column>
+								<Column className="pl-3">
+									<Section className="border-line mt-4 rounded-lg border px-5 py-4">
+										<Text className="text-sub m-0 text-[11px] font-bold tracking-wide uppercase">Revenue</Text>
+										<Text className="text-ink mt-2 mb-0 text-[22px] font-bold tracking-tight">
+											{new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format((totalRevenue || 0) / 100)}
+										</Text>
+									</Section>
+								</Column>
+							</Row>
 						</Section>
 
 						{/* Top Pages */}

@@ -1,12 +1,17 @@
 import { redirect, error } from '@sveltejs/kit';
-import { website, teamMember } from '$lib/server/db/schema';
+import { website } from '$lib/server/db/schema';
 import type { PageServerLoad } from './$types';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import db from '$lib/server/db';
+import { isValidUUID } from '$lib/server/utils';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) {
 		throw redirect(302, '/auth?redirectTo=/dashboard/' + params.websiteId + '/settings');
+	}
+
+	if (!isValidUUID(params.websiteId)) {
+		throw error(400, 'Invalid website ID');
 	}
 
 	const [site] = await db.select().from(website).where(eq(website.id, params.websiteId)).limit(1);

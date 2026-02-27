@@ -1,4 +1,4 @@
-import { website, user, analyticsSession, pageview } from '$lib/server/db/schema';
+import { website, user, analyticsSession, pageview, payment } from '$lib/server/db/schema';
 import WeeklySummaryEmail from '$lib/server/email/templates/WeeklySummaryEmail';
 import { sendEmail, isEmailConfigured } from '$lib/server/email';
 import { eq, and, gte, sql, desc } from 'drizzle-orm';
@@ -74,6 +74,14 @@ export const GET: RequestHandler = async ({ request }) => {
 					.limit(5)
 			).map((r) => ({ country: r.country!, visits: r.visits }));
 
+			const [revenueData] = await db
+				.select({ total: sql<number>`COALESCE(SUM(${payment.amount}), 0)`, currency: sql<string>`MAX(${payment.currency})` })
+				.from(payment)
+				.where(and(eq(payment.websiteId, site.website.id), gte(payment.timestamp, weekAgo)));
+
+			const totalRevenue = Number(revenueData?.total || 0);
+			const currency = revenueData?.currency || 'USD';
+
 			const periodStart = weekAgo.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 			const periodEnd = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -85,6 +93,8 @@ export const GET: RequestHandler = async ({ request }) => {
 					totalPageviews: pageviewCount?.count || 0,
 					generatedAt: new Date().toLocaleString(),
 					totalVisitors: visitorCount?.count || 0,
+					totalRevenue,
+					currency,
 					domain: site.website.domain,
 					topReferrers,
 					topCountries,
@@ -92,7 +102,7 @@ export const GET: RequestHandler = async ({ request }) => {
 					periodEnd,
 					topPages
 				}),
-				plain: `Weekly analytics summary for ${site.website.domain} from ${periodStart} to ${periodEnd}. Total visitors: ${visitorCount?.count || 0}, Pageviews: ${pageviewCount?.count || 0}`
+				plain: `Weekly analytics summary for ${site.website.domain} from ${periodStart} to ${periodEnd}. Total visitors: ${visitorCount?.count || 0}, Pageviews: ${pageviewCount?.count || 0}, Revenue: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(totalRevenue / 100)}`
 			});
 
 			if (result) {

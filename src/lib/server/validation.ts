@@ -62,10 +62,10 @@ export const teamInviteSchema = z.object({
 	email: z.string().email('Invalid email address').toLowerCase().trim()
 });
 
-const eventTypeSchema = z.enum(['pageview', 'custom', 'identify', 'heartbeat']);
+const eventTypeSchema = z.enum(['pageview', 'custom', 'identify', 'heartbeat', 'payment']);
 
 export const trackingPayloadSchema = z.object({
-	websiteId: z.string().uuid('Invalid website ID'),
+	websiteId: z.string().uuid('Invalid website ID').optional(),
 	domain: z.string().min(1, 'Domain is required').max(MAX_STRING_LENGTHS.domain),
 	type: eventTypeSchema,
 	href: z.string().min(1, 'URL is required').max(MAX_STRING_LENGTHS.href),
@@ -90,7 +90,10 @@ export const trackingPayloadSchema = z.object({
 	isPwa: z.boolean().optional(),
 	title: z.string().max(MAX_STRING_LENGTHS.title).optional(),
 	name: z.string().max(MAX_STRING_LENGTHS.eventName).optional(),
-	data: z.record(z.string(), z.unknown()).optional()
+	data: z.record(z.string(), z.unknown()).optional(),
+	amount: z.number().int().min(0).optional(),
+	currency: z.string().max(MAX_STRING_LENGTHS.currency).optional(),
+	transactionId: z.string().max(MAX_STRING_LENGTHS.transactionId).optional()
 });
 
 export const metricsQuerySchema = z.object({

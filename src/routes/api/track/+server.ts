@@ -1,5 +1,6 @@
 import { SESSION_EXPIRY_MINUTES, GEO_CACHE_TTL_MS, GEO_CACHE_MAX_SIZE, MAX_STRING_LENGTHS, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS, COUNTRY_OPTIONS } from '@/utils/constants';
-import { website, visitor, analyticsSession, pageview, analyticsEvent, user } from '$lib/server/db/schema';
+import { website, visitor, analyticsSession, pageview, analyticsEvent, payment, user } from '$lib/server/db/schema';
+import { sql } from 'drizzle-orm';
 import { sanitizeString, extractPathname, extractUtmParams } from '$lib/server/utils';
 import { generateVisitorName, generateAvatarUrl } from '$lib/server/visitor-utils';
 import { trackingPayloadSchema, validateBody } from '$lib/server/validation';
@@ -108,11 +109,16 @@ const checkTrafficSpike = async (websiteId: string, notifications: { trafficSpik
 
 setInterval(() => {
 	const cutoff = Date.now() - 3600000;
-	for (let i = sessionTimestamps.length - 1; i >= 0; i--) {
-		if (sessionTimestamps[i].timestamp < cutoff) {
-			sessionTimestamps.splice(i, 1);
+	let writeIdx = 0;
+	for (let readIdx = 0; readIdx < sessionTimestamps.length; readIdx++) {
+		if (sessionTimestamps[readIdx].timestamp >= cutoff) {
+			if (writeIdx !== readIdx) {
+				sessionTimestamps[writeIdx] = sessionTimestamps[readIdx];
+			}
+			writeIdx++;
 		}
 	}
+	sessionTimestamps.length = writeIdx;
 }, 300000);
 
 const getClientIP = (request: Request, socketIP?: string): string | null => {
@@ -187,6 +193,10 @@ const matchIp = (clientIp: string, pattern: string): boolean => {
 		}
 		return true;
 	}
+
+	const patternOctets = normalizedPattern.split('.');
+	const clientOctets = normalizedClient.split('.');
+	if (patternOctets.length !== 4 || clientOctets.length !== 4) return false;
 
 	return normalizedClient === normalizedPattern;
 };
@@ -302,23 +312,41 @@ const fetchFromIpApi = async (ip: string): Promise<GeoData | null> => {
 	return null;
 };
 
-const CORS_HEADERS = {
-	'Access-Control-Allow-Origin': '*',
-	'Access-Control-Allow-Methods': 'POST, OPTIONS',
-	'Access-Control-Allow-Headers': 'Content-Type'
+const getCorsHeaders = (requestOrigin: string | null): Record<string, string> => {
+	const allowedOrigins = ORIGIN ? [ORIGIN] : [];
+	const defaultCors = {
+		'Access-Control-Allow-Methods': 'POST, OPTIONS',
+		'Access-Control-Allow-Headers': 'Content-Type'
+	};
+
+	if (!requestOrigin) {
+		return defaultCors;
+	}
+
+	if (allowedOrigins.length === 0 || allowedOrigins.includes(requestOrigin)) {
+		return {
+			...defaultCors,
+			'Access-Control-Allow-Origin': requestOrigin
+		};
+	}
+
+	return defaultCors;
 };
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	const requestOrigin = request.headers.get('origin');
+	const corsHeaders = getCorsHeaders(requestOrigin);
+
 	let body: unknown;
 	try {
 		body = await request.json();
 	} catch {
-		return json({ error: 'Invalid JSON' }, { status: 400, headers: CORS_HEADERS });
+		return json({ error: 'Invalid JSON' }, { status: 400, headers: corsHeaders });
 	}
 
 	const validation = validateBody(trackingPayloadSchema, body);
 	if (!validation.success) {
-		return json({ error: validation.error, errors: validation.errors }, { status: 400, headers: CORS_HEADERS });
+		return json({ error: validation.error, errors: validation.errors }, { status: 400, headers: corsHeaders });
 	}
 
 	const rawPayload = validation.data;
@@ -343,7 +371,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		isPwa: rawPayload.isPwa || false,
 		title: rawPayload.title ? sanitizeString(rawPayload.title, MAX_STRING_LENGTHS.title) : undefined,
 		name: rawPayload.name ? sanitizeString(rawPayload.name, MAX_STRING_LENGTHS.eventName) : undefined,
-		data: rawPayload.data
+		data: rawPayload.data,
+		amount: rawPayload.amount,
+		currency: rawPayload.currency ? sanitizeString(rawPayload.currency, MAX_STRING_LENGTHS.currency || 10) : undefined,
+		transactionId: rawPayload.transactionId ? sanitizeString(rawPayload.transactionId, MAX_STRING_LENGTHS.transactionId || 255) : undefined
 	};
 
 	let socketIP: string | undefined;
@@ -351,18 +382,32 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		socketIP = getClientAddress();
 	} catch {}
 
-	const rateLimitKey = `${payload.websiteId}:${socketIP || 'unknown'}`;
-	if (!checkRateLimit(rateLimitKey)) {
-		return json({ error: 'Rate limit exceeded' }, { status: 429, headers: CORS_HEADERS });
+	let site;
+	if (payload.websiteId) {
+		[site] = await db.select().from(website).where(eq(website.id, payload.websiteId)).limit(1);
+	} else {
+		const domainKey = payload.domain
+			.toLowerCase()
+			.replace(/^https?:\/\//, '')
+			.replace(/^www\./, '')
+			.split(':')[0];
+		[site] = await db
+			.select()
+			.from(website)
+			.where(sql`LOWER(REPLACE(REPLACE(${website.domain}, 'https://', ''), 'http://', '')) = ${domainKey}`)
+			.limit(1);
 	}
 
-	const [site] = await db.select().from(website).where(eq(website.id, payload.websiteId)).limit(1);
-
 	if (!site) {
-		return json({ error: 'Website not found' }, { status: 404, headers: CORS_HEADERS });
+		return json({ error: 'Website not found' }, { status: 404, headers: corsHeaders });
 	}
 
 	const clientIP = getClientIP(request, socketIP);
+	const rateLimitKey = `${site.id}:${clientIP || socketIP || 'unknown'}`;
+	if (!checkRateLimit(rateLimitKey)) {
+		return json({ error: 'Rate limit exceeded' }, { status: 429, headers: corsHeaders });
+	}
+
 	const pathname = extractPathname(payload.href);
 
 	const excludedIps = (site.excludedIps as string[] | null) || [];
@@ -373,7 +418,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		for (const excludedIp of excludedIps) {
 			if (!excludedIp) continue;
 			if (matchIp(clientIP, excludedIp)) {
-				return json({ success: true, excluded: true }, { status: 200, headers: CORS_HEADERS });
+				return json({ success: true, excluded: true }, { status: 200, headers: corsHeaders });
 			}
 		}
 	}
@@ -382,7 +427,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		for (const excludedPath of excludedPaths) {
 			if (!excludedPath) continue;
 			if (matchPath(pathname, excludedPath)) {
-				return json({ success: true, excluded: true }, { status: 200, headers: CORS_HEADERS });
+				return json({ success: true, excluded: true }, { status: 200, headers: corsHeaders });
 			}
 		}
 	}
@@ -391,7 +436,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 
 	if (excludedCountries.length > 0 && geoData.country) {
 		if (COUNTRY_OPTIONS.includes(geoData.country as any) && excludedCountries.includes(geoData.country)) {
-			return json({ success: true, excluded: true }, { status: 200, headers: CORS_HEADERS });
+			return json({ success: true, excluded: true }, { status: 200, headers: corsHeaders });
 		}
 	}
 
@@ -405,7 +450,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		.split(':')[0];
 	const isLocalhost = requestDomain === 'localhost' || requestDomain === '127.0.0.1' || requestDomain.endsWith('.localhost');
 	if (!isLocalhost && requestDomain !== siteDomain && !requestDomain.endsWith('.' + siteDomain)) {
-		return json({ error: 'Domain mismatch' }, { status: 403, headers: CORS_HEADERS });
+		return json({ error: 'Domain mismatch' }, { status: 403, headers: corsHeaders });
 	}
 
 	const now = new Date();
@@ -529,7 +574,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	}
 
 	if (payload.type === 'heartbeat') {
-		return json({ success: true }, { status: 200, headers: CORS_HEADERS });
+		return json({ success: true }, { status: 200, headers: corsHeaders });
 	}
 
 	if (payload.type === 'pageview') {
@@ -544,6 +589,29 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 			viewportHeight: payload.viewport?.height || null,
 			timestamp: now
 		});
+	} else if (payload.type === 'payment') {
+		await db.insert(payment).values({
+			websiteId: site.id,
+			visitorId: payload.visitorId,
+			sessionId,
+			amount: payload.amount || 0,
+			currency: payload.currency || 'USD',
+			transactionId: payload.transactionId || null,
+			timestamp: now
+		});
+
+		const [existingVisitorRecord] = await db
+			.select({ isCustomer: visitor.isCustomer })
+			.from(visitor)
+			.where(and(eq(visitor.id, payload.visitorId), eq(visitor.websiteId, site.id)))
+			.limit(1);
+
+		if (existingVisitorRecord && !existingVisitorRecord.isCustomer) {
+			await db
+				.update(visitor)
+				.set({ isCustomer: true })
+				.where(and(eq(visitor.id, payload.visitorId), eq(visitor.websiteId, site.id)));
+		}
 	} else {
 		await db.insert(analyticsEvent).values({
 			sessionId,
@@ -555,7 +623,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		});
 	}
 
-	return json({ success: true }, { status: 200, headers: CORS_HEADERS });
+	return json({ success: true }, { status: 200, headers: corsHeaders });
 };
 
-export const OPTIONS: RequestHandler = async () => new Response(null, { status: 204, headers: CORS_HEADERS });
+export const OPTIONS: RequestHandler = async ({ request }) => {
+	const requestOrigin = request.headers.get('origin');
+	const corsHeaders = getCorsHeaders(requestOrigin);
+	return new Response(null, { status: 204, headers: corsHeaders });
+};

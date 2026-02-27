@@ -52,6 +52,7 @@ export const visitor = pgTable(
 			.references(() => website.id, { onDelete: 'cascade' }),
 		name: text('name'),
 		avatar: text('avatar'),
+		isCustomer: boolean('is_customer').default(false).notNull(),
 		firstSeen: timestamp('first_seen').defaultNow().notNull(),
 		lastSeen: timestamp('last_seen').defaultNow().notNull()
 	},
@@ -155,6 +156,33 @@ export const analyticsEvent = pgTable(
 		index('analyticsEvent_timestamp_idx').on(table.timestamp),
 		index('analyticsEvent_website_timestamp_idx').on(table.websiteId, table.timestamp),
 		index('analyticsEvent_website_type_name_idx').on(table.websiteId, table.type, table.name)
+	]
+);
+
+export const payment = pgTable(
+	'payment',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		websiteId: uuid('website_id')
+			.notNull()
+			.references(() => website.id, { onDelete: 'cascade' }),
+		visitorId: uuid('visitor_id')
+			.notNull()
+			.references(() => visitor.id, { onDelete: 'cascade' }),
+		sessionId: uuid('session_id')
+			.notNull()
+			.references(() => analyticsSession.id, { onDelete: 'cascade' }),
+		amount: integer('amount').notNull(),
+		currency: text('currency').notNull().default('USD'),
+		transactionId: text('transaction_id'),
+		timestamp: timestamp('timestamp').defaultNow().notNull()
+	},
+	(table) => [
+		index('payment_websiteId_idx').on(table.websiteId),
+		index('payment_visitorId_idx').on(table.visitorId),
+		index('payment_sessionId_idx').on(table.sessionId),
+		index('payment_timestamp_idx').on(table.timestamp),
+		index('payment_website_timestamp_idx').on(table.websiteId, table.timestamp)
 	]
 );
 

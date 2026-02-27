@@ -39,12 +39,15 @@
 		sessions: number;
 		avgSessionDuration: number;
 		online: number;
+		revenue: number;
+		customers: number;
 	}
 
 	interface TimeSeriesPoint {
 		date: string;
 		visitors: number;
 		pageviews: number;
+		revenue?: number;
 	}
 
 	interface ApiData {
@@ -54,6 +57,7 @@
 		exitLinks: { label: string; value: number; icon?: string }[];
 		topReferrers: { label: string; value: number; icon?: string }[];
 		channelData: { label: string; value: number; icon?: string }[];
+		revenueByChannel: { label: string; value: number; icon?: string }[];
 		campaignData: { label: string; value: number; icon?: string }[];
 		customEvents: { type: string; name: string | null; value: number; icon?: string }[];
 		deviceStats: { label: string; value: number; icon?: string }[];
@@ -63,6 +67,14 @@
 		countryStats: { label: string; value: number; icon?: string }[];
 		regionStats: { label: string; value: number; icon?: string }[];
 		cityStats: { label: string; value: number; icon?: string }[];
+		revenueByCountry: { label: string; value: number; icon?: string }[];
+		revenueByRegion: { label: string; value: number; icon?: string }[];
+		revenueByCity: { label: string; value: number; icon?: string }[];
+		revenueByOs: { label: string; value: number; icon?: string }[];
+		revenueByBrowser: { label: string; value: number; icon?: string }[];
+		revenueByDeviceType: { label: string; value: number; icon?: string }[];
+		revenueByHostname: { label: string; value: number; icon?: string }[];
+		revenueByPage: { label: string; value: number; icon?: string }[];
 		timeSeries: TimeSeriesPoint[];
 	}
 
@@ -252,12 +264,13 @@
 		}
 	};
 
-	let stats = $derived(apiData?.stats || { visitors: 0, pageviews: 0, sessions: 0, avgSessionDuration: 0, online: 0 });
+	let stats = $derived(apiData?.stats || { visitors: 0, pageviews: 0, sessions: 0, avgSessionDuration: 0, online: 0, revenue: 0, customers: 0 });
 	let topPages = $derived(apiData?.topPages || []);
 	let entryPages = $derived(apiData?.entryPages || []);
 	let exitLinks = $derived(apiData?.exitLinks || []);
 	let topReferrers = $derived(apiData?.topReferrers || []);
 	let channelData = $derived(apiData?.channelData || []);
+	let revenueByChannel = $derived(apiData?.revenueByChannel || []);
 	let campaignData = $derived(apiData?.campaignData || []);
 	let deviceStats = $derived(apiData?.deviceStats || []);
 	let browserStats = $derived(apiData?.browserStats || []);
@@ -266,6 +279,14 @@
 	let countryStats = $derived(apiData?.countryStats || []);
 	let regionStats = $derived(apiData?.regionStats || []);
 	let cityStats = $derived(apiData?.cityStats || []);
+	let revenueByCountry = $derived(apiData?.revenueByCountry || []);
+	let revenueByRegion = $derived(apiData?.revenueByRegion || []);
+	let revenueByCity = $derived(apiData?.revenueByCity || []);
+	let revenueByOs = $derived(apiData?.revenueByOs || []);
+	let revenueByBrowser = $derived(apiData?.revenueByBrowser || []);
+	let revenueByDeviceType = $derived(apiData?.revenueByDeviceType || []);
+	let revenueByHostname = $derived(apiData?.revenueByHostname || []);
+	let revenueByPage = $derived(apiData?.revenueByPage || []);
 	let timeSeries = $derived(apiData?.timeSeries || []);
 
 	let filteredVisitors = $derived(
@@ -576,6 +597,7 @@
 					<div class="flex items-center gap-4 border-b border-border px-4 py-3">
 						<Skeleton class="h-4 w-16" />
 						<Skeleton class="h-4 w-16" />
+						<Skeleton class="h-4 w-16" />
 					</div>
 					<div class="flex flex-1 items-center justify-center p-4">
 						<Skeleton class="h-48 w-48 rounded-full" />
@@ -662,10 +684,10 @@
 					class="h-[339px]"
 				>
 					{#if pageActiveTab === 0}
-						<BarList items={hostnameData} />
+						<BarList items={hostnameData} revenueItems={revenueByHostname} />
 					{:else if pageActiveTab === 1}
 						{#if topPages.length > 0}
-							<BarList items={topPages} />
+							<BarList items={topPages} revenueItems={revenueByPage} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -709,7 +731,7 @@
 				>
 					{#if mapActiveTab === 0}
 						{#if countryStats.length > 0}
-							<BarList items={countryStats} />
+							<BarList items={countryStats} revenueItems={revenueByCountry} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -718,7 +740,7 @@
 						{/if}
 					{:else if mapActiveTab === 1}
 						{#if regionStats.length > 0}
-							<BarList items={regionStats} />
+							<BarList items={regionStats} revenueItems={revenueByRegion} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -727,7 +749,7 @@
 						{/if}
 					{:else if mapActiveTab === 2}
 						{#if cityStats.length > 0}
-							<BarList items={cityStats} />
+							<BarList items={cityStats} revenueItems={revenueByCity} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -751,7 +773,7 @@
 				>
 					{#if browserActiveTab === 0}
 						{#if browserStats.length > 0}
-							<BarList items={browserStats} />
+							<BarList items={browserStats} revenueItems={revenueByBrowser} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -760,7 +782,7 @@
 						{/if}
 					{:else if browserActiveTab === 1}
 						{#if osStats.length > 0}
-							<BarList items={osStats} />
+							<BarList items={osStats} revenueItems={revenueByOs} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -769,7 +791,7 @@
 						{/if}
 					{:else if browserActiveTab === 2}
 						{#if deviceTypeStats.length > 0}
-							<BarList items={deviceTypeStats} />
+							<BarList items={deviceTypeStats} revenueItems={revenueByDeviceType} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />

@@ -19,16 +19,18 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let originalTimezone = $state(data.website.timezone);
-	let originalDomain = $state(data.website.domain);
-	let originalExcludedIps = $state<string[]>((data.website.excludedIps as string[]) || []);
-	let originalExcludedPaths = $state<string[]>((data.website.excludedPaths as string[]) || []);
-	let originalExcludedCountries = $state<string[]>((data.website.excludedCountries as string[]) || []);
-	let timezone = $state(data.website.timezone);
-	let domain = $state(data.website.domain);
-	let excludedIps = $state<string[]>((data.website.excludedIps as string[]) || []);
-	let excludedPaths = $state<string[]>((data.website.excludedPaths as string[]) || []);
-	let excludedCountries = $state<string[]>((data.website.excludedCountries as string[]) || []);
+	let website = $derived(data.website);
+
+	let originalTimezone = $state(website.timezone);
+	let originalDomain = $state(website.domain);
+	let originalExcludedIps = $state<string[]>((website.excludedIps as string[]) || []);
+	let originalExcludedPaths = $state<string[]>((website.excludedPaths as string[]) || []);
+	let originalExcludedCountries = $state<string[]>((website.excludedCountries as string[]) || []);
+	let timezone = $state(website.timezone);
+	let domain = $state(website.domain);
+	let excludedIps = $state<string[]>((website.excludedIps as string[]) || []);
+	let excludedPaths = $state<string[]>((website.excludedPaths as string[]) || []);
+	let excludedCountries = $state<string[]>((website.excludedCountries as string[]) || []);
 	let activeTab = $state('general');
 	let saveSuccess = $state(false);
 	let isSaving = $state(false);
@@ -51,7 +53,7 @@
 	let isInviting = $state(false);
 	let inviteError = $state('');
 
-	let scriptCode = $derived(`<script defer data-website-id="${data.website.id}" data-domain="${domain}" src="${browser ? window.location.origin : ''}/script.js"><\/script>`);
+	let scriptCode = $derived(`<script defer data-website-id="${website.id}" data-domain="${domain}" src="${browser ? window.location.origin : ''}/script.js"><\/script>`);
 
 	const hasChanges = $derived(
 		domain !== originalDomain ||
@@ -64,6 +66,21 @@
 			trafficSpikeWindowSeconds !== originalNotifications.trafficSpike.windowSeconds ||
 			weeklySummaryEnabled !== originalNotifications.weeklySummary.enabled
 	);
+
+	$effect(() => {
+		const w = website;
+		if (!w?.id) return;
+		originalTimezone = w.timezone;
+		originalDomain = w.domain;
+		originalExcludedIps = (w.excludedIps as string[]) || [];
+		originalExcludedPaths = (w.excludedPaths as string[]) || [];
+		originalExcludedCountries = (w.excludedCountries as string[]) || [];
+		timezone = w.timezone;
+		domain = w.domain;
+		excludedIps = (w.excludedIps as string[]) || [];
+		excludedPaths = (w.excludedPaths as string[]) || [];
+		excludedCountries = (w.excludedCountries as string[]) || [];
+	});
 
 	let newIp = $state('');
 	let newPath = $state('');
@@ -597,7 +614,7 @@
 						<Card.Root>
 							<Card.Header>
 								<Card.Title>Excluded IPs</Card.Title>
-								<Card.Description>Exclude tracking from specific IP addresses. Supports wildcards (e.g., 192.168.*.*) and CIDR notation (e.g., 10.0.0.0/24).</Card.Description>
+								<Card.Description>Exclude tracking from specific IP addresses.</Card.Description>
 							</Card.Header>
 							<Card.Content>
 								<div class="mb-4 flex gap-2">
@@ -638,7 +655,7 @@
 										{/each}
 									</div>
 								{:else}
-									<p class="text-sm text-muted-foreground">No IPs excluded. Add IP addresses to exclude from tracking.</p>
+									<p class="text-sm text-muted-foreground">No IPs excluded.</p>
 								{/if}
 							</Card.Content>
 						</Card.Root>
@@ -646,7 +663,7 @@
 						<Card.Root class="mt-6">
 							<Card.Header>
 								<Card.Title>Excluded Paths</Card.Title>
-								<Card.Description>Exclude tracking from specific URL paths. Supports wildcards (e.g., /admin/*).</Card.Description>
+								<Card.Description>Exclude tracking from specific URL paths.</Card.Description>
 							</Card.Header>
 							<Card.Content>
 								<div class="mb-4 flex gap-2">
@@ -687,7 +704,7 @@
 										{/each}
 									</div>
 								{:else}
-									<p class="text-sm text-muted-foreground">No paths excluded. Add URL paths to exclude from tracking.</p>
+									<p class="text-sm text-muted-foreground">No paths excluded.</p>
 								{/if}
 							</Card.Content>
 						</Card.Root>
@@ -742,7 +759,7 @@
 										{/each}
 									</div>
 								{:else}
-									<p class="text-sm text-muted-foreground">No countries excluded. Add countries to exclude from tracking.</p>
+									<p class="text-sm text-muted-foreground">No countries excluded.</p>
 								{/if}
 							</Card.Content>
 						</Card.Root>

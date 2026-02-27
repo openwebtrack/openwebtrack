@@ -10,13 +10,6 @@ export const isValidUUID = (value: string | undefined | null): value is string =
 	return typeof value === 'string' && UUID_REGEX.test(value);
 };
 
-export const validateUUIDParam = (param: string | undefined, name: string = 'id'): string => {
-	if (!isValidUUID(param)) {
-		throw new Error(`Invalid ${name}`);
-	}
-	return param;
-};
-
 export interface WebsiteAccess {
 	site: typeof website.$inferSelect;
 	isOwner: boolean;
