@@ -95,8 +95,7 @@ case "$EMAIL_PROVIDER" in
         read SENDER_EMAIL
         EMAIL_ENV="
             - RESEND_API_KEY=${RESEND_API_KEY}
-            - SENDER_EMAIL=${SENDER_EMAIL}
-            - CRON_SECRET=${CRON_SECRET}"
+            - SENDER_EMAIL=${SENDER_EMAIL}"
         ;;
     2)
         printf "Enter your Maileroo API Key: "
@@ -105,8 +104,7 @@ case "$EMAIL_PROVIDER" in
         read SENDER_EMAIL
         EMAIL_ENV="
             - MAILEROO_API_KEY=${MAILEROO_API_KEY}
-            - SENDER_EMAIL=${SENDER_EMAIL}
-            - CRON_SECRET=${CRON_SECRET}"
+            - SENDER_EMAIL=${SENDER_EMAIL}"
         ;;
     3)
         printf "SMTP Host: "
@@ -124,8 +122,7 @@ case "$EMAIL_PROVIDER" in
             - SMTP_PORT=${SMTP_PORT}
             - SMTP_USER=${SMTP_USER}
             - SMTP_PASS=${SMTP_PASS}
-            - SENDER_EMAIL=${SENDER_EMAIL}
-            - CRON_SECRET=${CRON_SECRET}"
+            - SENDER_EMAIL=${SENDER_EMAIL}"
         ;;
     4|*)
         printf "${YELLOW}Email provider configuration skipped. You can configure it later in $INSTALL_DIR/compose.yml.${NC}\n"
@@ -147,6 +144,7 @@ services:
             - DATABASE_URL=postgres://postgres:${DB_PASSWORD}@db:5432/openwebtrack
             - ORIGIN=http://localhost:8424
             - AUTH_SECRET=${AUTH_SECRET}
+            - CRON_SECRET=${CRON_SECRET}
             - DISABLE_REGISTER=false${EMAIL_ENV}
         depends_on:
             - db
@@ -164,6 +162,12 @@ services:
         volumes:
             - postgres_data:/var/lib/postgresql/data
 
+    cron:
+        image: alpine:latest
+        command: >
+            sh -c "echo '0 9 * * 1 curl -s -H \"x-cron-secret: ${CRON_SECRET}\" http://app:8424/api/cron/weekly-summary' > /etc/crontabs/root && crond -f -L /dev/stdout"
+        depends_on:
+            - app
 volumes:
     postgres_data:
 EOL

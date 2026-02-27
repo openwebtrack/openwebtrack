@@ -26,7 +26,7 @@ services:
             - ORIGIN=http://localhost:8424
             - AUTH_SECRET={STRONG_SECRET}
             - DISABLE_REGISTER=false
-            # - CRON_SECRET={String} - For weekly summary email notifications
+            # - CRON_SECRET={String} - For weekly summary emails
             # - SENDER_EMAIL=openwebtrack@yourdomain.com - To enable notifications set your email and preferred email provider
             # - RESEND_API_KEY={String}
             # - MAILEROO_API_KEY={String}
@@ -50,6 +50,12 @@ services:
         volumes:
             - postgres_data:/var/lib/postgresql/data
 
+    # cron: Enable for weekly summary emails
+    #     image: alpine:latest
+    #     command: >
+    #     sh -c "echo '0 9 * * 1 curl -s -H \"x-cron-secret: ${CRON_SECRET}\" http://app:8424/api/cron/weekly-summary' > /etc/crontabs/root && crond -f -L /dev/stdout"
+    #     depends_on:
+    #     - app
 volumes:
     postgres_data:
 ```

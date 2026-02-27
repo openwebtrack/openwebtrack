@@ -19,15 +19,5 @@ fi
 echo "Running database migrations..."
 npx drizzle-kit push
 
-if [ -n "$CRON_SECRET" ]; then
-    echo "Setting up cron job for weekly summary..."
-    echo "0 9 * * 1 curl -s -H 'x-cron-secret: ${CRON_SECRET}' ${ORIGIN}/api/cron/weekly-summary" > /etc/crontabs/root
-
-    echo "Starting cron daemon..."
-    cron
-else
-    echo "CRON_SECRET not set, skipping cron setup..."
-fi
-
 echo "Starting application..."
 exec node build

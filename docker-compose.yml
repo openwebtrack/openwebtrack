@@ -1,0 +1,39 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '8424:8424'
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/openwebtrack
+      - ORIGIN=http://localhost:8424
+      - AUTH_SECRET=local-dev-secret-change-in-production
+      - DISABLE_REGISTER=false
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=openwebtrack
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  cron:
+    image: alpine:latest
+    command: >
+      sh -c "echo '0 9 * * 1 curl -s -H \"x-cron-secret: local-cron-secret\" http://app:8424/api/cron/weekly-summary' > /etc/crontabs/root && crond -f -L /dev/stdout"
+    depends_on:
+      - app
+
+volumes:
+  postgres_data:
