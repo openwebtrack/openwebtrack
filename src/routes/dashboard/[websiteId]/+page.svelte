@@ -585,42 +585,54 @@
 		</div>
 
 		{#if isLoading && !apiData}
-			<div class="mb-6 animate-pulse rounded-2xl border border-border bg-card p-6 shadow-sm">
-				<div class="mb-8 grid grid-cols-2 gap-6 md:grid-cols-6">
-					{#each Array(2) as _}
-						<div class="relative overflow-hidden rounded-xl bg-muted/50 p-4">
-							<div class="mb-2 flex items-center gap-2">
-								<Skeleton class="h-2 w-2 rounded-full" />
-								<Skeleton class="h-3 w-16" />
-							</div>
-							<Skeleton class="h-7 w-12" />
+			<div class="mb-6 rounded-2xl border border-border bg-card p-6">
+				<div class="mb-8 grid grid-cols-2 gap-6 md:grid-cols-7">
+					<div class="relative overflow-hidden rounded-xl bg-muted/50 p-4">
+						<div class="mb-2 flex items-center justify-between">
+							<Skeleton class="h-3 w-16" />
+							<Skeleton class="h-4 w-4 rounded-full border border-blue-500" />
 						</div>
-					{/each}
-					<div class="relative overflow-hidden rounded-xl bg-muted/50">
-						<div class="p-4">
-							<div class="mb-2 flex items-center gap-2">
-								<Skeleton class="h-3 w-14" />
-								<Skeleton class="h-1.5 w-1.5 rounded-full" />
-							</div>
-							<Skeleton class="h-7 w-8" />
-						</div>
+						<Skeleton class="h-8 w-24" />
 					</div>
-					{#each Array(2) as _}
-						<div class="p-4">
-							<Skeleton class="mb-2 h-3 w-16" />
-							<Skeleton class="h-7 w-12" />
+
+					<div class="relative overflow-hidden rounded-xl bg-muted/50 p-4">
+						<div class="mb-2 flex items-center justify-between">
+							<Skeleton class="h-3 w-16" />
+							<Skeleton class="h-4 w-4 rounded-full border border-primary" />
 						</div>
-					{/each}
+						<Skeleton class="h-8 w-16" />
+					</div>
+
+					<div class="p-4">
+						<div class="mb-2 flex items-center gap-2">
+							<Skeleton class="h-3 w-14" />
+							<Skeleton class="h-1.5 w-1.5 rounded-full" />
+						</div>
+						<Skeleton class="h-8 w-8" />
+					</div>
+
+					<div class="p-4">
+						<Skeleton class="mb-2 h-3 w-16" />
+						<Skeleton class="h-8 w-12" />
+					</div>
+
+					<div class="p-4">
+						<Skeleton class="mb-2 h-3 w-20" />
+						<Skeleton class="h-8 w-16" />
+					</div>
 				</div>
 				<Skeleton class="h-[300px] w-full" />
 			</div>
 
 			<div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-				<div class="flex h-[339px] flex-col overflow-hidden rounded-2xl border border-border bg-card">
-					<div class="flex items-center gap-4 border-b border-border px-4 py-3">
-						<Skeleton class="h-4 w-16" />
-						<Skeleton class="h-4 w-16" />
-						<Skeleton class="h-4 w-16" />
+				<div class="flex h-[400px] flex-col overflow-hidden rounded-2xl border border-border bg-card">
+					<div class="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-3">
+						<div class="flex items-center gap-2">
+							<Skeleton class="h-8 w-20 rounded-lg" />
+							<Skeleton class="h-8 w-20 rounded-lg" />
+							<Skeleton class="h-8 w-20 rounded-lg" />
+						</div>
+						<Skeleton class="h-7 w-7 rounded-md" />
 					</div>
 					<div class="flex flex-1 items-center justify-center p-4">
 						<Skeleton class="h-48 w-48 rounded-full" />
