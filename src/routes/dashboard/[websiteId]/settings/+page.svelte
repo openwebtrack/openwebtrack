@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { Settings, ArrowLeft, Check, Copy, Trash2, Loader2, AlertTriangle, Users, UserPlus, X, Database, Download, Upload, Filter, Bell } from 'lucide-svelte';
-	import { TIMEZONES, COUNTRY_OPTIONS } from '$lib/utils/constants';
+	import { Settings, Check, Copy, Trash2, Loader2, AlertTriangle } from 'lucide-svelte';
+	import { TIMEZONES } from '$lib/utils/constants';
 	import { browser } from '$app/environment';
 	import type { PageData } from './$types';
-	import { fade } from 'svelte/transition';
 	import { goto } from '$app/navigation';
 	import axios from 'axios';
 
@@ -14,8 +13,6 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
-	import * as Tabs from '$lib/components/ui/tabs/index.js';
-	import { Switch } from '$lib/components/ui/switch/index.js';
 
 	let { data }: { data: PageData } = $props();
 
@@ -23,154 +20,30 @@
 
 	let originalTimezone = $state(website.timezone);
 	let originalDomain = $state(website.domain);
-	let originalExcludedIps = $state<string[]>((website.excludedIps as string[]) || []);
-	let originalExcludedPaths = $state<string[]>((website.excludedPaths as string[]) || []);
-	let originalExcludedCountries = $state<string[]>((website.excludedCountries as string[]) || []);
 	let timezone = $state(website.timezone);
 	let domain = $state(website.domain);
-	let excludedIps = $state<string[]>((website.excludedIps as string[]) || []);
-	let excludedPaths = $state<string[]>((website.excludedPaths as string[]) || []);
-	let excludedCountries = $state<string[]>((website.excludedCountries as string[]) || []);
-	let activeTab = $state('general');
 	let saveSuccess = $state(false);
 	let isSaving = $state(false);
 	let saveError = $state('');
-
-	let trafficSpikeEnabled = $state(false);
-	let trafficSpikeThreshold = $state(100);
-	let trafficSpikeWindowSeconds = $state(60);
-	let weeklySummaryEnabled = $state(false);
-	let originalNotifications = $state({ trafficSpike: { enabled: false, threshold: 100, windowSeconds: 60 }, weeklySummary: { enabled: false } });
 
 	let showDeleteModal = $state(false);
 	let deleteConfirmText = $state('');
 	let isDeleting = $state(false);
 
-	let teamMembers = $state<{ id: string; userId: string; email: string; name: string | null; image: string | null; createdAt: Date }[]>([]);
-	let isLoadingTeam = $state(false);
-	let showInviteModal = $state(false);
-	let inviteEmail = $state('');
-	let isInviting = $state(false);
-	let inviteError = $state('');
-
 	let scriptCode = $derived(`<script defer data-website-id="${website.id}" data-domain="${domain}" src="${browser ? window.location.origin : ''}/script.js"><\/script>`);
 
-	const hasChanges = $derived(
-		domain !== originalDomain ||
-			timezone !== originalTimezone ||
-			JSON.stringify(excludedIps) !== JSON.stringify(originalExcludedIps) ||
-			JSON.stringify(excludedPaths) !== JSON.stringify(originalExcludedPaths) ||
-			JSON.stringify(excludedCountries) !== JSON.stringify(originalExcludedCountries) ||
-			trafficSpikeEnabled !== originalNotifications.trafficSpike.enabled ||
-			trafficSpikeThreshold !== originalNotifications.trafficSpike.threshold ||
-			trafficSpikeWindowSeconds !== originalNotifications.trafficSpike.windowSeconds ||
-			weeklySummaryEnabled !== originalNotifications.weeklySummary.enabled
-	);
+	const hasChanges = $derived(domain !== originalDomain || timezone !== originalTimezone);
 
 	$effect(() => {
 		const w = website;
 		if (!w?.id) return;
 		originalTimezone = w.timezone;
 		originalDomain = w.domain;
-		originalExcludedIps = (w.excludedIps as string[]) || [];
-		originalExcludedPaths = (w.excludedPaths as string[]) || [];
-		originalExcludedCountries = (w.excludedCountries as string[]) || [];
 		timezone = w.timezone;
 		domain = w.domain;
-		excludedIps = (w.excludedIps as string[]) || [];
-		excludedPaths = (w.excludedPaths as string[]) || [];
-		excludedCountries = (w.excludedCountries as string[]) || [];
 	});
 
-	let newIp = $state('');
-	let newPath = $state('');
-	let newCountry = $state('');
-	let ipError = $state('');
-	let pathError = $state('');
-
-	const isValidIp = (ip: string): boolean => {
-		const trimmed = ip.trim();
-		if (!trimmed) return false;
-
-		if (trimmed.includes('/')) {
-			const [ipPart, maskPart] = trimmed.split('/');
-			const mask = parseInt(maskPart, 10);
-			if (isNaN(mask) || mask < 0 || mask > 32) return false;
-			return isValidIpBase(ipPart, true);
-		}
-
-		return isValidIpBase(trimmed, true);
-	};
-
-	const isValidIpBase = (ip: string, allowWildcards: boolean): boolean => {
-		const parts = ip.split('.');
-		if (parts.length !== 4) return false;
-
-		for (const part of parts) {
-			if (allowWildcards && part === '*') continue;
-			if (part.includes('*')) return false;
-			const num = parseInt(part, 10);
-			if (isNaN(num) || num < 0 || num > 255) return false;
-			if (part !== String(num)) return false;
-		}
-
-		return true;
-	};
-
-	const isValidPath = (path: string): boolean => {
-		const trimmed = path.trim();
-		if (!trimmed) return false;
-		if (!trimmed.startsWith('/')) return false;
-		if (trimmed.length > 500) return false;
-		if (/[<>\"'\\]/.test(trimmed)) return false;
-		return true;
-	};
-
-	const addIp = () => {
-		ipError = '';
-		const trimmed = newIp.trim();
-		if (!trimmed) return;
-		if (!isValidIp(trimmed)) {
-			ipError = 'Invalid IP format. Use: 192.168.1.1, 192.168.*.*, or 10.0.0.0/24';
-			return;
-		}
-		if (excludedIps.includes(trimmed)) {
-			ipError = 'This IP is already in the list';
-			return;
-		}
-		excludedIps = [...excludedIps, trimmed];
-		newIp = '';
-	};
-
-	const addPath = () => {
-		pathError = '';
-		const trimmed = newPath.trim();
-		if (!trimmed) return;
-		if (!isValidPath(trimmed)) {
-			pathError = 'Invalid path. Must start with / and contain no special characters like < > " \' \\';
-			return;
-		}
-		if (excludedPaths.includes(trimmed)) {
-			pathError = 'This path is already in the list';
-			return;
-		}
-		excludedPaths = [...excludedPaths, trimmed];
-		newPath = '';
-	};
-
 	const copyToClipboard = () => navigator.clipboard.writeText(scriptCode);
-
-	const loadTeamMembers = async () => {
-		isLoadingTeam = true;
-		try {
-			const res = await axios.get(`/api/websites/${data.website.id}/team`);
-			teamMembers = res.data;
-		} catch (e) {
-			console.error('Failed to load team members', e);
-		} finally {
-			isLoadingTeam = false;
-		}
-	};
 
 	const saveSettings = async () => {
 		if (!domain.trim()) {
@@ -185,30 +58,10 @@
 		try {
 			await axios.put(`/api/websites/${data.website.id}`, {
 				domain,
-				timezone,
-				excludedIps,
-				excludedPaths,
-				excludedCountries,
-				notifications: {
-					trafficSpike: {
-						enabled: trafficSpikeEnabled,
-						threshold: trafficSpikeThreshold,
-						windowSeconds: trafficSpikeWindowSeconds
-					},
-					weeklySummary: {
-						enabled: weeklySummaryEnabled
-					}
-				}
+				timezone
 			});
 			originalDomain = domain;
 			originalTimezone = timezone;
-			originalExcludedIps = [...excludedIps];
-			originalExcludedPaths = [...excludedPaths];
-			originalExcludedCountries = [...excludedCountries];
-			originalNotifications = {
-				trafficSpike: { enabled: trafficSpikeEnabled, threshold: trafficSpikeThreshold, windowSeconds: trafficSpikeWindowSeconds },
-				weeklySummary: { enabled: weeklySummaryEnabled }
-			};
 			saveSuccess = true;
 			setTimeout(() => (saveSuccess = false), 2000);
 		} catch (e) {
@@ -232,798 +85,91 @@
 			isDeleting = false;
 		}
 	};
-
-	const inviteMember = async () => {
-		if (!inviteEmail.trim()) return;
-
-		isInviting = true;
-		inviteError = '';
-
-		try {
-			const res = await axios.post(`/api/websites/${data.website.id}/team`, { email: inviteEmail });
-			teamMembers = [...teamMembers, res.data];
-			inviteEmail = '';
-			showInviteModal = false;
-		} catch (e: any) {
-			inviteError = e.response?.data?.message || 'Failed to invite member';
-		} finally {
-			isInviting = false;
-		}
-	};
-
-	const removeMember = async (memberId: string) => {
-		try {
-			await axios.delete(`/api/websites/${data.website.id}/team/${memberId}`);
-			teamMembers = teamMembers.filter((m) => m.id !== memberId);
-		} catch (e) {
-			console.error('Failed to remove member', e);
-		}
-	};
-
-	let isExporting = $state(false);
-	let exportError = $state('');
-
-	let isImporting = $state(false);
-	let importError = $state('');
-	let importSuccess = $state('');
-	let importFile = $state<File | null>(null);
-	let selectedPlatform = $state('umami');
-	let importFiles = $state<File[]>([]);
-
-	let showWipeModal = $state(false);
-	let wipeConfirmText = $state('');
-	let isWiping = $state(false);
-	let wipeError = $state('');
-
-	const platforms = [
-		{ id: 'umami', label: 'Umami', description: 'Import website_event.csv from Umami export', icon: 'https://icons.duckduckgo.com/ip3/umami.is.ico' },
-		{ id: 'plausible', label: 'Plausible', description: 'Import all CSV files from Plausible export (visitors, pages, browsers, etc.)', icon: 'https://icons.duckduckgo.com/ip3/plausible.io.ico' }
-	];
-
-	const exportToCsv = async () => {
-		isExporting = true;
-		exportError = '';
-
-		try {
-			const res = await axios.get(`/api/websites/${data.website.id}/export`, {
-				responseType: 'blob'
-			});
-
-			const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
-			const link = document.createElement('a');
-			link.href = URL.createObjectURL(blob);
-			link.download = `${domain.replace(/[^a-z0-9]/gi, '_')}_analytics_${new Date().toISOString().split('T')[0]}.csv`;
-			link.click();
-			URL.revokeObjectURL(link.href);
-		} catch (e) {
-			exportError = 'Failed to export data. Please try again.';
-			console.error('Export error:', e);
-		} finally {
-			isExporting = false;
-		}
-	};
-
-	const handleFileSelect = (e: Event) => {
-		const target = e.target as HTMLInputElement;
-		if (target.files && target.files.length > 0) {
-			if (selectedPlatform === 'plausible' || selectedPlatform === 'ga') {
-				importFiles = Array.from(target.files);
-				importFile = null;
-			} else {
-				importFile = target.files[0];
-				importFiles = [];
-			}
-			importError = '';
-		}
-	};
-
-	const handleImport = async () => {
-		if (selectedPlatform === 'plausible' || selectedPlatform === 'ga') {
-			if (importFiles.length === 0) return;
-		} else {
-			if (!importFile) return;
-		}
-
-		isImporting = true;
-		importError = '';
-		importSuccess = '';
-
-		const formData = new FormData();
-		formData.append('platform', selectedPlatform);
-
-		if (selectedPlatform === 'plausible' || selectedPlatform === 'ga') {
-			for (const file of importFiles) {
-				formData.append('files', file);
-			}
-		} else {
-			formData.append('file', importFile!);
-		}
-
-		try {
-			const res = await axios.post(`/api/websites/${data.website.id}/import`, formData, {
-				headers: { 'Content-Type': 'multipart/form-data' }
-			});
-
-			importSuccess = res.data.message;
-			importFile = null;
-			importFiles = [];
-			const fileInput = document.getElementById('import-file-input') as HTMLInputElement;
-			if (fileInput) fileInput.value = '';
-		} catch (e: any) {
-			importError = e.response?.data?.message || 'Failed to import data. Please check your file format.';
-			console.error('Import error:', e);
-		} finally {
-			isImporting = false;
-		}
-	};
-
-	const wipeData = async () => {
-		if (wipeConfirmText !== 'WIPE') return;
-
-		isWiping = true;
-		wipeError = '';
-
-		try {
-			await axios.delete(`/api/websites/${data.website.id}/data`);
-			showWipeModal = false;
-			wipeConfirmText = '';
-		} catch (e: any) {
-			wipeError = e.response?.data?.message || 'Failed to wipe data. Please try again.';
-			console.error('Wipe error:', e);
-		} finally {
-			isWiping = false;
-		}
-	};
-
-	const sidebarItems = [
-		{ id: 'general', label: 'General', icon: Settings },
-		{ id: 'notifications', label: 'Notifications', icon: Bell },
-		{ id: 'exclusions', label: 'Exclusions', icon: Filter },
-		{ id: 'team', label: 'Team', icon: Users },
-		{ id: 'data', label: 'Data', icon: Database }
-	];
-
-	$effect(() => {
-		if (activeTab === 'team') {
-			loadTeamMembers();
-		}
-	});
-
-	$effect(() => {
-		if (browser) {
-			const params = new URLSearchParams(window.location.search);
-			const tabParam = params.get('tab');
-			if (tabParam === 'integrations') {
-				activeTab = 'general';
-			}
-		}
-	});
-
-	let notificationsLoaded = $state(false);
-
-	$effect(() => {
-		if (!notificationsLoaded && data.website.notifications) {
-			const notifs = data.website.notifications as { trafficSpike: { enabled: boolean; threshold: number; windowSeconds: number }; weeklySummary: { enabled: boolean } } | undefined;
-			if (notifs) {
-				trafficSpikeEnabled = notifs.trafficSpike?.enabled ?? false;
-				trafficSpikeThreshold = notifs.trafficSpike?.threshold ?? 100;
-				trafficSpikeWindowSeconds = notifs.trafficSpike?.windowSeconds ?? 60;
-				weeklySummaryEnabled = notifs.weeklySummary?.enabled ?? false;
-				originalNotifications = {
-					trafficSpike: { enabled: trafficSpikeEnabled, threshold: trafficSpikeThreshold, windowSeconds: trafficSpikeWindowSeconds },
-					weeklySummary: { enabled: weeklySummaryEnabled }
-				};
-				notificationsLoaded = true;
-			}
-		}
-	});
 </script>
 
 <svelte:head>
 	<title>Settings - {domain}</title>
 </svelte:head>
 
-<div class="min-h-screen p-8">
-	<div class="mx-auto max-w-6xl">
-		<!-- Header -->
-		<div class="mb-8">
-			<Button variant="ghost" href="/dashboard/{data.website.id}" class="mb-4 gap-2 text-muted-foreground">
-				<ArrowLeft size={14} />
-				Back
-			</Button>
-			<h1 class="text-2xl font-bold">Settings for {domain}</h1>
-		</div>
-
-		<div class="flex flex-col gap-8 md:flex-row">
-			<!-- Sidebar -->
-			<div class="w-full shrink-0 md:w-64">
-				<nav class="space-y-1">
-					{#each sidebarItems as item}
-						<Button variant={activeTab === item.id ? 'secondary' : 'ghost'} onclick={() => (activeTab = item.id)} class="w-full justify-start">
-							<item.icon size={18} class="mr-3" />
-							{item.label}
-						</Button>
-					{/each}
-				</nav>
+<Card.Root>
+	<Card.Header>
+		<Card.Title>Script</Card.Title>
+		<Card.Description>
+			Paste this snippet in the <code class="rounded bg-muted px-1 py-0.5 text-muted-foreground">&lt;head&gt;</code> of your website.
+		</Card.Description>
+	</Card.Header>
+	<Card.Content>
+		<div class="group relative">
+			<div class="absolute top-1/2 right-3 -translate-y-1/2">
+				<Button variant="secondary" size="icon-sm" onclick={copyToClipboard}>
+					<Copy size={16} />
+				</Button>
 			</div>
-
-			<!-- Main Content -->
-			<div class="min-w-0 flex-1 space-y-8 pb-20">
-				{#if activeTab === 'general'}
-					<div in:fade={{ duration: 200 }}>
-						<!-- Script Section -->
-						<Card.Root>
-							<Card.Header>
-								<Card.Title>Script</Card.Title>
-								<Card.Description>
-									Paste this snippet in the <code class="rounded bg-muted px-1 py-0.5 text-muted-foreground">&lt;head&gt;</code> of your website.
-								</Card.Description>
-							</Card.Header>
-							<Card.Content>
-								<div class="group relative">
-									<div class="absolute top-1/2 right-3 -translate-y-1/2">
-										<Button variant="secondary" size="icon-sm" onclick={copyToClipboard}>
-											<Copy size={16} />
-										</Button>
-									</div>
-									<pre class="w-full overflow-x-auto rounded-lg border bg-muted p-4 text-sm [&::-webkit-scrollbar]:hidden">{scriptCode}</pre>
-								</div>
-							</Card.Content>
-						</Card.Root>
-
-						<!-- Domain Section -->
-						<Card.Root class="mt-6">
-							<Card.Header>
-								<Card.Title>Domain</Card.Title>
-								<Card.Description>Your main website domain for analytics tracking.</Card.Description>
-							</Card.Header>
-							<Card.Content>
-								<div class="relative flex-1">
-									<Input bind:value={domain} placeholder="example.com" />
-								</div>
-							</Card.Content>
-						</Card.Root>
-
-						<!-- Timezone Section -->
-						<Card.Root class="mt-6">
-							<Card.Header>
-								<Card.Title>Timezone</Card.Title>
-								<Card.Description>This defines what "today" means in your reports.</Card.Description>
-							</Card.Header>
-							<Card.Content>
-								<Select.Root bind:value={timezone} type="single">
-									<Select.Trigger class="w-full">
-										{timezone}
-									</Select.Trigger>
-									<Select.Content>
-										{#each TIMEZONES as tz}
-											<Select.Item value={tz} label={tz} />
-										{/each}
-									</Select.Content>
-								</Select.Root>
-							</Card.Content>
-						</Card.Root>
-
-						{#if saveError}
-							<Alert.Root variant="destructive" class="mt-6">
-								<Alert.Description>{saveError}</Alert.Description>
-							</Alert.Root>
-						{/if}
-
-						{#if saveSuccess}
-							<Alert.Root class="mt-6 border-green-500/50 bg-green-500/10 text-green-500">
-								<Check size={16} />
-								<Alert.Title>Settings saved successfully!</Alert.Title>
-							</Alert.Root>
-						{/if}
-
-						<div class="mt-6 flex justify-end gap-2">
-							<Button onclick={saveSettings} disabled={!hasChanges || isSaving}>
-								{#if isSaving}
-									<Loader2 size={14} class="animate-spin" />
-								{:else if saveSuccess}
-									<Check size={14} />
-								{/if}
-								Save changes
-							</Button>
-						</div>
-
-						<div class="mt-8 flex justify-end">
-							<Button variant="ghost" size="sm" onclick={() => (showDeleteModal = true)} class="text-muted-foreground hover:text-destructive">
-								<Trash2 size={12} class="mr-1" />
-								Delete website
-							</Button>
-						</div>
-					</div>
-				{:else if activeTab === 'notifications'}
-					<div in:fade={{ duration: 200 }}>
-						<Card.Root>
-							<Card.Header>
-								<Card.Title>Traffic Spike Alert</Card.Title>
-								<Card.Description>Get notified when your website experiences a sudden increase in visitors.</Card.Description>
-							</Card.Header>
-							<Card.Content class="space-y-6">
-								<div class="flex items-center justify-between">
-									<div class="space-y-1">
-										<p class="font-medium">Enable traffic spike alerts</p>
-										<p class="text-sm text-muted-foreground">Receive an email when visitor count exceeds threshold</p>
-									</div>
-									<Switch checked={trafficSpikeEnabled} onCheckedChange={(checked: boolean) => (trafficSpikeEnabled = checked)} />
-								</div>
-								{#if trafficSpikeEnabled}
-									<div class="space-y-4 rounded-lg bg-muted/50 p-4">
-										<div class="grid grid-cols-2 gap-4">
-											<div class="space-y-2">
-												<Label for="traffic-spike-threshold">Visitors threshold</Label>
-												<Input id="traffic-spike-threshold" type="number" bind:value={trafficSpikeThreshold} min={10} max={10000} />
-												<p class="text-xs text-muted-foreground">Alert when visitors exceed this number</p>
-											</div>
-											<div class="space-y-2">
-												<Label for="traffic-spike-window">Time window (seconds)</Label>
-												<Input id="traffic-spike-window" type="number" bind:value={trafficSpikeWindowSeconds} min={10} max={3600} />
-												<p class="text-xs text-muted-foreground">Check visitors in this time window</p>
-											</div>
-										</div>
-									</div>
-								{/if}
-							</Card.Content>
-						</Card.Root>
-
-						<Card.Root class="mt-6">
-							<Card.Header>
-								<Card.Title>Weekly Summary</Card.Title>
-								<Card.Description>Receive a weekly email with your website analytics summary. The schedule is configured in your deployment settings.</Card.Description>
-							</Card.Header>
-							<Card.Content class="space-y-6">
-								<div class="flex items-center justify-between">
-									<div class="space-y-1">
-										<p class="font-medium">Enable weekly summary</p>
-										<p class="text-sm text-muted-foreground">Receive a weekly analytics report every Monday at 9 AM</p>
-									</div>
-									<Switch checked={weeklySummaryEnabled} onCheckedChange={(checked: boolean) => (weeklySummaryEnabled = checked)} />
-								</div>
-							</Card.Content>
-						</Card.Root>
-
-						{#if saveError}
-							<Alert.Root variant="destructive" class="mt-6">
-								<Alert.Description>{saveError}</Alert.Description>
-							</Alert.Root>
-						{/if}
-
-						{#if saveSuccess}
-							<Alert.Root class="mt-6 border-green-500/50 bg-green-500/10 text-green-500">
-								<Check size={16} />
-								<Alert.Title>Settings saved successfully!</Alert.Title>
-							</Alert.Root>
-						{/if}
-
-						<div class="mt-6 flex justify-end gap-2">
-							<Button onclick={saveSettings} disabled={!hasChanges || isSaving}>
-								{#if isSaving}
-									<Loader2 size={14} class="animate-spin" />
-								{:else if saveSuccess}
-									<Check size={14} />
-								{/if}
-								Save changes
-							</Button>
-						</div>
-					</div>
-				{:else if activeTab === 'exclusions'}
-					<div in:fade={{ duration: 200 }}>
-						<Card.Root>
-							<Card.Header>
-								<Card.Title>Excluded IPs</Card.Title>
-								<Card.Description>Exclude tracking from specific IP addresses.</Card.Description>
-							</Card.Header>
-							<Card.Content>
-								<div class="mb-4 flex gap-2">
-									<div class="flex-1">
-										<Input
-											type="text"
-											bind:value={newIp}
-											placeholder="e.g., 192.168.1.1 or 10.0.*.*"
-											onkeydown={(e) => {
-												if (e.key === 'Enter') {
-													e.preventDefault();
-													addIp();
-												}
-											}}
-										/>
-										{#if ipError}
-											<p class="mt-1 text-sm text-destructive">{ipError}</p>
-										{/if}
-									</div>
-									<Button onclick={addIp}>Add</Button>
-								</div>
-								{#if excludedIps.length > 0}
-									<div class="space-y-2">
-										{#each excludedIps as ip, index}
-											<div class="flex items-center justify-between rounded-lg border bg-muted/50 px-3 py-2">
-												<code class="text-sm">{ip}</code>
-												<Button
-													variant="ghost"
-													size="icon-sm"
-													onclick={() => {
-														excludedIps = excludedIps.filter((_, i) => i !== index);
-													}}
-													class="text-muted-foreground hover:text-destructive"
-												>
-													<X size={14} />
-												</Button>
-											</div>
-										{/each}
-									</div>
-								{:else}
-									<p class="text-sm text-muted-foreground">No IPs excluded.</p>
-								{/if}
-							</Card.Content>
-						</Card.Root>
-
-						<Card.Root class="mt-6">
-							<Card.Header>
-								<Card.Title>Excluded Paths</Card.Title>
-								<Card.Description>Exclude tracking from specific URL paths.</Card.Description>
-							</Card.Header>
-							<Card.Content>
-								<div class="mb-4 flex gap-2">
-									<div class="flex-1">
-										<Input
-											type="text"
-											bind:value={newPath}
-											placeholder="e.g., /admin or /api/*"
-											onkeydown={(e) => {
-												if (e.key === 'Enter') {
-													e.preventDefault();
-													addPath();
-												}
-											}}
-										/>
-										{#if pathError}
-											<p class="mt-1 text-sm text-destructive">{pathError}</p>
-										{/if}
-									</div>
-									<Button onclick={addPath}>Add</Button>
-								</div>
-								{#if excludedPaths.length > 0}
-									<div class="space-y-2">
-										{#each excludedPaths as path, index}
-											<div class="flex items-center justify-between rounded-lg border bg-muted/50 px-3 py-2">
-												<code class="text-sm">{path}</code>
-												<Button
-													variant="ghost"
-													size="icon-sm"
-													onclick={() => {
-														excludedPaths = excludedPaths.filter((_, i) => i !== index);
-													}}
-													class="text-muted-foreground hover:text-destructive"
-												>
-													<X size={14} />
-												</Button>
-											</div>
-										{/each}
-									</div>
-								{:else}
-									<p class="text-sm text-muted-foreground">No paths excluded.</p>
-								{/if}
-							</Card.Content>
-						</Card.Root>
-
-						<Card.Root class="mt-6">
-							<Card.Header>
-								<Card.Title>Excluded Countries</Card.Title>
-								<Card.Description>Exclude tracking from visitors in specific countries.</Card.Description>
-							</Card.Header>
-							<Card.Content>
-								<div class="mb-4">
-									<Select.Root bind:value={newCountry} type="single">
-										<Select.Trigger class="w-full">
-											{newCountry || 'Select a country...'}
-										</Select.Trigger>
-										<Select.Content>
-											{#each COUNTRY_OPTIONS as country}
-												<Select.Item value={country} label={country} />
-											{/each}
-										</Select.Content>
-									</Select.Root>
-								</div>
-								<div class="mb-4">
-									<Button
-										onclick={() => {
-											if (newCountry && !excludedCountries.includes(newCountry)) {
-												excludedCountries = [...excludedCountries, newCountry];
-												newCountry = '';
-											}
-										}}
-										disabled={!newCountry || excludedCountries.includes(newCountry)}
-									>
-										Add Country
-									</Button>
-								</div>
-								{#if excludedCountries.length > 0}
-									<div class="flex flex-wrap gap-2">
-										{#each excludedCountries as country, index}
-											<div class="flex items-center gap-1 rounded-full border bg-muted/50 px-3 py-1">
-												<span class="text-sm">{country}</span>
-												<Button
-													variant="ghost"
-													size="icon-sm"
-													onclick={() => {
-														excludedCountries = excludedCountries.filter((_, i) => i !== index);
-													}}
-													class="h-4 w-4 text-muted-foreground hover:text-destructive"
-												>
-													<X size={12} />
-												</Button>
-											</div>
-										{/each}
-									</div>
-								{:else}
-									<p class="text-sm text-muted-foreground">No countries excluded.</p>
-								{/if}
-							</Card.Content>
-						</Card.Root>
-
-						{#if saveError}
-							<Alert.Root variant="destructive" class="mt-6">
-								<Alert.Description>{saveError}</Alert.Description>
-							</Alert.Root>
-						{/if}
-
-						{#if saveSuccess}
-							<Alert.Root class="mt-6 border-green-500/50 bg-green-500/10 text-green-500">
-								<Check size={16} />
-								<Alert.Title>Settings saved successfully!</Alert.Title>
-							</Alert.Root>
-						{/if}
-
-						<div class="mt-6 flex justify-end gap-2">
-							<Button onclick={saveSettings} disabled={!hasChanges || isSaving}>
-								{#if isSaving}
-									<Loader2 size={14} class="animate-spin" />
-								{:else if saveSuccess}
-									<Check size={14} />
-								{/if}
-								Save changes
-							</Button>
-						</div>
-					</div>
-				{:else if activeTab === 'team'}
-					<div in:fade={{ duration: 200 }}>
-						<Card.Root>
-							<Card.Header>
-								<div class="flex items-center justify-between">
-									<div>
-										<Card.Title>Team Members</Card.Title>
-										<Card.Description>Invite team members to view analytics for this website. They will have read-only access.</Card.Description>
-									</div>
-									<Button onclick={() => (showInviteModal = true)} size="sm">
-										<UserPlus size={14} class="mr-1" />
-										Invite
-									</Button>
-								</div>
-							</Card.Header>
-							<Card.Content>
-								{#if isLoadingTeam}
-									<div class="flex items-center justify-center py-8">
-										<Loader2 class="h-6 w-6 animate-spin text-muted-foreground" />
-									</div>
-								{:else if teamMembers.length === 0}
-									<div class="flex flex-col items-center justify-center py-8 text-muted-foreground">
-										<Users class="mb-2 h-8 w-8 opacity-50" />
-										<p>No team members yet</p>
-										<p class="text-sm">Invite team members to share access to this website's analytics.</p>
-									</div>
-								{:else}
-									<div class="divide-y">
-										{#each teamMembers as member}
-											<div class="flex items-center justify-between py-3">
-												<div class="flex items-center gap-3">
-													<div class="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-														{#if member.image}
-															<img src={member.image} alt={member.name || member.email} class="h-8 w-8 rounded-full object-cover" />
-														{:else}
-															<span class="text-sm font-medium">{(member.name || member.email)[0].toUpperCase()}</span>
-														{/if}
-													</div>
-													<div>
-														<p class="text-sm font-medium">{member.name || member.email}</p>
-														<p class="text-xs text-muted-foreground">{member.email}</p>
-													</div>
-												</div>
-												<Button variant="ghost" size="icon-sm" onclick={() => removeMember(member.id)} class="text-muted-foreground hover:text-destructive">
-													<X size={14} />
-												</Button>
-											</div>
-										{/each}
-									</div>
-								{/if}
-							</Card.Content>
-						</Card.Root>
-					</div>
-				{:else if activeTab === 'data'}
-					<div in:fade={{ duration: 200 }}>
-						<Card.Root>
-							<Card.Header>
-								<Card.Title>Import Data</Card.Title>
-								<Card.Description>Import analytics data from other analytics platforms.</Card.Description>
-							</Card.Header>
-							<Card.Content>
-								<Tabs.Root bind:value={selectedPlatform} class="w-full">
-									<Tabs.List class="mb-4">
-										{#each platforms as platform}
-											<Tabs.Trigger value={platform.id} class="gap-2">
-												<img src={platform.icon} alt={platform.label} class="h-4 w-4" />
-												{platform.label}
-											</Tabs.Trigger>
-										{/each}
-									</Tabs.List>
-
-									<Tabs.Content value="umami">
-										<div class="mb-4 rounded-lg border bg-muted/50 p-4">
-											<h4 class="mb-2 font-medium">Umami Import Instructions</h4>
-											<ol class="list-inside list-decimal space-y-1 text-sm text-muted-foreground">
-												<li>
-													Go to <a href="https://cloud.umami.is/settings/data" class="text-primary" target="_blank" rel="noopener">https://cloud.umami.is/settings/data</a>
-												</li>
-												<li>Click "Export" and go to your email to download data.</li>
-												<li>Upload the <code class="rounded bg-muted px-1 py-0.5">website_event.csv</code> file below</li>
-											</ol>
-										</div>
-
-										{#if importError}
-											<Alert.Root variant="destructive" class="mb-4">
-												<Alert.Description>{importError}</Alert.Description>
-											</Alert.Root>
-										{/if}
-										{#if importSuccess}
-											<Alert.Root class="mb-4 border-green-500/50 bg-green-500/10 text-green-500">
-												<Check size={16} />
-												<Alert.Description>{importSuccess}</Alert.Description>
-											</Alert.Root>
-										{/if}
-										<div class="flex flex-col gap-4">
-											<Input id="import-file-input-umami" type="file" accept=".csv" onchange={handleFileSelect} />
-											<Button onclick={handleImport} disabled={!importFile || isImporting}>
-												{#if isImporting}
-													<Loader2 size={14} class="mr-2 animate-spin" />
-												{:else}
-													<Upload size={14} class="mr-2" />
-												{/if}
-												Import from Umami
-											</Button>
-										</div>
-									</Tabs.Content>
-
-									<Tabs.Content value="plausible">
-										<div class="mb-4 rounded-lg border bg-muted/50 p-4">
-											<h4 class="mb-2 font-medium">Plausible Import Instructions</h4>
-											<ol class="list-inside list-decimal space-y-1 text-sm text-muted-foreground">
-												<li>
-													Go to <span class="text-primary">https://plausible.io/&#123;website&#125;/settings/imports-exports</span> (replace "website" with your site ID)
-												</li>
-												<li>Download the latest export file.</li>
-												<li>Upload <strong>all CSV files</strong> from the exported folder below</li>
-												<li>Required: <code class="rounded bg-muted px-1 py-0.5">imported_visitors_*.csv</code></li>
-											</ol>
-										</div>
-
-										{#if importError}
-											<Alert.Root variant="destructive" class="mb-4">
-												<Alert.Description>{importError}</Alert.Description>
-											</Alert.Root>
-										{/if}
-										{#if importSuccess}
-											<Alert.Root class="mb-4 border-green-500/50 bg-green-500/10 text-green-500">
-												<Check size={16} />
-												<Alert.Description>{importSuccess}</Alert.Description>
-											</Alert.Root>
-										{/if}
-										<div class="flex flex-col gap-4">
-											<Input id="import-file-input-plausible" type="file" accept=".csv" multiple onchange={handleFileSelect} />
-											{#if importFiles.length > 0}
-												<p class="text-sm text-muted-foreground">{importFiles.length} file(s) selected</p>
-											{/if}
-											<Button onclick={handleImport} disabled={importFiles.length === 0 || isImporting}>
-												{#if isImporting}
-													<Loader2 size={14} class="mr-2 animate-spin" />
-												{:else}
-													<Upload size={14} class="mr-2" />
-												{/if}
-												Import from Plausible
-											</Button>
-										</div>
-									</Tabs.Content>
-
-									<Tabs.Content value="ga">
-										<div class="mb-4 rounded-lg border bg-muted/50 p-4">
-											<h4 class="mb-2 font-medium">Google Analytics Import Instructions</h4>
-											<ol class="list-inside list-decimal space-y-1 text-sm text-muted-foreground">
-												<li>
-													Go to <a href="https://analytics.google.com/" class="text-primary" target="_blank" rel="noopener">Google Analytics</a> and open your GA4 property
-												</li>
-												<li>Navigate to Reports → View user engagement & retention → Pages and screens</li>
-												<li>Click the Share icon → Download File → Download CSV</li>
-												<li>Repeat for Browsers report: Reports → Tech → Overview → Share icon → Download File → Download CSV</li>
-												<li>Upload the CSV file(s) below</li>
-											</ol>
-										</div>
-
-										{#if importError}
-											<Alert.Root variant="destructive" class="mb-4">
-												<Alert.Description>{importError}</Alert.Description>
-											</Alert.Root>
-										{/if}
-										{#if importSuccess}
-											<Alert.Root class="mb-4 border-green-500/50 bg-green-500/10 text-green-500">
-												<Check size={16} />
-												<Alert.Description>{importSuccess}</Alert.Description>
-											</Alert.Root>
-										{/if}
-										<div class="flex flex-col gap-4">
-											<Input id="import-file-input-ga" type="file" accept=".csv" multiple onchange={handleFileSelect} />
-											{#if importFiles.length > 0}
-												<p class="text-sm text-muted-foreground">{importFiles.length} file(s) selected</p>
-											{/if}
-											<Button onclick={handleImport} disabled={importFiles.length === 0 || isImporting}>
-												{#if isImporting}
-													<Loader2 size={14} class="mr-2 animate-spin" />
-												{:else}
-													<Upload size={14} class="mr-2" />
-												{/if}
-												Import from Google Analytics
-											</Button>
-										</div>
-									</Tabs.Content>
-								</Tabs.Root>
-							</Card.Content>
-						</Card.Root>
-
-						<Card.Root class="mt-6">
-							<Card.Header>
-								<Card.Title>Export Data</Card.Title>
-								<Card.Description>Download your website analytics data as a CSV file.</Card.Description>
-							</Card.Header>
-							<Card.Content>
-								<p class="mb-4 text-sm text-muted-foreground">
-									Export all analytics data including pageviews, sessions, visitors, and events. The CSV file can be opened in spreadsheet applications like Excel or Google Sheets.
-								</p>
-								{#if exportError}
-									<Alert.Root variant="destructive" class="mb-4">
-										<Alert.Description>{exportError}</Alert.Description>
-									</Alert.Root>
-								{/if}
-								<Button onclick={exportToCsv} disabled={isExporting}>
-									{#if isExporting}
-										<Loader2 size={14} class="mr-2 animate-spin" />
-									{:else}
-										<Download size={14} class="mr-2" />
-									{/if}
-									Export to CSV
-								</Button>
-							</Card.Content>
-						</Card.Root>
-
-						<Card.Root class="mt-6 border-destructive/50">
-							<Card.Header>
-								<Card.Title class="text-destructive">Wipe Data</Card.Title>
-								<Card.Description>Permanently delete all analytics data for this website.</Card.Description>
-							</Card.Header>
-							<Card.Content>
-								<p class="mb-4 text-sm text-muted-foreground">
-									This will delete all pageviews, sessions, visitors, and events. The website itself will remain, but all historical data will be lost.
-								</p>
-								<Button variant="destructive" onclick={() => (showWipeModal = true)}>
-									<Trash2 size={14} class="mr-2" />
-									Wipe All Data
-								</Button>
-							</Card.Content>
-						</Card.Root>
-					</div>
-				{/if}
-			</div>
+			<pre class="w-full overflow-x-auto rounded-lg border bg-muted p-4 text-sm [&::-webkit-scrollbar]:hidden">{scriptCode}</pre>
 		</div>
-	</div>
+	</Card.Content>
+</Card.Root>
+
+<Card.Root class="mt-6">
+	<Card.Header>
+		<Card.Title>Domain</Card.Title>
+		<Card.Description>Your main website domain for analytics tracking.</Card.Description>
+	</Card.Header>
+	<Card.Content>
+		<div class="relative flex-1">
+			<Input bind:value={domain} placeholder="example.com" />
+		</div>
+	</Card.Content>
+</Card.Root>
+
+<Card.Root class="mt-6">
+	<Card.Header>
+		<Card.Title>Timezone</Card.Title>
+		<Card.Description>This defines what "today" means in your reports.</Card.Description>
+	</Card.Header>
+	<Card.Content>
+		<Select.Root bind:value={timezone} type="single">
+			<Select.Trigger class="w-full">
+				{timezone}
+			</Select.Trigger>
+			<Select.Content>
+				{#each TIMEZONES as tz}
+					<Select.Item value={tz} label={tz} />
+				{/each}
+			</Select.Content>
+		</Select.Root>
+	</Card.Content>
+</Card.Root>
+
+{#if saveError}
+	<Alert.Root variant="destructive" class="mt-6">
+		<Alert.Description>{saveError}</Alert.Description>
+	</Alert.Root>
+{/if}
+
+{#if saveSuccess}
+	<Alert.Root class="mt-6 border-green-500/50 bg-green-500/10 text-green-500">
+		<Check size={16} />
+		<Alert.Title>Settings saved successfully!</Alert.Title>
+	</Alert.Root>
+{/if}
+
+<div class="mt-6 flex justify-end gap-2">
+	<Button onclick={saveSettings} disabled={!hasChanges || isSaving}>
+		{#if isSaving}
+			<Loader2 size={14} class="animate-spin" />
+		{:else if saveSuccess}
+			<Check size={14} />
+		{/if}
+		Save changes
+	</Button>
+</div>
+
+<div class="mt-8 flex justify-end">
+	<Button variant="ghost" size="sm" onclick={() => (showDeleteModal = true)} class="text-muted-foreground hover:text-destructive">
+		<Trash2 size={12} class="mr-1" />
+		Delete website
+	</Button>
 </div>
 
 <Dialog.Root bind:open={showDeleteModal}>
@@ -1063,96 +209,6 @@
 					<Loader2 size={14} class="animate-spin" />
 				{/if}
 				Delete
-			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
-
-<Dialog.Root bind:open={showInviteModal}>
-	<Dialog.Content class="max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>Invite Team Member</Dialog.Title>
-			<Dialog.Description>Enter the email address of the user you want to invite. They must already have an account.</Dialog.Description>
-		</Dialog.Header>
-
-		<div class="space-y-4">
-			<div>
-				<Label for="invite-email" class="mb-2 block">Email address</Label>
-				<Input id="invite-email" type="email" bind:value={inviteEmail} placeholder="user@example.com" />
-			</div>
-
-			{#if inviteError}
-				<Alert.Root variant="destructive">
-					<Alert.Description>{inviteError}</Alert.Description>
-				</Alert.Root>
-			{/if}
-		</div>
-
-		<Dialog.Footer class="gap-2">
-			<Button
-				variant="ghost"
-				onclick={() => {
-					showInviteModal = false;
-					inviteEmail = '';
-					inviteError = '';
-				}}
-			>
-				Cancel
-			</Button>
-			<Button onclick={inviteMember} disabled={!inviteEmail.trim() || isInviting}>
-				{#if isInviting}
-					<Loader2 size={14} class="animate-spin" />
-				{/if}
-				Invite
-			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
-
-<Dialog.Root bind:open={showWipeModal}>
-	<Dialog.Content class="max-w-md">
-		<Dialog.Header>
-			<div class="flex items-center gap-3">
-				<div class="rounded-lg bg-destructive/10 p-2">
-					<AlertTriangle class="h-5 w-5 text-destructive" />
-				</div>
-				<Dialog.Title>Wipe All Data</Dialog.Title>
-			</div>
-		</Dialog.Header>
-
-		<p class="mb-4 text-sm text-muted-foreground">
-			Are you sure you want to wipe all analytics data for <span class="font-medium text-foreground">{domain}</span>? This action cannot be undone.
-		</p>
-
-		<div class="mb-4">
-			<Label for="wipe-confirm-input" class="mb-2 block">
-				Type <span class="text-destructive">WIPE</span> to confirm
-			</Label>
-			<Input id="wipe-confirm-input" bind:value={wipeConfirmText} placeholder="WIPE" class="border-destructive focus-visible:ring-destructive" />
-		</div>
-
-		{#if wipeError}
-			<Alert.Root variant="destructive" class="mb-4">
-				<Alert.Description>{wipeError}</Alert.Description>
-			</Alert.Root>
-		{/if}
-
-		<Dialog.Footer class="gap-2">
-			<Button
-				variant="ghost"
-				onclick={() => {
-					showWipeModal = false;
-					wipeConfirmText = '';
-					wipeError = '';
-				}}
-			>
-				Cancel
-			</Button>
-			<Button variant="destructive" onclick={wipeData} disabled={wipeConfirmText !== 'WIPE' || isWiping}>
-				{#if isWiping}
-					<Loader2 size={14} class="animate-spin" />
-				{/if}
-				Wipe Data
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

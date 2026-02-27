@@ -1,11 +1,11 @@
 import { redirect, error } from '@sveltejs/kit';
 import { website } from '$lib/server/db/schema';
-import type { PageServerLoad } from './$types';
+import type { LayoutServerLoad } from './$types';
 import { eq } from 'drizzle-orm';
 import db from '$lib/server/db';
 import { isValidUUID } from '$lib/server/utils';
 
-export const load: PageServerLoad = async ({ locals, params }) => {
+export const load: LayoutServerLoad = async ({ locals, params }) => {
 	if (!locals.user) {
 		throw redirect(302, '/auth?redirectTo=/dashboard/' + params.websiteId + '/settings');
 	}
