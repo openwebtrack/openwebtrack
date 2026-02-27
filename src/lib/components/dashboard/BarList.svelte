@@ -11,12 +11,6 @@
 			return { key: key || '', value: value || '' };
 		});
 	};
-
-	const getRevenue = (label: string): string => {
-		if (!revenueItems || revenueItems.length === 0) return '';
-		const item = revenueItems.find((r: any) => r.label === label);
-		return item ? `$${item.value.toLocaleString()}` : '';
-	};
 </script>
 
 <div class="flex flex-col gap-2">
@@ -42,9 +36,6 @@
 					</span>
 				</div>
 				<div class="flex items-center gap-2">
-					{#if revenueItems.length > 0}
-						<span class="text-xs text-green-600 dark:text-green-400">{getRevenue(item.label)}</span>
-					{/if}
 					<span class="text-xs text-muted-foreground">{item.value}</span>
 				</div>
 			</div>

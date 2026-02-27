@@ -27,6 +27,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 			visitorId: analyticsSession.visitorId,
 			name: visitor.name,
 			avatar: visitor.avatar,
+			isCustomer: visitor.isCustomer,
 			lastActivityAt: sql<string>`MAX(${analyticsSession.lastActivityAt})`.as('last_activity'),
 			country: sql<string | null>`(array_agg(${analyticsSession.country} ORDER BY ${analyticsSession.lastActivityAt} DESC))[1]`,
 			device: sql<string | null>`(array_agg(${analyticsSession.deviceType} ORDER BY ${analyticsSession.lastActivityAt} DESC))[1]`,
@@ -42,7 +43,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		.from(analyticsSession)
 		.leftJoin(visitor, eq(analyticsSession.visitorId, visitor.id))
 		.where(eq(analyticsSession.websiteId, site.id))
-		.groupBy(analyticsSession.visitorId, visitor.name, visitor.avatar)
+		.groupBy(analyticsSession.visitorId, visitor.name, visitor.avatar, visitor.isCustomer)
 		.orderBy(sql`MAX(${analyticsSession.lastActivityAt}) DESC`)
 		.limit(100);
 

@@ -1,7 +1,7 @@
 import { SEARCH_ENGINES, SOCIAL_NETWORKS, MAX_STRING_LENGTHS, MAX_DATE_RANGE_DAYS } from '@/utils/constants';
 import type { Filter, DateRange, Granularity } from './types';
-import { ilike, and, or, eq } from 'drizzle-orm';
-import { pageview, analyticsSession, analyticsEvent, website, teamMember } from './db/schema';
+import { ilike, and, or, eq, sql } from 'drizzle-orm';
+import { pageview, analyticsSession, analyticsEvent, website, teamMember, visitor } from './db/schema';
 import db from './db';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -275,6 +275,13 @@ export const buildFilterConditions = (filters: Filter[]) => {
 					sessionConditions.push(and(eq(analyticsSession.isPwa, true)));
 				} else {
 					sessionConditions.push(and(eq(analyticsSession.isPwa, false)));
+				}
+				break;
+			case 'customer':
+				if (filter.value.toLowerCase() === 'yes' || filter.value.toLowerCase() === 'true') {
+					sessionConditions.push(and(sql`EXISTS (SELECT 1 FROM visitor WHERE visitor.id = ${analyticsSession.visitorId} AND visitor.is_customer = true)`));
+				} else {
+					sessionConditions.push(and(sql`NOT EXISTS (SELECT 1 FROM visitor WHERE visitor.id = ${analyticsSession.visitorId} AND visitor.is_customer = true)`));
 				}
 				break;
 		}

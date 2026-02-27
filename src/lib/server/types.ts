@@ -1,4 +1,4 @@
-export type FilterType = 'referrer' | 'campaign' | 'country' | 'region' | 'city' | 'goal' | 'hostname' | 'page' | 'entryPage' | 'browser' | 'os' | 'device' | 'pwa';
+export type FilterType = 'referrer' | 'campaign' | 'country' | 'region' | 'city' | 'goal' | 'hostname' | 'page' | 'entryPage' | 'browser' | 'os' | 'device' | 'pwa' | 'customer';
 
 export interface Filter {
 	type: FilterType;

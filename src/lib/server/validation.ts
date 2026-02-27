@@ -118,7 +118,8 @@ export const eventsQuerySchema = z.object({
 });
 
 export const importSchema = z.object({
-	platform: z.enum(['umami', 'plausible']).default('umami')
+	platform: z.enum(['umami', 'plausible', 'datafast']).default('umami'),
+	apiKey: z.string().optional()
 });
 
 export const isValidUUID = (value: string): boolean => {

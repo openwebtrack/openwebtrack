@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import db from '$lib/server/db';
-import { analyticsSession, pageview, visitor, analyticsEvent } from '$lib/server/db/schema';
+import { analyticsSession, pageview, visitor, analyticsEvent, payment } from '$lib/server/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { checkWebsiteAccess, isValidUUID } from '$lib/server/utils';
 
@@ -35,7 +35,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
 	const site = access.site;
 
-	const [sessions, pageviews, events, visitors] = await Promise.all([
+	const [sessions, pageviews, events, visitors, payments] = await Promise.all([
 		db
 			.select({
 				id: analyticsSession.id,
@@ -104,6 +104,20 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 			.from(visitor)
 			.where(eq(visitor.websiteId, site.id))
 			.orderBy(desc(visitor.lastSeen))
+			.limit(10000),
+		db
+			.select({
+				id: payment.id,
+				visitorId: payment.visitorId,
+				sessionId: payment.sessionId,
+				amount: payment.amount,
+				currency: payment.currency,
+				transactionId: payment.transactionId,
+				timestamp: payment.timestamp
+			})
+			.from(payment)
+			.where(eq(payment.websiteId, site.id))
+			.orderBy(desc(payment.timestamp))
 			.limit(10000)
 	]);
 
@@ -135,6 +149,13 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	csv += 'id,session_id,type,name,data,timestamp\n';
 	for (const e of events) {
 		csv += `${escapeCSV(e.id)},${escapeCSV(e.sessionId)},${escapeCSV(e.type)},${escapeCSV(e.name)},${escapeCSV(e.data ? JSON.stringify(e.data) : null)},${escapeCSV(e.timestamp?.toISOString())}\n`;
+	}
+	csv += '\n';
+
+	csv += 'PAYMENTS\n';
+	csv += 'id,visitor_id,session_id,amount,currency,transaction_id,timestamp\n';
+	for (const p of payments) {
+		csv += `${escapeCSV(p.id)},${escapeCSV(p.visitorId)},${escapeCSV(p.sessionId)},${escapeCSV(p.amount)},${escapeCSV(p.currency)},${escapeCSV(p.transactionId)},${escapeCSV(p.timestamp?.toISOString())}\n`;
 	}
 
 	return new Response(csv, {

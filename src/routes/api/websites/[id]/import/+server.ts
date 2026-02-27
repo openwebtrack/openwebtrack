@@ -1,10 +1,11 @@
-import { error, json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import db from '$lib/server/db';
-import { analyticsSession, pageview, visitor, analyticsEvent, website } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { analyticsSession, pageview, visitor, analyticsEvent, website, payment } from '$lib/server/db/schema';
 import { checkWebsiteAccess, isValidUUID } from '$lib/server/utils';
 import { importSchema } from '$lib/server/validation';
+import type { RequestHandler } from './$types';
+import { error, json } from '@sveltejs/kit';
+import { eq } from 'drizzle-orm';
+import db from '$lib/server/db';
+import axios from 'axios';
 
 interface UmamiEvent {
 	website_id: string;
@@ -116,6 +117,303 @@ interface ImportResult {
 	eventsCreated: number;
 	skippedRows: number;
 }
+
+interface DataFastOverview {
+	visitors: number;
+	sessions: number;
+	bounce_rate: number;
+	avg_session_duration: number;
+	revenue: number;
+	conversion_rate: number;
+}
+
+interface DataFastTimeSeries {
+	timestamp: string;
+	visitors: number;
+	sessions: number;
+	revenue?: number;
+}
+
+interface DataFastPages {
+	hostname: string;
+	path: string;
+	visitors: number;
+	revenue: number;
+}
+
+interface DataFastReferrers {
+	referrer: string;
+	visitors: number;
+	revenue: number;
+}
+
+interface DataFastDevices {
+	device: string;
+	visitors: number;
+	revenue: number;
+}
+
+interface DataFastBrowsers {
+	browser: string;
+	visitors: number;
+	revenue: number;
+}
+
+interface DataFastCountries {
+	country: string;
+	visitors: number;
+	revenue: number;
+}
+
+const DATAFAST_API_BASE = 'https://datafa.st/api/v1';
+
+const fetchDataFast = async (endpoint: string, apiKey: string, params: Record<string, string> = {}) => {
+	const url = new URL(`${DATAFAST_API_BASE}${endpoint}`);
+	Object.entries(params).forEach(([key, value]) => {
+		if (value) url.searchParams.append(key, value);
+	});
+
+	try {
+		const response = await axios.get(url.toString(), {
+			headers: {
+				Authorization: `Bearer ${apiKey}`,
+				'Content-Type': 'application/json'
+			}
+		});
+
+		return response.data;
+	} catch (err: any) {
+		const message = err.response?.data?.error?.message || err.message || `DataFast API error: ${err.response?.status}`;
+		throw new Error(message);
+	}
+};
+
+const importDataFast = async (apiKey: string, site: typeof website.$inferSelect): Promise<ImportResult> => {
+	const result: ImportResult = {
+		sessionsCreated: 0,
+		pageviewsCreated: 0,
+		eventsCreated: 0,
+		skippedRows: 0
+	};
+
+	const now = new Date();
+	const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+	const startAt = thirtyDaysAgo.toISOString().split('T')[0];
+	const endAt = now.toISOString().split('T')[0];
+
+	let overview: DataFastOverview;
+	let timeSeries: DataFastTimeSeries[] = [];
+	let pages: DataFastPages[] = [];
+	let referrers: DataFastReferrers[] = [];
+	let devices: DataFastDevices[] = [];
+	let browsers: DataFastBrowsers[] = [];
+	let countries: DataFastCountries[] = [];
+
+	try {
+		const overviewData = await fetchDataFast('/analytics/overview', apiKey, { startAt, endAt });
+		overview = overviewData.data[0];
+	} catch (e) {
+		console.error('Failed to fetch overview:', e);
+		throw error(400, 'Failed to fetch data from DataFast. Please check your API key.');
+	}
+
+	try {
+		const timeseriesData = await fetchDataFast('/analytics/timeseries', apiKey, {
+			fields: 'visitors,sessions,revenue',
+			interval: 'day',
+			startAt,
+			endAt,
+			limit: '30'
+		});
+		timeSeries = timeseriesData.data || [];
+	} catch (e) {
+		console.error('Failed to fetch time series:', e);
+	}
+
+	try {
+		const timeseriesData = await fetchDataFast('/analytics/timeseries', apiKey, {
+			fields: 'visitors,sessions,revenue',
+			interval: 'day',
+			startAt,
+			endAt,
+			limit: '30'
+		});
+		timeSeries = timeseriesData.data || [];
+	} catch (e) {
+		console.error('Failed to fetch time series:', e);
+	}
+
+	try {
+		const pagesData = await fetchDataFast('/analytics/pages', apiKey, {
+			startAt,
+			endAt,
+			limit: '500'
+		});
+		pages = pagesData.data || [];
+	} catch (e) {
+		console.error('Failed to fetch pages:', e);
+	}
+
+	try {
+		const referrersData = await fetchDataFast('/analytics/referrers', apiKey, {
+			startAt,
+			endAt,
+			limit: '500'
+		});
+		referrers = referrersData.data || [];
+	} catch (e) {
+		console.error('Failed to fetch referrers:', e);
+	}
+
+	try {
+		const devicesData = await fetchDataFast('/analytics/devices', apiKey, {
+			startAt,
+			endAt,
+			limit: '10'
+		});
+		devices = devicesData.data || [];
+	} catch (e) {
+		console.error('Failed to fetch devices:', e);
+	}
+
+	try {
+		const browsersData = await fetchDataFast('/analytics/browsers', apiKey, {
+			startAt,
+			endAt,
+			limit: '10'
+		});
+		browsers = browsersData.data || [];
+	} catch (e) {
+		console.error('Failed to fetch browsers:', e);
+	}
+
+	try {
+		const countriesData = await fetchDataFast('/analytics/countries', apiKey, {
+			startAt,
+			endAt,
+			limit: '50'
+		});
+		countries = countriesData.data || [];
+	} catch (e) {
+		console.error('Failed to fetch countries:', e);
+	}
+
+	const totalVisitors = overview?.visitors || 0;
+	const totalRevenue = overview?.revenue || 0;
+	const totalSessions = overview?.sessions || 0;
+
+	if (totalVisitors === 0) {
+		return result;
+	}
+
+	const dayMap = new Map<string, { visitors: number; sessions: number; revenue: number }>();
+	for (const ts of timeSeries) {
+		const date = ts.timestamp.split('T')[0];
+		dayMap.set(date, { visitors: ts.visitors || 0, sessions: ts.sessions || 0, revenue: ts.revenue || 0 });
+	}
+
+	const days = Array.from(dayMap.keys()).sort();
+
+	const getWeightedRandom = <T extends { visitors?: number }>(arr: T[]): T => {
+		if (arr.length === 0) return {} as T;
+		if (arr.length === 1) return arr[0];
+		return arr[Math.floor(Math.random() * Math.min(arr.length, 10))];
+	};
+
+	const numToImport = Math.min(totalVisitors, 5000);
+	const visitorsPerDay = Math.ceil(numToImport / Math.max(days.length, 1));
+
+	for (let dayIdx = 0; dayIdx < days.length; dayIdx++) {
+		const day = days[dayIdx];
+		const dayData = dayMap.get(day) || { visitors: 0, sessions: 0, revenue: 0 };
+
+		if (dayData.visitors === 0) continue;
+
+		const dayDate = new Date(day);
+		const dayStartHour = 8 + Math.floor(dayIdx * 2);
+		dayDate.setHours(dayStartHour, 0, 0, 0);
+
+		const numVisitorsToday = Math.min(dayData.visitors, Math.ceil(visitorsPerDay * (dayData.visitors / Math.max(totalVisitors, 1))));
+		const dayRevenue = dayData.revenue || 0;
+
+		for (let i = 0; i < numVisitorsToday; i++) {
+			const sessionDate = new Date(dayDate);
+			sessionDate.setMinutes(i * Math.floor(1440 / Math.max(numVisitorsToday, 1)));
+
+			const visitorDevice = getWeightedRandom(devices);
+			const visitorBrowser = getWeightedRandom(browsers);
+			const visitorCountry = getWeightedRandom(countries);
+			const visitorReferrer = getWeightedRandom(referrers);
+
+			const [newVisitor] = await db
+				.insert(visitor)
+				.values({
+					websiteId: site.id,
+					firstSeen: sessionDate,
+					lastSeen: sessionDate
+				})
+				.returning({ id: visitor.id });
+
+			const [newSession] = await db
+				.insert(analyticsSession)
+				.values({
+					websiteId: site.id,
+					visitorId: newVisitor.id,
+					startedAt: sessionDate,
+					expiresAt: new Date(sessionDate.getTime() + 30 * 60 * 1000),
+					lastActivityAt: sessionDate,
+					referrer: visitorReferrer?.referrer || null,
+					browser: visitorBrowser?.browser || 'Unknown',
+					os: visitorBrowser?.browser === 'Safari' ? 'macOS' : visitorBrowser?.browser === 'Chrome' ? 'Windows' : 'Unknown',
+					deviceType: normalizeDevice(visitorDevice?.device || 'Desktop'),
+					country: visitorCountry?.country || null,
+					region: null,
+					city: null
+				})
+				.returning({ id: analyticsSession.id });
+
+			result.sessionsCreated++;
+
+			const visitorPages = pages.slice(0, Math.min(pages.length, 10));
+			const numPages = Math.max(1, Math.floor(Math.random() * 4) + 1);
+
+			for (let j = 0; j < numPages; j++) {
+				const page = visitorPages[j % Math.max(visitorPages.length, 1)];
+				if (page) {
+					const pvDate = new Date(sessionDate.getTime() + j * 30000 + Math.random() * 10000);
+
+					await db.insert(pageview).values({
+						sessionId: newSession.id,
+						websiteId: site.id,
+						url: page.path,
+						pathname: page.path,
+						referrer: visitorReferrer?.referrer || null,
+						title: null,
+						timestamp: pvDate
+					});
+					result.pageviewsCreated++;
+				}
+			}
+
+			if (dayRevenue > 0 && totalRevenue > 0 && i < Math.ceil(numVisitorsToday * 0.05)) {
+				const avgOrderValue = totalRevenue / Math.max(overview?.sessions || 1, 1);
+				const paymentAmount = Math.round(avgOrderValue * (0.5 + Math.random()));
+
+				await db.insert(payment).values({
+					websiteId: site.id,
+					visitorId: newVisitor.id,
+					sessionId: newSession.id,
+					amount: paymentAmount,
+					currency: 'USD',
+					transactionId: `datafast-import-${day}-${i}`,
+					timestamp: sessionDate
+				});
+			}
+		}
+	}
+
+	return result;
+};
 
 const parseCSV = <T>(csvText: string): T[] => {
 	const lines = csvText.split('\n');
@@ -564,15 +862,24 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 	const site = access.site;
 
 	const formData = await request.formData();
-	const platformValidation = importSchema.safeParse({ platform: formData.get('platform') || 'umami' });
+	const platformValidation = importSchema.safeParse({
+		platform: formData.get('platform') || 'umami',
+		apiKey: formData.get('apiKey') || undefined
+	});
 	if (!platformValidation.success) {
 		throw error(400, 'Invalid platform');
 	}
-	const platform = platformValidation.data.platform;
+	const { platform, apiKey } = platformValidation.data;
 
 	let result: ImportResult;
 
-	if (platform === 'plausible') {
+	if (platform === 'datafast') {
+		if (!apiKey) {
+			throw error(400, 'API key is required for DataFast import');
+		}
+
+		result = await importDataFast(apiKey, site);
+	} else if (platform === 'plausible') {
 		const files = new Map<string, string>();
 		const filesData = formData.getAll('files');
 
@@ -610,6 +917,160 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		const csvText = await file.text();
 		result = await importUmami(csvText, site);
 	}
+
+	return json({
+		success: true,
+		message: `Imported ${result.sessionsCreated} sessions, ${result.pageviewsCreated} pageviews, and ${result.eventsCreated} events`,
+		result
+	});
+};
+
+interface DataFastImportPayload {
+	overview: DataFastOverview;
+	timeSeries: DataFastTimeSeries[];
+	pages: DataFastPages[];
+	referrers: DataFastReferrers[];
+	devices: DataFastDevices[];
+	browsers: DataFastBrowsers[];
+	countries: DataFastCountries[];
+}
+
+const importDataFastData = async (data: DataFastImportPayload, site: typeof website.$inferSelect): Promise<ImportResult> => {
+	const result: ImportResult = {
+		sessionsCreated: 0,
+		pageviewsCreated: 0,
+		eventsCreated: 0,
+		skippedRows: 0
+	};
+
+	const { overview, timeSeries, pages, referrers, devices, browsers, countries } = data;
+
+	const totalVisitors = overview?.visitors || 0;
+	const totalRevenue = overview?.revenue || 0;
+
+	if (totalVisitors === 0) {
+		return result;
+	}
+
+	const dayMap = new Map<string, { visitors: number; sessions: number; revenue: number }>();
+	for (const ts of timeSeries) {
+		const date = ts.timestamp.split('T')[0];
+		dayMap.set(date, { visitors: ts.visitors || 0, sessions: ts.sessions || 0, revenue: ts.revenue || 0 });
+	}
+
+	const days = Array.from(dayMap.keys()).sort();
+
+	const getWeightedRandom = <T extends { visitors?: number }>(arr: T[]): T => {
+		if (arr.length === 0) return {} as T;
+		if (arr.length === 1) return arr[0];
+		return arr[Math.floor(Math.random() * Math.min(arr.length, 10))];
+	};
+
+	const numToImport = Math.min(totalVisitors, 10000);
+
+	for (let dayIdx = 0; dayIdx < days.length; dayIdx++) {
+		const day = days[dayIdx];
+		const dayData = dayMap.get(day) || { visitors: 0, sessions: 0 };
+
+		if (dayData.visitors === 0) continue;
+
+		const dayDate = new Date(day);
+		const dayStartHour = 8 + Math.floor(dayIdx * 2);
+		dayDate.setHours(dayStartHour, 0, 0, 0);
+
+		const numVisitorsToday = Math.min(dayData.visitors, Math.ceil(numToImport * (dayData.visitors / Math.max(totalVisitors, 1))));
+
+		for (let i = 0; i < numVisitorsToday; i++) {
+			const sessionDate = new Date(dayDate);
+			sessionDate.setMinutes(i * Math.floor(1440 / Math.max(numVisitorsToday, 1)));
+
+			const visitorDevice = getWeightedRandom(devices);
+			const visitorBrowser = getWeightedRandom(browsers);
+			const visitorCountry = getWeightedRandom(countries);
+			const visitorReferrer = getWeightedRandom(referrers);
+
+			const [newVisitor] = await db
+				.insert(visitor)
+				.values({
+					websiteId: site.id,
+					firstSeen: sessionDate,
+					lastSeen: sessionDate
+				})
+				.returning({ id: visitor.id });
+
+			const [newSession] = await db
+				.insert(analyticsSession)
+				.values({
+					websiteId: site.id,
+					visitorId: newVisitor.id,
+					startedAt: sessionDate,
+					expiresAt: new Date(sessionDate.getTime() + 30 * 60 * 1000),
+					lastActivityAt: sessionDate,
+					referrer: visitorReferrer?.referrer || null,
+					browser: visitorBrowser?.browser || 'Unknown',
+					os: visitorBrowser?.browser === 'Safari' ? 'macOS' : visitorBrowser?.browser === 'Chrome' ? 'Windows' : 'Unknown',
+					deviceType: normalizeDevice(visitorDevice?.device || 'Desktop'),
+					country: visitorCountry?.country || null,
+					region: null,
+					city: null
+				})
+				.returning({ id: analyticsSession.id });
+
+			result.sessionsCreated++;
+
+			const visitorPages = pages.slice(0, Math.min(pages.length, 10));
+			const numPages = Math.max(1, Math.floor(Math.random() * 4) + 1);
+
+			for (let j = 0; j < numPages; j++) {
+				const page = visitorPages[j % Math.max(visitorPages.length, 1)];
+				if (page) {
+					const pvDate = new Date(sessionDate.getTime() + j * 30000 + Math.random() * 10000);
+
+					await db.insert(pageview).values({
+						sessionId: newSession.id,
+						websiteId: site.id,
+						url: page.path,
+						pathname: page.path,
+						referrer: visitorReferrer?.referrer || null,
+						title: null,
+						timestamp: pvDate
+					});
+					result.pageviewsCreated++;
+				}
+			}
+		}
+	}
+
+	return result;
+};
+
+export const PUT: RequestHandler = async ({ locals, params, request }) => {
+	if (!locals.user) {
+		throw error(401, 'Unauthorized');
+	}
+
+	if (!isValidUUID(params.id)) {
+		throw error(400, 'Invalid website ID');
+	}
+
+	const access = await checkWebsiteAccess(locals.user.id, params.id);
+	if (!access) {
+		throw error(404, 'Website not found');
+	}
+
+	if (!access.isOwner) {
+		throw error(403, 'Only the website owner can import data');
+	}
+
+	const site = access.site;
+
+	const body = await request.json();
+
+	if (!body.overview || !body.timeSeries) {
+		throw error(400, 'Missing required data');
+	}
+
+	const result = await importDataFastData(body, site);
 
 	return json({
 		success: true,

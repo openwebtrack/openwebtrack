@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Database, Download, Upload, Trash2, Loader2, AlertTriangle, Check } from 'lucide-svelte';
+	import { Download, Upload, Trash2, Loader2, AlertTriangle, Check } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	import axios from 'axios';
 
@@ -24,6 +24,7 @@
 	let importFile = $state<File | null>(null);
 	let selectedPlatform = $state('umami');
 	let importFiles = $state<File[]>([]);
+	let datafastApiKey = $state('');
 
 	let showWipeModal = $state(false);
 	let wipeConfirmText = $state('');
@@ -32,7 +33,8 @@
 
 	const platforms = [
 		{ id: 'umami', label: 'Umami', description: 'Import website_event.csv from Umami export', icon: 'https://icons.duckduckgo.com/ip3/umami.is.ico' },
-		{ id: 'plausible', label: 'Plausible', description: 'Import all CSV files from Plausible export (visitors, pages, browsers, etc.)', icon: 'https://icons.duckduckgo.com/ip3/plausible.io.ico' }
+		{ id: 'plausible', label: 'Plausible', description: 'Import all CSV files from Plausible export (visitors, pages, browsers, etc.)', icon: 'https://icons.duckduckgo.com/ip3/plausible.io.ico' },
+		{ id: 'datafast', label: 'DataFast', description: 'Import data from DataFast API', icon: 'https://icons.duckduckgo.com/ip3/datafa.st.ico' }
 	];
 
 	const exportToCsv = async () => {
@@ -76,7 +78,35 @@
 	};
 
 	const handleImport = async () => {
-		if (selectedPlatform === 'plausible' || selectedPlatform === 'ga') {
+		if (selectedPlatform === 'datafast') {
+			if (!datafastApiKey.trim()) {
+				importError = 'Please enter your DataFast API key';
+				return;
+			}
+
+			isImporting = true;
+			importError = '';
+			importSuccess = '';
+
+			try {
+				const formData = new FormData();
+				formData.append('platform', 'datafast');
+				formData.append('apiKey', datafastApiKey.trim());
+
+				const res = await axios.post(`/api/websites/${data.website.id}/import`, formData, {
+					headers: { 'Content-Type': 'multipart/form-data' }
+				});
+
+				importSuccess = res.data.message;
+				datafastApiKey = '';
+			} catch (e: any) {
+				importError = e.response?.data?.message || 'Failed to import data from DataFast. Please check your API key.';
+				console.error('DataFast import error:', e);
+			} finally {
+				isImporting = false;
+			}
+			return;
+		} else if (selectedPlatform === 'plausible' || selectedPlatform === 'ga') {
 			if (importFiles.length === 0) return;
 		} else {
 			if (!importFile) return;
@@ -105,6 +135,7 @@
 			importSuccess = res.data.message;
 			importFile = null;
 			importFiles = [];
+			datafastApiKey = '';
 			const fileInput = document.getElementById('import-file-input') as HTMLInputElement;
 			if (fileInput) fileInput.value = '';
 		} catch (e: any) {
@@ -226,6 +257,54 @@
 							<Upload size={14} class="mr-2" />
 						{/if}
 						Import from Plausible
+					</Button>
+				</div>
+			</Tabs.Content>
+
+			<Tabs.Content value="datafast">
+				<div class="mb-4 rounded-lg border bg-muted/50 p-4">
+					<h4 class="mb-2 font-medium">DataFast Import Instructions</h4>
+					<ol class="list-inside list-decimal space-y-1 text-sm text-muted-foreground">
+						<li>
+							Go to <a href="https://datafa.st/dashboard" class="text-primary" target="_blank" rel="noopener">DataFast Dashboard</a>
+						</li>
+						<li>Select your website and go to <strong>Settings &gt; API</strong></li>
+						<li>Create a new API key if you haven't already</li>
+						<li>Copy the API key and paste it below</li>
+					</ol>
+				</div>
+
+				{#if importError}
+					<Alert.Root variant="destructive" class="mb-4">
+						<Alert.Description>{importError}</Alert.Description>
+					</Alert.Root>
+				{/if}
+				{#if importSuccess}
+					<Alert.Root class="mb-4 border-green-500/50 bg-green-500/10 text-green-500">
+						<Check size={16} />
+						<Alert.Description>{importSuccess}</Alert.Description>
+					</Alert.Root>
+				{/if}
+				<div class="flex flex-col gap-4">
+					<div class="flex flex-col gap-2">
+						<Label for="datafast-api-key">DataFast API Key</Label>
+						<Input
+							id="datafast-api-key"
+							type="password"
+							placeholder="Enter your DataFast API key"
+							bind:value={datafastApiKey}
+							onkeydown={(e) => {
+								if (e.key === 'Enter') handleImport();
+							}}
+						/>
+					</div>
+					<Button onclick={handleImport} disabled={!datafastApiKey.trim() || isImporting}>
+						{#if isImporting}
+							<Loader2 size={14} class="mr-2 animate-spin" />
+						{:else}
+							<Upload size={14} class="mr-2" />
+						{/if}
+						Import from DataFast
 					</Button>
 				</div>
 			</Tabs.Content>

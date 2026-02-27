@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Monitor, Users, Link, AppWindow } from 'lucide-svelte';
+	import { Badge } from '$lib/components/ui/badge/index.js';
 
 	let { items = [], onVisitorClick } = $props();
 </script>
@@ -25,7 +26,12 @@
 					<div class="flex flex-1 items-start gap-3 overflow-hidden">
 						<img src={item.avatar} alt={item.name} class="h-10 w-10 shrink-0 rounded-full bg-muted" />
 						<div class="flex min-w-0 flex-col gap-1">
-							<span class="truncate font-medium transition-colors">{item.name}</span>
+							<div class="flex items-center gap-2">
+								<span class="truncate font-medium transition-colors">{item.name}</span>
+								{#if item.isCustomer}
+									<Badge class="h-5 bg-[#3b82f6] px-1.5 text-[10px] hover:bg-[#3b82f6]/90">Customer</Badge>
+								{/if}
+							</div>
 							<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
 								{#if item.country !== 'Unknown'}
 									<div class="flex items-center gap-1.5">

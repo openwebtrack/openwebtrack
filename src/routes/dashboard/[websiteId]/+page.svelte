@@ -26,7 +26,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 
-	type FilterType = 'referrer' | 'campaign' | 'country' | 'region' | 'city' | 'goal' | 'hostname' | 'page' | 'entryPage' | 'browser' | 'os' | 'device' | 'pwa';
+	type FilterType = 'referrer' | 'campaign' | 'country' | 'region' | 'city' | 'goal' | 'hostname' | 'page' | 'entryPage' | 'browser' | 'os' | 'device' | 'pwa' | 'customer';
 
 	interface Filter {
 		type: FilterType;
@@ -82,6 +82,7 @@
 		visitorId: string;
 		name: string | null;
 		avatar: string | null;
+		isCustomer: boolean | null;
 		lastActivityAt: string;
 		country: string | null;
 		device: string | null;
@@ -99,6 +100,7 @@
 		visitorId: string;
 		avatar: string;
 		name: string;
+		isCustomer: boolean;
 		countryFlag: string;
 		country: string;
 		device: string;
@@ -291,11 +293,31 @@
 
 	let filteredVisitors = $derived(
 		visitors.filter((v) => {
-			if (!searchQuery) return true;
-			const q = searchQuery.toLowerCase();
-			return (
-				v.name.toLowerCase().includes(q) || v.country.toLowerCase().includes(q) || v.browser.toLowerCase().includes(q) || v.os.toLowerCase().includes(q) || v.device.toLowerCase().includes(q)
-			);
+			if (searchQuery) {
+				const q = searchQuery.toLowerCase();
+				if (
+					!v.name.toLowerCase().includes(q) &&
+					!v.country.toLowerCase().includes(q) &&
+					!v.browser.toLowerCase().includes(q) &&
+					!v.os.toLowerCase().includes(q) &&
+					!v.device.toLowerCase().includes(q)
+				) {
+					return false;
+				}
+			}
+
+			for (const filter of filters) {
+				if (filter.type === 'country' && !v.country.toLowerCase().includes(filter.value.toLowerCase())) return false;
+				if (filter.type === 'browser' && !v.browser.toLowerCase().includes(filter.value.toLowerCase())) return false;
+				if (filter.type === 'os' && !v.os.toLowerCase().includes(filter.value.toLowerCase())) return false;
+				if (filter.type === 'device' && !v.device.toLowerCase().includes(filter.value.toLowerCase())) return false;
+				if (filter.type === 'customer') {
+					const isCustomer = filter.value.toLowerCase() === 'yes' || filter.value.toLowerCase() === 'true';
+					if (v.isCustomer !== isCustomer) return false;
+				}
+			}
+
+			return true;
 		})
 	);
 
@@ -395,6 +417,7 @@
 					visitorId: v.visitorId,
 					avatar: v.avatar || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${v.visitorId}`,
 					name: v.name || generateVisitorName(v.visitorId),
+					isCustomer: v.isCustomer || false,
 					countryFlag: countryCode ? `https://flagsapi.com/${countryCode}/flat/64.png` : '',
 					country: v.country || 'Unknown',
 					device: v.device || 'Desktop',

@@ -6,7 +6,7 @@
 	import { Filter as FilterIcon, X, Loader2, Search } from 'lucide-svelte';
 	import axios from 'axios';
 
-	type FilterType = 'referrer' | 'campaign' | 'country' | 'region' | 'city' | 'goal' | 'hostname' | 'page' | 'entryPage' | 'browser' | 'os' | 'device' | 'pwa';
+	type FilterType = 'referrer' | 'campaign' | 'country' | 'region' | 'city' | 'goal' | 'hostname' | 'page' | 'entryPage' | 'browser' | 'os' | 'device' | 'pwa' | 'customer';
 
 	interface Filter {
 		type: FilterType;
@@ -86,6 +86,10 @@
 				{ label: 'Device', type: 'device' as const },
 				{ label: 'PWA', type: 'pwa' as const }
 			]
+		},
+		{
+			title: 'VISITOR',
+			items: [{ label: 'Customer', type: 'customer' as const }]
 		}
 	];
 
@@ -174,7 +178,8 @@
 			browser: 'Browser',
 			os: 'OS',
 			device: 'Device',
-			pwa: 'PWA'
+			pwa: 'PWA',
+			customer: 'Customer'
 		};
 		return labels[type] || type;
 	};
@@ -184,11 +189,15 @@
 	};
 
 	const isBooleanFilter = (type: FilterType): boolean => {
-		return type === 'pwa';
+		return type === 'pwa' || type === 'customer';
 	};
 
-	const booleanOptions: Record<'pwa', { label: string; value: string }[]> = {
+	const booleanOptions: Record<'pwa' | 'customer', { label: string; value: string }[]> = {
 		pwa: [
+			{ label: 'Yes', value: 'true' },
+			{ label: 'No', value: 'false' }
+		],
+		customer: [
 			{ label: 'Yes', value: 'true' },
 			{ label: 'No', value: 'false' }
 		]
@@ -262,7 +271,7 @@
 					</div>
 				{:else if isBooleanFilter(activeFilterType)}
 					<div class="max-h-60 overflow-y-auto rounded-md border border-border">
-						{#each booleanOptions[activeFilterType as 'pwa'] as option}
+						{#each booleanOptions[activeFilterType as 'pwa' | 'customer'] as option}
 							<button
 								onclick={() => {
 									onAdd(activeFilterType!, option.label);
@@ -291,7 +300,7 @@
 			</div>
 		{:else}
 			<div class="grid grid-cols-2 gap-4 p-4">
-				{#each [columns.slice(0, 2), columns.slice(2, 4)] as columnGroup}
+				{#each [columns.slice(0, 3), columns.slice(3, 6)] as columnGroup}
 					<div class="space-y-4">
 						{#each columnGroup as group}
 							<div>
