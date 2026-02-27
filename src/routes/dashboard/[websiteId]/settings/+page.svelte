@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Settings, ArrowLeft, Check, Copy, Trash2, Loader2, AlertTriangle, Users, UserPlus, X, Database, Download, Upload, Filter } from 'lucide-svelte';
+	import { Settings, ArrowLeft, Check, Copy, Trash2, Loader2, AlertTriangle, Users, UserPlus, X, Database, Download, Upload, Filter, Bell } from 'lucide-svelte';
 	import { TIMEZONES, COUNTRY_OPTIONS } from '$lib/utils/constants';
 	import { browser } from '$app/environment';
 	import type { PageData } from './$types';
@@ -15,6 +15,7 @@
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
+	import { Switch } from '$lib/components/ui/switch/index.js';
 
 	let { data }: { data: PageData } = $props();
 
@@ -32,6 +33,12 @@
 	let saveSuccess = $state(false);
 	let isSaving = $state(false);
 	let saveError = $state('');
+
+	let trafficSpikeEnabled = $state(false);
+	let trafficSpikeThreshold = $state(100);
+	let trafficSpikeWindowSeconds = $state(60);
+	let weeklySummaryEnabled = $state(false);
+	let originalNotifications = $state({ trafficSpike: { enabled: false, threshold: 100, windowSeconds: 60 }, weeklySummary: { enabled: false } });
 
 	let showDeleteModal = $state(false);
 	let deleteConfirmText = $state('');
@@ -51,7 +58,11 @@
 			timezone !== originalTimezone ||
 			JSON.stringify(excludedIps) !== JSON.stringify(originalExcludedIps) ||
 			JSON.stringify(excludedPaths) !== JSON.stringify(originalExcludedPaths) ||
-			JSON.stringify(excludedCountries) !== JSON.stringify(originalExcludedCountries)
+			JSON.stringify(excludedCountries) !== JSON.stringify(originalExcludedCountries) ||
+			trafficSpikeEnabled !== originalNotifications.trafficSpike.enabled ||
+			trafficSpikeThreshold !== originalNotifications.trafficSpike.threshold ||
+			trafficSpikeWindowSeconds !== originalNotifications.trafficSpike.windowSeconds ||
+			weeklySummaryEnabled !== originalNotifications.weeklySummary.enabled
 	);
 
 	let newIp = $state('');
@@ -160,13 +171,27 @@
 				timezone,
 				excludedIps,
 				excludedPaths,
-				excludedCountries
+				excludedCountries,
+				notifications: {
+					trafficSpike: {
+						enabled: trafficSpikeEnabled,
+						threshold: trafficSpikeThreshold,
+						windowSeconds: trafficSpikeWindowSeconds
+					},
+					weeklySummary: {
+						enabled: weeklySummaryEnabled
+					}
+				}
 			});
 			originalDomain = domain;
 			originalTimezone = timezone;
 			originalExcludedIps = [...excludedIps];
 			originalExcludedPaths = [...excludedPaths];
 			originalExcludedCountries = [...excludedCountries];
+			originalNotifications = {
+				trafficSpike: { enabled: trafficSpikeEnabled, threshold: trafficSpikeThreshold, windowSeconds: trafficSpikeWindowSeconds },
+				weeklySummary: { enabled: weeklySummaryEnabled }
+			};
 			saveSuccess = true;
 			setTimeout(() => (saveSuccess = false), 2000);
 		} catch (e) {
@@ -335,6 +360,7 @@
 
 	const sidebarItems = [
 		{ id: 'general', label: 'General', icon: Settings },
+		{ id: 'notifications', label: 'Notifications', icon: Bell },
 		{ id: 'exclusions', label: 'Exclusions', icon: Filter },
 		{ id: 'team', label: 'Team', icon: Users },
 		{ id: 'data', label: 'Data', icon: Database }
@@ -352,6 +378,25 @@
 			const tabParam = params.get('tab');
 			if (tabParam === 'integrations') {
 				activeTab = 'general';
+			}
+		}
+	});
+
+	let notificationsLoaded = $state(false);
+
+	$effect(() => {
+		if (!notificationsLoaded && data.website.notifications) {
+			const notifs = data.website.notifications as { trafficSpike: { enabled: boolean; threshold: number; windowSeconds: number }; weeklySummary: { enabled: boolean } } | undefined;
+			if (notifs) {
+				trafficSpikeEnabled = notifs.trafficSpike?.enabled ?? false;
+				trafficSpikeThreshold = notifs.trafficSpike?.threshold ?? 100;
+				trafficSpikeWindowSeconds = notifs.trafficSpike?.windowSeconds ?? 60;
+				weeklySummaryEnabled = notifs.weeklySummary?.enabled ?? false;
+				originalNotifications = {
+					trafficSpike: { enabled: trafficSpikeEnabled, threshold: trafficSpikeThreshold, windowSeconds: trafficSpikeWindowSeconds },
+					weeklySummary: { enabled: weeklySummaryEnabled }
+				};
+				notificationsLoaded = true;
 			}
 		}
 	});
@@ -470,6 +515,80 @@
 							<Button variant="ghost" size="sm" onclick={() => (showDeleteModal = true)} class="text-muted-foreground hover:text-destructive">
 								<Trash2 size={12} class="mr-1" />
 								Delete website
+							</Button>
+						</div>
+					</div>
+				{:else if activeTab === 'notifications'}
+					<div in:fade={{ duration: 200 }}>
+						<Card.Root>
+							<Card.Header>
+								<Card.Title>Traffic Spike Alert</Card.Title>
+								<Card.Description>Get notified when your website experiences a sudden increase in visitors.</Card.Description>
+							</Card.Header>
+							<Card.Content class="space-y-6">
+								<div class="flex items-center justify-between">
+									<div class="space-y-1">
+										<p class="font-medium">Enable traffic spike alerts</p>
+										<p class="text-sm text-muted-foreground">Receive an email when visitor count exceeds threshold</p>
+									</div>
+									<Switch checked={trafficSpikeEnabled} onCheckedChange={(checked: boolean) => (trafficSpikeEnabled = checked)} />
+								</div>
+								{#if trafficSpikeEnabled}
+									<div class="space-y-4 rounded-lg bg-muted/50 p-4">
+										<div class="grid grid-cols-2 gap-4">
+											<div class="space-y-2">
+												<Label for="traffic-spike-threshold">Visitors threshold</Label>
+												<Input id="traffic-spike-threshold" type="number" bind:value={trafficSpikeThreshold} min={10} max={10000} />
+												<p class="text-xs text-muted-foreground">Alert when visitors exceed this number</p>
+											</div>
+											<div class="space-y-2">
+												<Label for="traffic-spike-window">Time window (seconds)</Label>
+												<Input id="traffic-spike-window" type="number" bind:value={trafficSpikeWindowSeconds} min={10} max={3600} />
+												<p class="text-xs text-muted-foreground">Check visitors in this time window</p>
+											</div>
+										</div>
+									</div>
+								{/if}
+							</Card.Content>
+						</Card.Root>
+
+						<Card.Root class="mt-6">
+							<Card.Header>
+								<Card.Title>Weekly Summary</Card.Title>
+								<Card.Description>Receive a weekly email with your website analytics summary. The schedule is configured in your deployment settings.</Card.Description>
+							</Card.Header>
+							<Card.Content class="space-y-6">
+								<div class="flex items-center justify-between">
+									<div class="space-y-1">
+										<p class="font-medium">Enable weekly summary</p>
+										<p class="text-sm text-muted-foreground">Receive a weekly analytics report every Monday at 9 AM</p>
+									</div>
+									<Switch checked={weeklySummaryEnabled} onCheckedChange={(checked: boolean) => (weeklySummaryEnabled = checked)} />
+								</div>
+							</Card.Content>
+						</Card.Root>
+
+						{#if saveError}
+							<Alert.Root variant="destructive" class="mt-6">
+								<Alert.Description>{saveError}</Alert.Description>
+							</Alert.Root>
+						{/if}
+
+						{#if saveSuccess}
+							<Alert.Root class="mt-6 border-green-500/50 bg-green-500/10 text-green-500">
+								<Check size={16} />
+								<Alert.Title>Settings saved successfully!</Alert.Title>
+							</Alert.Root>
+						{/if}
+
+						<div class="mt-6 flex justify-end gap-2">
+							<Button onclick={saveSettings} disabled={!hasChanges || isSaving}>
+								{#if isSaving}
+									<Loader2 size={14} class="animate-spin" />
+								{:else if saveSuccess}
+									<Check size={14} />
+								{/if}
+								Save changes
 							</Button>
 						</div>
 					</div>

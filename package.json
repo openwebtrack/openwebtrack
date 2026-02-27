@@ -13,7 +13,6 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
 		"db:push": "drizzle-kit push",
-		"db:seed": "npx tsx scripts/seed-campaigns.ts",
 		"format": "prettier --write .",
 		"lint": "prettier --check .",
 		"preview": "vite preview",
@@ -30,6 +29,7 @@
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
 		"@tailwindcss/vite": "^4.1.18",
 		"@types/node": "^24",
+		"@types/react": "^19.2.14",
 		"better-auth": "^1.4.18",
 		"bits-ui": "^2.16.1",
 		"drizzle-kit": "^0.31.8",
@@ -46,13 +46,19 @@
 		"vite": "^7.3.1"
 	},
 	"dependencies": {
+		"@react-email/components": "^1.0.8",
+		"@react-email/render": "^2.0.4",
+		"@types/nodemailer": "^7.0.11",
 		"axios": "^1.13.5",
 		"chart.js": "^4.5.1",
 		"clsx": "^2.1.1",
 		"lucide-svelte": "^0.574.0",
+		"maileroo-sdk": "^1.0.1",
 		"maxmind": "^5.0.5",
 		"nanoid": "^5.1.6",
+		"nodemailer": "^8.0.1",
 		"postgres": "^3.4.8",
+		"resend": "^4.8.0",
 		"swapy": "^1.0.5",
 		"tailwind-merge": "^3.4.1"
 	}

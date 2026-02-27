@@ -26,6 +26,14 @@ services:
             - ORIGIN=http://localhost:8424
             - AUTH_SECRET={STRONG_SECRET}
             - DISABLE_REGISTER=false
+            # - CRON_SECRET={String} - For weekly summary email notifications
+            # - SENDER_EMAIL=openwebtrack@yourdomain.com - To enable notifications set your email and preferred email provider
+            # - RESEND_API_KEY={String}
+            # - MAILEROO_API_KEY={String}
+            # - SMTP_HOST=smtp.example.com
+            # - SMTP_PORT=587
+            # - SMTP_USER={String}
+            # - SMTP_PASS={String}
         depends_on:
             - db
 
@@ -67,6 +75,13 @@ volumes:
 - **Geolocation Data**: See where your users are coming from (Country, Region, City).
 - **Device & Tech Specs**: Analyze Browsers, OS, Device Types, and Screen Sizes.
 - **UTM Tracking**: Measure campaign performance with automatic UTM parameter extraction.
+- **Traffic Spike Alerts**: Get instant notifications when your website experiences unusual traffic spikes.
+
+### Notifications & Alerts
+
+- **Weekly Summary**: Receive automated weekly email reports with key analytics metrics.
+- **Traffic Spike Detection**: Configure thresholds to get notified when visitor counts exceed expectations.
+- **Multi-Provider Support**: Send notifications via Resend, Maileroo, or custom SMTP servers.
 
 ### Visitor Intelligence
 

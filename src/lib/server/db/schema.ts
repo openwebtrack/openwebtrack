@@ -13,6 +13,16 @@ export const website = pgTable(
 		excludedIps: jsonb('excluded_ips').$type<string[]>().default([]).notNull(),
 		excludedPaths: jsonb('excluded_paths').$type<string[]>().default([]).notNull(),
 		excludedCountries: jsonb('excluded_countries').$type<string[]>().default([]).notNull(),
+		notifications: jsonb('notifications')
+			.$type<{
+				trafficSpike: { enabled: boolean; threshold: number; windowSeconds: number };
+				weeklySummary: { enabled: boolean };
+			}>()
+			.default({
+				trafficSpike: { enabled: false, threshold: 100, windowSeconds: 60 },
+				weeklySummary: { enabled: false }
+			})
+			.notNull(),
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
 	(table) => [index('website_userId_idx').on(table.userId), index('website_domain_idx').on(table.domain)]

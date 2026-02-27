@@ -75,6 +75,62 @@ mkdir -p "$INSTALL_DIR"
 printf "${GREEN}Generating secure credentials...${NC}\n"
 DB_PASSWORD=$(generate_secret 24)
 AUTH_SECRET=$(generate_secret 32)
+CRON_SECRET=$(generate_secret 32)
+
+# Email configuration
+printf "\n${GREEN}Email Provider Configuration${NC}\n"
+printf "Choose your email provider:\n"
+printf "  1) Resend\n"
+printf "  2) Maileroo\n"
+printf "  3) SMTP\n"
+printf "  4) Enable later\n"
+printf "> "
+read EMAIL_PROVIDER
+
+case "$EMAIL_PROVIDER" in
+    1)
+        printf "Enter your Resend API Key: "
+        read RESEND_API_KEY
+        printf "Sender Email: "
+        read SENDER_EMAIL
+        EMAIL_ENV="
+            - RESEND_API_KEY=${RESEND_API_KEY}
+            - SENDER_EMAIL=${SENDER_EMAIL}
+            - CRON_SECRET=${CRON_SECRET}"
+        ;;
+    2)
+        printf "Enter your Maileroo API Key: "
+        read MAILEROO_API_KEY
+        printf "Sender Email: "
+        read SENDER_EMAIL
+        EMAIL_ENV="
+            - MAILEROO_API_KEY=${MAILEROO_API_KEY}
+            - SENDER_EMAIL=${SENDER_EMAIL}
+            - CRON_SECRET=${CRON_SECRET}"
+        ;;
+    3)
+        printf "SMTP Host: "
+        read SMTP_HOST
+        printf "SMTP Port: "
+        read SMTP_PORT
+        printf "SMTP User: "
+        read SMTP_USER
+        printf "SMTP Password: "
+        read SMTP_PASS
+        printf "Sender Email: "
+        read SENDER_EMAIL
+        EMAIL_ENV="
+            - SMTP_HOST=${SMTP_HOST}
+            - SMTP_PORT=${SMTP_PORT}
+            - SMTP_USER=${SMTP_USER}
+            - SMTP_PASS=${SMTP_PASS}
+            - SENDER_EMAIL=${SENDER_EMAIL}
+            - CRON_SECRET=${CRON_SECRET}"
+        ;;
+    4|*)
+        printf "${YELLOW}Email provider configuration skipped. You can configure it later in $INSTALL_DIR/compose.yml.${NC}\n"
+        ;;
+esac
 
 # Create compose.yml
 printf "${GREEN}Creating compose.yml...${NC}\n"
@@ -91,7 +147,7 @@ services:
             - DATABASE_URL=postgres://postgres:${DB_PASSWORD}@db:5432/openwebtrack
             - ORIGIN=http://localhost:8424
             - AUTH_SECRET=${AUTH_SECRET}
-            - DISABLE_REGISTER=false
+            - DISABLE_REGISTER=false${EMAIL_ENV}
         depends_on:
             - db
 
@@ -133,6 +189,7 @@ if $DOCKER_CMD up -d; then
     printf "\n"
     printf "${GREEN}OpenWebTrack is running!${NC}\n"
     printf "Access it at: ${ORANGE}http://localhost:8424${NC}\n"
+    printf "${YELLOW}[WARNING]After creating your account it is recommended to disable registration by setting DISABLE_REGISTER=true in $INSTALL_DIR/compose.yml${NC}\n"
     printf "\n"
 else
     printf "${RED}Failed to start OpenWebTrack.${NC}\n"

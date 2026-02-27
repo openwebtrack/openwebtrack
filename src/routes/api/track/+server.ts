@@ -1,14 +1,25 @@
 import { SESSION_EXPIRY_MINUTES, GEO_CACHE_TTL_MS, GEO_CACHE_MAX_SIZE, MAX_STRING_LENGTHS, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS, COUNTRY_OPTIONS } from '@/utils/constants';
-import { website, visitor, analyticsSession, pageview, analyticsEvent } from '$lib/server/db/schema';
+import { website, visitor, analyticsSession, pageview, analyticsEvent, user } from '$lib/server/db/schema';
 import { sanitizeString, extractPathname, extractUtmParams } from '$lib/server/utils';
 import { generateVisitorName, generateAvatarUrl } from '$lib/server/visitor-utils';
 import { trackingPayloadSchema, validateBody } from '$lib/server/validation';
+import TrafficSpikeEmail from '$lib/server/email/templates/TrafficSpikeEmail';
 import type { TrackingPayload, GeoData } from '$lib/server/types';
+import { sendEmail, isEmailConfigured } from '$lib/server/email';
 import type { RequestHandler } from './$types';
+import { env } from '$env/dynamic/private';
 import { eq, and } from 'drizzle-orm';
 import { json } from '@sveltejs/kit';
 import db from '$lib/server/db';
 import axios from 'axios';
+
+const SPIKE_COOLDOWN_MS = 15 * 60 * 1000;
+const ORIGIN = env.ORIGIN;
+
+interface SessionTimestamp {
+	websiteId: string;
+	timestamp: number;
+}
 
 interface GeoCacheEntry {
 	data: GeoData;
@@ -20,6 +31,9 @@ interface RateLimitEntry {
 	count: number;
 	windowStart: number;
 }
+
+const sessionTimestamps: SessionTimestamp[] = [];
+const lastSpikeNotification: Map<string, number> = new Map();
 
 const rateLimitMap = new Map<string, RateLimitEntry>();
 
@@ -50,6 +64,56 @@ const cleanupRateLimitMap = () => {
 };
 
 setInterval(cleanupRateLimitMap, 60000);
+
+const checkTrafficSpike = async (websiteId: string, notifications: { trafficSpike: { enabled: boolean; threshold: number; windowSeconds: number } } | undefined, now: Date) => {
+	if (!notifications?.trafficSpike?.enabled) return;
+
+	const { threshold, windowSeconds } = notifications.trafficSpike;
+	const windowMs = windowSeconds * 1000;
+	const nowTs = now.getTime();
+
+	sessionTimestamps.push({ websiteId, timestamp: nowTs });
+
+	const windowStart = nowTs - windowMs;
+	const recentSessions = sessionTimestamps.filter((s) => s.websiteId === websiteId && s.timestamp > windowStart).length;
+
+	if (recentSessions >= threshold) {
+		const lastNotification = lastSpikeNotification.get(websiteId) || 0;
+		if (nowTs - lastNotification < SPIKE_COOLDOWN_MS) return;
+
+		const [siteData] = await db.select().from(website).where(eq(website.id, websiteId)).limit(1);
+		if (!siteData) return;
+
+		const [owner] = await db.select().from(user).where(eq(user.id, siteData.userId)).limit(1);
+		if (!owner?.email) return;
+
+		if (!isEmailConfigured()) {
+			console.log('[Traffic Spike] Email not configured, skipping notification');
+			return;
+		}
+
+		const result = await sendEmail({
+			to: owner.email,
+			subject: `Traffic Spike Alert - ${siteData.domain}`,
+			children: TrafficSpikeEmail({ domain: siteData.domain, visitors: recentSessions, threshold, windowSeconds, date: now.toISOString(), dashboardUrl: `${ORIGIN}/dashboard/${siteData.id}` }),
+			plain: `Your website ${siteData.domain} is experiencing a traffic spike! ${recentSessions} visitors in the last ${windowSeconds} seconds (threshold: ${threshold}). Detected at ${now.toISOString()}`
+		});
+
+		if (result) {
+			lastSpikeNotification.set(websiteId, nowTs);
+			console.log(`[Traffic Spike] Notification sent for ${siteData.domain}: ${recentSessions} visitors`);
+		}
+	}
+};
+
+setInterval(() => {
+	const cutoff = Date.now() - 3600000;
+	for (let i = sessionTimestamps.length - 1; i >= 0; i--) {
+		if (sessionTimestamps[i].timestamp < cutoff) {
+			sessionTimestamps.splice(i, 1);
+		}
+	}
+}, 300000);
 
 const getClientIP = (request: Request, socketIP?: string): string | null => {
 	const xForwardedFor = request.headers.get('x-forwarded-for');
@@ -424,6 +488,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				})
 				.returning();
 			sessionId = newSession.id;
+			checkTrafficSpike(site.id, site.notifications as { trafficSpike: { enabled: boolean; threshold: number; windowSeconds: number } } | undefined, now).catch(console.error);
 		} else {
 			const updateData: Record<string, unknown> = { expiresAt: sessionExpiry, lastActivityAt: now };
 			if (!s.country && geoData.country) {
@@ -449,6 +514,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		try {
 			const [newSession] = await db.insert(analyticsSession).values(sessionData).returning();
 			sessionId = newSession.id;
+			checkTrafficSpike(site.id, site.notifications as { trafficSpike: { enabled: boolean; threshold: number; windowSeconds: number } } | undefined, now).catch(console.error);
 		} catch (insertError: unknown) {
 			const errorMsg = String(insertError);
 			if (errorMsg.includes('duplicate') || errorMsg.includes('unique') || errorMsg.includes('23505')) {

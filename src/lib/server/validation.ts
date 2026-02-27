@@ -20,6 +20,30 @@ const timezoneSchema = z.string().max(100).default('UTC');
 
 const stringArraySchema = z.array(z.string().max(500)).max(100).default([]);
 
+const trafficSpikeSchema = z
+	.object({
+		enabled: z.boolean().default(false),
+		threshold: z.number().int().min(10).max(10000).default(100),
+		windowSeconds: z.number().int().min(10).max(3600).default(60)
+	})
+	.default({ enabled: false, threshold: 100, windowSeconds: 60 });
+
+const weeklySummarySchema = z
+	.object({
+		enabled: z.boolean().default(false)
+	})
+	.default({ enabled: false });
+
+const notificationsSchema = z
+	.object({
+		trafficSpike: trafficSpikeSchema,
+		weeklySummary: weeklySummarySchema
+	})
+	.default({
+		trafficSpike: { enabled: false, threshold: 100, windowSeconds: 60 },
+		weeklySummary: { enabled: false }
+	});
+
 export const websiteCreateSchema = z.object({
 	domain: domainSchema,
 	timezone: timezoneSchema.optional()
@@ -30,7 +54,8 @@ export const websiteUpdateSchema = z.object({
 	timezone: timezoneSchema.optional(),
 	excludedIps: stringArraySchema.optional(),
 	excludedPaths: stringArraySchema.optional(),
-	excludedCountries: stringArraySchema.optional()
+	excludedCountries: stringArraySchema.optional(),
+	notifications: notificationsSchema.optional()
 });
 
 export const teamInviteSchema = z.object({
