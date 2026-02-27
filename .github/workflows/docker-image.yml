@@ -1,8 +1,6 @@
 name: Docker Image
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -35,11 +33,7 @@ jobs:
       - name: Determine Docker Tag
         id: tag
         run: |
-          if [ "${{ github.event_name }}" == "release" ]; then
-            echo "DOCKER_TAG=latest" >> $GITHUB_ENV
-          else
-            echo "DOCKER_TAG=${{ github.event.inputs.tag || 'latest' }}" >> $GITHUB_ENV
-          fi
+          echo "DOCKER_TAG=${{ github.event.inputs.tag || 'latest' }}" >> $GITHUB_ENV
 
       - name: Build Docker image
         run: |

@@ -21,7 +21,7 @@ npx drizzle-kit push
 
 if [ -n "$CRON_SECRET" ]; then
     echo "Setting up cron job for weekly summary..."
-    echo "0 9 * * 1 curl -s -H 'x-cron-secret: ${CRON_SECRET}' "${ORIGIN}/api/cron/weekly-summary" > /etc/crontabs/root
+    echo "0 9 * * 1 curl -s -H 'x-cron-secret: ${CRON_SECRET}' ${ORIGIN}/api/cron/weekly-summary" > /etc/crontabs/root
 
     echo "Starting cron daemon..."
     cron
