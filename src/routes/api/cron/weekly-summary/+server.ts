@@ -11,9 +11,10 @@ const CRON_SECRET = env.CRON_SECRET;
 const ORIGIN = env.ORIGIN;
 
 export const GET: RequestHandler = async ({ request }) => {
-	const cronSecret = request.headers.get('x-cron-secret');
+	const authHeader = request.headers.get('Authorization');
+	const token = authHeader?.replace(/^Bearer\s+/i, '');
 
-	if (!CRON_SECRET || cronSecret !== CRON_SECRET) {
+	if (!CRON_SECRET || token !== CRON_SECRET) {
 		console.log('[Weekly Summary] Invalid cron secret');
 		return json({ message: 'Invalid cron secret' }, { status: 401 });
 	}

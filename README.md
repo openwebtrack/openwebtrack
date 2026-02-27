@@ -53,7 +53,7 @@ services:
     # cron: Enable for weekly summary emails
     #     image: alpine:latest
     #     command: >
-    #     sh -c "echo '0 9 * * 1 curl -s -H \"x-cron-secret: ${CRON_SECRET}\" http://app:8424/api/cron/weekly-summary' > /etc/crontabs/root && crond -f -L /dev/stdout"
+    #     sh -c "echo '0 9 * * 1 curl -s -H \"Authorization: Bearer ${CRON_SECRET}\" http://app:8424/api/cron/weekly-summary' > /etc/crontabs/root && crond -f -L /dev/stdout"
     #     depends_on:
     #     - app
 volumes:
