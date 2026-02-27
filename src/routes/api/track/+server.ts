@@ -1,6 +1,5 @@
 import { SESSION_EXPIRY_MINUTES, GEO_CACHE_TTL_MS, GEO_CACHE_MAX_SIZE, MAX_STRING_LENGTHS, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS, COUNTRY_OPTIONS } from '@/utils/constants';
 import { website, visitor, analyticsSession, pageview, analyticsEvent, payment, user } from '$lib/server/db/schema';
-import { sql } from 'drizzle-orm';
 import { sanitizeString, extractPathname, extractUtmParams } from '$lib/server/utils';
 import { generateVisitorName, generateAvatarUrl } from '$lib/server/visitor-utils';
 import { trackingPayloadSchema, validateBody } from '$lib/server/validation';
@@ -11,6 +10,7 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { eq, and } from 'drizzle-orm';
 import { json } from '@sveltejs/kit';
+import { sql } from 'drizzle-orm';
 import db from '$lib/server/db';
 import axios from 'axios';
 
@@ -313,22 +313,11 @@ const fetchFromIpApi = async (ip: string): Promise<GeoData | null> => {
 };
 
 const getCorsHeaders = (requestOrigin: string | null): Record<string, string> => {
-	const allowedOrigins = ORIGIN ? [ORIGIN] : [];
 	const defaultCors = {
 		'Access-Control-Allow-Methods': 'POST, OPTIONS',
-		'Access-Control-Allow-Headers': 'Content-Type'
+		'Access-Control-Allow-Headers': 'Content-Type',
+		'Access-Control-Allow-Origin': '*'
 	};
-
-	if (!requestOrigin) {
-		return defaultCors;
-	}
-
-	if (allowedOrigins.length === 0 || allowedOrigins.includes(requestOrigin)) {
-		return {
-			...defaultCors,
-			'Access-Control-Allow-Origin': requestOrigin
-		};
-	}
 
 	return defaultCors;
 };
