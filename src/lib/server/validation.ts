@@ -50,7 +50,7 @@ export const websiteCreateSchema = z.object({
 });
 
 export const websiteUpdateSchema = z.object({
-	domain: domainSchema,
+	domain: domainSchema.optional(),
 	timezone: timezoneSchema.optional(),
 	excludedIps: stringArraySchema.optional(),
 	excludedPaths: stringArraySchema.optional(),
