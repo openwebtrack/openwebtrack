@@ -1,19 +1,29 @@
 <script lang="ts">
-	let { items = [], revenueItems = [] } = $props();
+	import { getCurrencySymbol } from '$lib/utils/currency';
+
+	let { items = [], revenueItems = [], websiteCurrency = 'USD' } = $props();
+
+	let currencySymbol = $derived(getCurrencySymbol(websiteCurrency));
+	let isZeroDecimal = $derived(websiteCurrency === 'JPY' || websiteCurrency === 'KRW' || websiteCurrency === 'VND' || websiteCurrency === 'IDR');
 
 	let maxVal = $derived(Math.max(...items.map((i: any) => i.value)));
 	let maxRevenue = $derived(revenueItems.length > 0 ? Math.max(...revenueItems.map((r: any) => r.value)) : 0);
 
 	const getRevenue = (label: string): { value: number; exists: boolean } => {
 		const match = revenueItems.find((r: any) => r.label === label);
-		// amounts are stored in cents → divide by 100
-		return match ? { value: match.value / 100, exists: true } : { value: 0, exists: false };
+		return match ? { value: match.value, exists: true } : { value: 0, exists: false };
 	};
 
 	const formatRevenue = (val: number): string => {
-		if (val >= 1000) return `$${(val / 1000).toFixed(1)}k`;
-		if (val === 0) return '$0.00';
-		return `$${val.toFixed(2)}`;
+		if (isZeroDecimal) {
+			if (val >= 1000000) return `${currencySymbol}${(val / 1000000).toFixed(1)}M`;
+			if (val >= 1000) return `${currencySymbol}${(val / 1000).toFixed(1)}k`;
+			return `${currencySymbol}${Math.round(val).toLocaleString()}`;
+		}
+		const displayVal = val / 100;
+		if (displayVal >= 1000) return `${currencySymbol}${(displayVal / 1000).toFixed(1)}k`;
+		if (displayVal === 0) return `${currencySymbol}0.00`;
+		return `${currencySymbol}${displayVal.toFixed(2)}`;
 	};
 
 	const formatVisitors = (val: number): string => {
@@ -56,7 +66,7 @@
 	{#if item}
 		{@const revenue = getRevenue(item.label)}
 		<div
-			class="pointer-events-none fixed z-[9999] w-52 -translate-x-1/2 -translate-y-[calc(100%+12px)] rounded-xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur-md"
+			class="pointer-events-none fixed z-9999 w-52 -translate-x-1/2 -translate-y-[calc(100%+12px)] rounded-xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur-md"
 			style="left: {tooltipX}px; top: {tooltipY}px; animation: tooltipIn 0.12s ease-out both;"
 		>
 			<!-- header -->
@@ -76,15 +86,13 @@
 					</div>
 					<span class="text-xs font-semibold text-foreground">{formatVisitors(item.value)}</span>
 				</div>
-				{#if revenue.exists}
-					<div class="flex items-center justify-between">
-						<div class="flex items-center gap-1.5">
-							<span class="inline-block h-2.5 w-2.5 rounded-sm bg-amber-400/80"></span>
-							<span class="text-xs text-muted-foreground">Revenue</span>
-						</div>
-						<span class="text-xs font-semibold text-amber-400">{formatRevenue(revenue.value)}</span>
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-1.5">
+						<span class="inline-block h-2.5 w-2.5 rounded-sm bg-blue-400/80"></span>
+						<span class="text-xs text-muted-foreground">Revenue</span>
 					</div>
-				{/if}
+					<span class="text-xs font-semibold text-blue-400">{formatRevenue(revenue.value ?? 0)}</span>
+				</div>
 			</div>
 		</div>
 	{/if}
@@ -107,11 +115,9 @@
 			<!-- Visitors fill -->
 			<div class="absolute inset-y-0 left-0 bg-primary/10 transition-all duration-500 ease-out group-hover:bg-primary/20" style="width: {visitorsWidth}%"></div>
 
-			<!-- Revenue fill (amber, overlaid, semi-transparent) -->
+			<!-- Revenue fill -->
 			{#if hasRevenue && revenueWidth > 0}
-				<div class="absolute inset-y-0 left-0 bg-amber-400/20 transition-all duration-500 ease-out group-hover:bg-amber-400/35" style="width: {revenueWidth}%"></div>
-				<!-- thin amber bottom stripe -->
-				<div class="absolute bottom-0 left-0 h-[3px] rounded-r-full bg-amber-400/60 transition-all duration-500 ease-out group-hover:bg-amber-400/90" style="width: {revenueWidth}%"></div>
+				<div class="absolute inset-y-0 left-0 bg-blue-400/20 transition-all duration-500 ease-out group-hover:bg-blue-400/35" style="width: {revenueWidth}%"></div>
 			{/if}
 
 			<!-- Labels -->
@@ -134,7 +140,7 @@
 				</div>
 				<div class="flex items-center gap-2">
 					{#if hasRevenue && revenue.value > 0}
-						<span class="text-[10px] font-medium text-amber-400/80">{formatRevenue(revenue.value)}</span>
+						<span class="text-[10px] font-medium text-blue-400/80">{formatRevenue(revenue.value)}</span>
 					{/if}
 					<span class="text-xs text-muted-foreground">{formatVisitors(item.value)}</span>
 				</div>

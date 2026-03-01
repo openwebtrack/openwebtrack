@@ -10,7 +10,7 @@
 </script>
 
 <script lang="ts">
-	import { X, Monitor, Globe, ExternalLink, Activity, Search, Eye, Filter, XCircle, AppWindow } from 'lucide-svelte';
+	import { X, Monitor, Globe, ExternalLink, Activity, Search, Eye, Filter, XCircle, AppWindow, DollarSign } from 'lucide-svelte';
 	import { onMount, tick } from 'svelte';
 	import axios from 'axios';
 
@@ -46,6 +46,7 @@
 			if (filters.includes('Pageview') && (item.activityType === 'pageview' || item.pathname)) return true;
 			if (filters.includes('Session') && item.type === 'session_start') return true;
 			if (filters.includes('Events') && item.activityType === 'event') return true;
+			if (filters.includes('Payment') && item.activityType === 'payment') return true;
 			return false;
 		});
 	};
@@ -265,6 +266,10 @@
 								<Activity class="h-3 w-3" />
 								Events
 							</Badge>
+							<Badge variant={activeFilters.includes('Payment') ? 'default' : 'secondary'} class="cursor-pointer gap-1.5" onclick={() => toggleFilter('Payment')}>
+								<DollarSign class="h-3 w-3" />
+								Payment
+							</Badge>
 							{#if activeFilters.length > 0}
 								<Button variant="ghost" size="sm" onclick={clearFilters} class="h-auto gap-1 px-2 py-0 text-xs">
 									<XCircle class="h-3.5 w-3.5" />
@@ -292,6 +297,8 @@
 													<Search class="h-5 w-5 text-muted-foreground" />
 												{:else if item.activityType === 'pageview' || item.pathname}
 													<Eye class="h-5 w-5 text-muted-foreground" />
+												{:else if item.activityType === 'payment'}
+													<DollarSign class="h-5 w-5 text-green-500" />
 												{:else}
 													<Activity class="h-5 w-5 text-amber-500/70" />
 												{/if}
@@ -310,6 +317,15 @@
 													{:else if item.activityType === 'pageview' || item.pathname}
 														<span class="text-muted-foreground">Viewed page </span>
 														<Badge variant="secondary" class="font-medium">{item.pathname}</Badge>
+													{:else if item.activityType === 'payment'}
+														<span class="font-medium text-green-600 dark:text-green-400">Payment </span>
+														<Badge variant="outline" class="border-green-500/50 font-medium text-green-600 dark:text-green-400">
+															{item.currency}
+															{((item.amount || 0) / 100).toFixed(2)}
+														</Badge>
+														{#if item.transactionId}
+															<span class="ml-1 text-xs text-muted-foreground">#{item.transactionId.slice(0, 8)}</span>
+														{/if}
 													{:else}
 														<div class="flex flex-col gap-1 whitespace-normal">
 															<span>{item.name || item.type}</span>

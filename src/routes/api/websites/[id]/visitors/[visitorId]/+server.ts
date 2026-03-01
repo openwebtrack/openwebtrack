@@ -1,4 +1,4 @@
-import { website, visitor, analyticsSession, pageview, analyticsEvent } from '$lib/server/db/schema';
+import { website, visitor, analyticsSession, pageview, analyticsEvent, payment } from '$lib/server/db/schema';
 import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
@@ -48,24 +48,29 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
 	let pageviews: (typeof pageview.$inferSelect)[] = [];
 	let events: (typeof analyticsEvent.$inferSelect)[] = [];
+	let payments: (typeof payment.$inferSelect)[] = [];
 
 	if (sessionIds.length > 0) {
 		const MAX_SESSIONS = 100;
 		const limitedSessionIds = sessionIds.slice(0, MAX_SESSIONS);
 
-		[pageviews, events] = await Promise.all([
+		[pageviews, events, payments] = await Promise.all([
 			db.select().from(pageview).where(inArray(pageview.sessionId, limitedSessionIds)).orderBy(asc(pageview.timestamp)),
-			db.select().from(analyticsEvent).where(inArray(analyticsEvent.sessionId, limitedSessionIds)).orderBy(asc(analyticsEvent.timestamp))
+			db.select().from(analyticsEvent).where(inArray(analyticsEvent.sessionId, limitedSessionIds)).orderBy(asc(analyticsEvent.timestamp)),
+			db.select().from(payment).where(inArray(payment.sessionId, limitedSessionIds)).orderBy(asc(payment.timestamp))
 		]);
 	}
 
 	const journey = sessions.map((session) => {
 		const sessionPageviews = pageviews.filter((p) => p.sessionId === session.id);
 		const sessionEvents = events.filter((e) => e.sessionId === session.id);
+		const sessionPayments = payments.filter((p) => p.sessionId === session.id);
 
-		const activities = [...sessionPageviews.map((p) => ({ activityType: 'pageview' as const, ...p })), ...sessionEvents.map((e) => ({ activityType: 'event' as const, ...e }))].sort(
-			(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-		);
+		const activities = [
+			...sessionPageviews.map((p) => ({ activityType: 'pageview' as const, ...p })),
+			...sessionEvents.map((e) => ({ activityType: 'event' as const, ...e })),
+			...sessionPayments.map((p) => ({ activityType: 'payment' as const, ...p }))
+		].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
 		return {
 			...session,

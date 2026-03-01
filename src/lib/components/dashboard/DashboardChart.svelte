@@ -1,5 +1,6 @@
 <script lang="ts">
 	import cn from '@/utils/helpers';
+	import { getCurrencySymbol } from '$lib/utils/currency';
 	import { Tooltip } from 'chart.js';
 	import Chart from 'chart.js/auto';
 
@@ -30,11 +31,13 @@
 	let {
 		timeSeries = [],
 		stats = { visitors: 0, sessions: 0, avgSessionDuration: 0, online: 0, revenue: 0, customers: 0 },
-		granularity = 'daily'
+		granularity = 'daily',
+		websiteCurrency = 'USD'
 	}: {
 		timeSeries?: TimeSeriesPoint[];
 		stats?: Stats;
 		granularity?: 'hourly' | 'daily' | 'weekly' | 'monthly';
+		websiteCurrency?: string;
 	} = $props();
 
 	let canvas: HTMLCanvasElement | undefined = $state();
@@ -44,6 +47,9 @@
 	let showVisitors = $state(true);
 	let showRevenue = $state(true);
 	let activeCard: string | null = $state(null);
+
+	let currencySymbol = $derived(getCurrencySymbol(websiteCurrency));
+	let isZeroDecimal = $derived(websiteCurrency === 'JPY' || websiteCurrency === 'KRW' || websiteCurrency === 'VND' || websiteCurrency === 'IDR');
 
 	const toggleCard = (card: string) => {
 		activeCard = activeCard === card ? null : card;
@@ -208,10 +214,10 @@
 									label: 'Revenue',
 									type: 'bar' as const,
 									data: revenueData,
-									backgroundColor: '#3b82f6',
+									backgroundColor: '#60a5fa',
 									borderRadius: 2,
-									borderColor: '#3b82f6',
-									hoverBackgroundColor: '#3b82f6',
+									borderColor: '#60a5fa',
+									hoverBackgroundColor: '#60a5fa',
 									hoverBorderColor: '#fff',
 									barPercentage: 1,
 									categoryPercentage: 1,
@@ -243,7 +249,14 @@
 								const label = context.dataset.label || '';
 								const value = context.parsed.y;
 								if (label.toLowerCase().includes('revenue')) {
-									return `${label}: $${(value / 100).toFixed(2)}`;
+									const isZero =
+										websiteCurrency === 'JPY' ||
+										websiteCurrency === 'KRW' ||
+										websiteCurrency === 'VND' ||
+										websiteCurrency === 'IDR' ||
+										websiteCurrency === 'HUF' ||
+										websiteCurrency === 'ISK';
+									return `${label}: ${currencySymbol}${isZero ? Math.round(value / 100).toLocaleString() : (value / 100).toFixed(2)}`;
 								}
 								return `${label}: ${value}`;
 							}
@@ -284,8 +297,17 @@
 										display: false
 									},
 									ticks: {
-										color: '#3b82f6',
-										callback: ((value: string | number) => `$${(Number(value) / 100).toFixed(0)}`) as any
+										color: '#60a5fa',
+										callback: ((value: string | number) => {
+											const isZero =
+												websiteCurrency === 'JPY' ||
+												websiteCurrency === 'KRW' ||
+												websiteCurrency === 'VND' ||
+												websiteCurrency === 'IDR' ||
+												websiteCurrency === 'HUF' ||
+												websiteCurrency === 'ISK';
+											return `${currencySymbol}${isZero ? Math.round(Number(value) / 100).toLocaleString() : (Number(value) / 100).toFixed(0)}`;
+										}) as any
 									},
 									border: {
 										display: false
@@ -353,9 +375,11 @@
 		<button class="relative cursor-pointer overflow-hidden rounded-xl bg-muted/50 p-4 transition-all hover:bg-muted" onclick={() => (showRevenue = !showRevenue)}>
 			<div class="mb-2 flex items-center justify-between">
 				<span class="text-xs font-medium text-muted-foreground">Revenue</span>
-				<div class={cn('size-4 rounded-full border border-blue-500', showRevenue && 'bg-blue-500')}></div>
+				<div class={cn('size-4 rounded-full border border-blue-400', showRevenue && 'bg-blue-400')}></div>
 			</div>
-			<div class="text-left text-2xl font-bold tracking-tight">${((stats.revenue || 0) / 100).toFixed(2)}</div>
+			<div class="text-left text-2xl font-bold tracking-tight">
+				{currencySymbol}{isZeroDecimal ? Math.round((stats.revenue || 0) / 100).toLocaleString() : ((stats.revenue || 0) / 100).toFixed(2)}
+			</div>
 		</button>
 
 		<button class="relative cursor-pointer overflow-hidden rounded-xl bg-muted/50 p-4 transition-all hover:bg-muted" onclick={() => (showVisitors = !showVisitors)}>

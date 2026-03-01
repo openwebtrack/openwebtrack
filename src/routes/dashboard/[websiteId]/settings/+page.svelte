@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Settings, Check, Copy, Trash2, Loader2, AlertTriangle } from 'lucide-svelte';
-	import { TIMEZONES } from '$lib/utils/constants';
+	import { TIMEZONES, CURRENCIES } from '$lib/utils/constants';
 	import { browser } from '$app/environment';
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
@@ -20,8 +20,10 @@
 
 	let originalTimezone = $state(website.timezone);
 	let originalDomain = $state(website.domain);
+	let originalCurrency = $state(website.currency);
 	let timezone = $state(website.timezone);
 	let domain = $state(website.domain);
+	let currency = $state(website.currency);
 	let saveSuccess = $state(false);
 	let isSaving = $state(false);
 	let saveError = $state('');
@@ -32,15 +34,17 @@
 
 	let scriptCode = $derived(`<script defer data-website-id="${website.id}" data-domain="${domain}" src="${browser ? window.location.origin : ''}/script.js"><\/script>`);
 
-	const hasChanges = $derived(domain !== originalDomain || timezone !== originalTimezone);
+	const hasChanges = $derived(domain !== originalDomain || timezone !== originalTimezone || currency !== originalCurrency);
 
 	$effect(() => {
 		const w = website;
 		if (!w?.id) return;
 		originalTimezone = w.timezone;
 		originalDomain = w.domain;
+		originalCurrency = w.currency;
 		timezone = w.timezone;
 		domain = w.domain;
+		currency = w.currency;
 	});
 
 	const copyToClipboard = () => navigator.clipboard.writeText(scriptCode);
@@ -58,10 +62,12 @@
 		try {
 			await axios.put(`/api/websites/${data.website.id}`, {
 				domain,
-				timezone
+				timezone,
+				currency
 			});
 			originalDomain = domain;
 			originalTimezone = timezone;
+			originalCurrency = currency;
 			saveSuccess = true;
 			setTimeout(() => (saveSuccess = false), 2000);
 		} catch (e) {
@@ -135,6 +141,25 @@
 			<Select.Content>
 				{#each TIMEZONES as tz}
 					<Select.Item value={tz} label={tz} />
+				{/each}
+			</Select.Content>
+		</Select.Root>
+	</Card.Content>
+</Card.Root>
+
+<Card.Root class="mt-6">
+	<Card.Header>
+		<Card.Title>Currency</Card.Title>
+		<Card.Description>Revenue will be converted to this currency in your dashboard.</Card.Description>
+	</Card.Header>
+	<Card.Content>
+		<Select.Root bind:value={currency} type="single">
+			<Select.Trigger class="w-full">
+				{currency}
+			</Select.Trigger>
+			<Select.Content>
+				{#each CURRENCIES as curr}
+					<Select.Item value={curr.code} label={`${curr.code} - ${curr.name}`} />
 				{/each}
 			</Select.Content>
 		</Select.Root>

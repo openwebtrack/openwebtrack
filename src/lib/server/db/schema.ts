@@ -10,6 +10,7 @@ export const website = pgTable(
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),
 		timezone: text('timezone').notNull().default('UTC'),
+		currency: text('currency').notNull().default('USD'),
 		excludedIps: jsonb('excluded_ips').$type<string[]>().default([]).notNull(),
 		excludedPaths: jsonb('excluded_paths').$type<string[]>().default([]).notNull(),
 		excludedCountries: jsonb('excluded_countries').$type<string[]>().default([]).notNull(),

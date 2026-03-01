@@ -18,6 +18,8 @@ const domainSchema = z
 
 const timezoneSchema = z.string().max(100).default('UTC');
 
+const currencySchema = z.string().length(3).default('USD');
+
 const stringArraySchema = z.array(z.string().max(500)).max(100).default([]);
 
 const trafficSpikeSchema = z
@@ -52,6 +54,7 @@ export const websiteCreateSchema = z.object({
 export const websiteUpdateSchema = z.object({
 	domain: domainSchema.optional(),
 	timezone: timezoneSchema.optional(),
+	currency: currencySchema.optional(),
 	excludedIps: stringArraySchema.optional(),
 	excludedPaths: stringArraySchema.optional(),
 	excludedCountries: stringArraySchema.optional(),

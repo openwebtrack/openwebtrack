@@ -3,6 +3,7 @@
 	import { Lightbulb, RefreshCw, Settings, Search, Loader2, Users, ChevronDown, Check } from 'lucide-svelte';
 	import { generateVisitorName } from '$lib/utils/visitor';
 	import getCountryCode from '$lib/utils/country-mapping';
+	import { convertCurrencySync, fetchExchangeRates } from '$lib/utils/currency';
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
@@ -331,6 +332,30 @@
 
 	let hostnameData = $derived([{ label: data.website.domain, value: stats.visitors, icon: `https://icons.duckduckgo.com/ip3/${data.website.domain}.ico` }]);
 
+	let websiteCurrency = $derived((data.website as { currency?: string }).currency || 'USD');
+
+	let convertedStats = $derived({
+		...stats,
+		revenue: convertCurrencySync(stats.revenue, 'USD', websiteCurrency)
+	});
+
+	let convertedRevenueByChannel = $derived(revenueByChannel.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
+	let convertedRevenueByCountry = $derived(revenueByCountry.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
+	let convertedRevenueByRegion = $derived(revenueByRegion.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
+	let convertedRevenueByCity = $derived(revenueByCity.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
+	let convertedRevenueByOs = $derived(revenueByOs.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
+	let convertedRevenueByBrowser = $derived(revenueByBrowser.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
+	let convertedRevenueByDeviceType = $derived(revenueByDeviceType.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
+	let convertedRevenueByHostname = $derived(revenueByHostname.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
+	let convertedRevenueByPage = $derived(revenueByPage.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
+
+	let convertedTimeSeries = $derived(
+		timeSeries.map((point) => ({
+			...point,
+			revenue: convertCurrencySync(point.revenue || 0, 'USD', websiteCurrency)
+		}))
+	);
+
 	const formatTime = (dateStr: string) => {
 		const date = new Date(dateStr);
 		const now = new Date();
@@ -490,6 +515,7 @@
 	onMount(() => {
 		initFromUrl();
 		fetchData();
+		fetchExchangeRates('USD');
 		const interval = setInterval(fetchData, 20000);
 		return () => clearInterval(interval);
 	});
@@ -665,7 +691,7 @@
 			{/if}
 
 			<div>
-				<DashboardChart {timeSeries} {stats} granularity={granularity.toLowerCase() as 'hourly' | 'daily' | 'weekly' | 'monthly'} />
+				<DashboardChart timeSeries={convertedTimeSeries} stats={convertedStats} granularity={granularity.toLowerCase() as 'hourly' | 'daily' | 'weekly' | 'monthly'} {websiteCurrency} />
 			</div>
 
 			<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -719,10 +745,10 @@
 					class="h-[339px]"
 				>
 					{#if pageActiveTab === 0}
-						<BarList items={hostnameData} revenueItems={revenueByHostname} />
+						<BarList items={hostnameData} revenueItems={convertedRevenueByHostname} {websiteCurrency} />
 					{:else if pageActiveTab === 1}
 						{#if topPages.length > 0}
-							<BarList items={topPages} revenueItems={revenueByPage} />
+							<BarList items={topPages} revenueItems={convertedRevenueByPage} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -766,7 +792,7 @@
 				>
 					{#if mapActiveTab === 0}
 						{#if countryStats.length > 0}
-							<BarList items={countryStats} revenueItems={revenueByCountry} />
+							<BarList items={countryStats} revenueItems={convertedRevenueByCountry} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -775,7 +801,7 @@
 						{/if}
 					{:else if mapActiveTab === 1}
 						{#if regionStats.length > 0}
-							<BarList items={regionStats} revenueItems={revenueByRegion} />
+							<BarList items={regionStats} revenueItems={convertedRevenueByRegion} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -784,7 +810,7 @@
 						{/if}
 					{:else if mapActiveTab === 2}
 						{#if cityStats.length > 0}
-							<BarList items={cityStats} revenueItems={revenueByCity} />
+							<BarList items={cityStats} revenueItems={convertedRevenueByCity} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -808,7 +834,7 @@
 				>
 					{#if browserActiveTab === 0}
 						{#if browserStats.length > 0}
-							<BarList items={browserStats} revenueItems={revenueByBrowser} />
+							<BarList items={browserStats} revenueItems={convertedRevenueByBrowser} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -817,7 +843,7 @@
 						{/if}
 					{:else if browserActiveTab === 1}
 						{#if osStats.length > 0}
-							<BarList items={osStats} revenueItems={revenueByOs} />
+							<BarList items={osStats} revenueItems={convertedRevenueByOs} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -826,7 +852,7 @@
 						{/if}
 					{:else if browserActiveTab === 2}
 						{#if deviceTypeStats.length > 0}
-							<BarList items={deviceTypeStats} revenueItems={revenueByDeviceType} />
+							<BarList items={deviceTypeStats} revenueItems={convertedRevenueByDeviceType} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
