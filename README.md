@@ -83,7 +83,7 @@ volumes:
 - **Device & Tech Specs**: Analyze Browsers, OS, Device Types, and Screen Sizes.
 - **UTM Tracking**: Measure campaign performance with automatic UTM parameter extraction.
 - **Traffic Spike Alerts**: Get instant notifications when your website experiences unusual traffic spikes.
-- **Revenue Tracking**: Track payments and revenue.
+- **Revenue Tracking**: Track payments and revenue per country, region, city, page, hostname, device, browser, OS, and referrer source with interactive tooltips showing detailed breakdowns.
 
 ### Notifications & Alerts
 
