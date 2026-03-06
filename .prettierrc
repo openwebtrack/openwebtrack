@@ -1,0 +1,28 @@
+{
+	"$schema": "http://json.schemastore.org/prettierrc",
+	"useTabs": true,
+	"singleQuote": true,
+	"semi": true,
+	"trailingComma": "none",
+	"printWidth": 200,
+	"tabWidth": 4,
+	"endOfLine": "lf",
+	"quoteProps": "as-needed",
+	"plugins": ["prettier-plugin-svelte", "prettier-plugin-tailwindcss"],
+	"tailwindStylesheet": "./src/routes/layout.css",
+	"overrides": [
+		{
+			"files": "*.svelte",
+			"options": {
+				"parser": "svelte"
+			}
+		},
+		{
+			"files": "*.yml",
+			"options": {
+				"tabWidth": 2,
+				"useTabs": false
+			}
+		}
+	]
+}
