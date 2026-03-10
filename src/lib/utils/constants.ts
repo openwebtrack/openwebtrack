@@ -113,6 +113,7 @@ export const COUNTRY_OPTIONS = [
 	'Mauritius',
 	'Mexico',
 	'Moldova',
+	'Republic of Moldova',
 	'Monaco',
 	'Mongolia',
 	'Montenegro',
