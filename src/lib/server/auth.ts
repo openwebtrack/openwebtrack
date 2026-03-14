@@ -16,6 +16,13 @@ const auth = betterAuth({
 		enabled: true,
 		disableSignUp: env.DISABLE_REGISTER === 'true'
 	},
+	socialProviders: {
+		google: {
+			enabled: env.AUTH_GOOGLE_CLIENT_ID && env.AUTH_GOOGLE_CLIENT_SECRET ? true : false,
+			clientId: env?.AUTH_GOOGLE_CLIENT_ID || '',
+			clientSecret: env?.AUTH_GOOGLE_CLIENT_SECRET || ''
+		}
+	},
 	plugins: [sveltekitCookies(getRequestEvent)]
 });
 

@@ -6,13 +6,6 @@ A free and open-source website analytics platform.
 
 ### Quick Start
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/openwebtrack/openwebtrack/refs/heads/main/install.sh | sudo sh
-```
-
-<details>
-<summary>or use compose.yml file:</summary>
-
 ```yml
 services:
     app:
@@ -26,6 +19,8 @@ services:
             - ORIGIN=http://localhost:8424
             - AUTH_SECRET={STRONG_SECRET}
             - DISABLE_REGISTER=false
+            # - AUTH_GOOGLE_CLIENT_ID=
+            # - AUTH_GOOGLE_CLIENT_SECRET=
             # - CRON_SECRET={String} - For weekly summary emails
             # - SENDER_EMAIL=openwebtrack@yourdomain.com - To enable notifications set your email and preferred email provider
             # - RESEND_API_KEY={String}
