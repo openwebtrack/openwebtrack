@@ -1,8 +1,7 @@
 import { defineConfig, type ResolvedConfig, type ViteDevServer } from 'vite';
-import { existsSync, mkdirSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
-import { fileURLToPath } from 'url';
 import { build } from 'esbuild';
 import { join } from 'path';
 
@@ -48,11 +47,7 @@ const trackingScriptPlugin = () => {
 	};
 };
 
-const file = fileURLToPath(new URL('package.json', import.meta.url));
-const pkg = JSON.parse(readFileSync(file, 'utf8'));
-
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit(), trackingScriptPlugin()],
-	server: { port: 8424 },
-	define: { APP_VERSION: JSON.stringify(pkg.version) }
+	server: { port: 8424 }
 });

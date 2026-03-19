@@ -1,7 +1,6 @@
 <script lang="ts">
-	import authClient from '$lib/auth-client';
-	import * as Avatar from '$lib/components/ui/avatar/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import authClient from '$lib/auth-client';
 	import Logo from '$lib/components/Logo.svelte';
 
 	const session = authClient.useSession();
@@ -18,12 +17,7 @@
 			{#if $session.data}
 				<div class="flex items-center gap-3">
 					<a class="flex items-center gap-2 transition-opacity hover:opacity-80" href="/account">
-						<Avatar.Root class="h-6 w-6">
-							<Avatar.Image src={$session.data.user.image || undefined} alt={$session.data.user.name || 'User'} />
-							<Avatar.Fallback class="bg-zinc-700 text-xs font-medium text-zinc-300">
-								{$session.data.user.name?.charAt(0) || '?'}
-							</Avatar.Fallback>
-						</Avatar.Root>
+						<img src={`https://api.dicebear.com/9.x/glass/svg?seed=owt-${$session.data.user.name}`} alt="Avatar" class="size-6 rounded-full" />
 						<span class="text-sm font-medium text-zinc-400">{$session.data.user.name}</span>
 					</a>
 				</div>
