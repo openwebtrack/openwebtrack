@@ -93,6 +93,7 @@
 		sourceIcon: string;
 		source: string;
 		lastSeen: string;
+		lastActivityAt: string;
 		region: string | null;
 		city: string | null;
 		screenWidth: number | null;
@@ -308,6 +309,7 @@
 					sourceIcon: `https://icons.duckduckgo.com/ip3/${source.domain}.ico`,
 					source: source.hostname,
 					lastSeen: formatTime(v.lastActivityAt),
+					lastActivityAt: v.lastActivityAt,
 					region: v.region,
 					city: v.city,
 					screenWidth: v.screenWidth,

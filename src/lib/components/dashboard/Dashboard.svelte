@@ -109,6 +109,7 @@
 		sourceIcon: string;
 		source: string;
 		lastSeen: string;
+		lastActivityAt: string;
 		region: string | null;
 		city: string | null;
 		screenWidth: number | null;
@@ -561,6 +562,7 @@
 			countryFlag: event.visitor.countryFlag,
 			city: event.visitor.city,
 			lastSeen: event.formattedTime,
+			lastActivityAt: event.timestamp,
 			device: 'Unknown',
 			os: 'Unknown',
 			osIcon: 'https://api.iconify.design/lucide:monitor.svg?color=%2371717a',

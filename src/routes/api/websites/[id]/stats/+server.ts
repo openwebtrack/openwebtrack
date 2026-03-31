@@ -262,7 +262,6 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	if (!queryValidation.success) {
 		return json({ error: queryValidation.error, errors: queryValidation.errors }, { status: 400 });
 	}
-
 	const { start, end } = parseDateRange(url.searchParams.get('startDate'), url.searchParams.get('endDate'), site.timezone);
 	const granularity = parseGranularity(queryValidation.data.granularity || null);
 	const filters = parseFilters(url.searchParams.get('filters'));
@@ -272,7 +271,6 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const baseSessionWhere = and(eq(analyticsSession.websiteId, site.id), gte(analyticsSession.startedAt, start), lte(analyticsSession.startedAt, end), ...sessionConditions);
 	const basePaymentWhere = and(eq(payment.websiteId, site.id), gte(payment.timestamp, start), lte(payment.timestamp, end));
 	const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-
 	const [
 		visitorStats,
 		pageviewStats,

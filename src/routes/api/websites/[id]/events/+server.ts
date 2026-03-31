@@ -3,7 +3,7 @@ import { generateAvatarUrl, generateVisitorName } from '$lib/utils/visitor';
 import { eventsQuerySchema, validateQuery } from '$lib/server/validation';
 import { checkWebsiteAccess, isValidUUID } from '$lib/server/utils';
 import getCountryCode from '$lib/utils/country-mapping';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import db from '$lib/server/db';
@@ -39,7 +39,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			type: analyticsEvent.type,
 			name: analyticsEvent.name,
 			data: analyticsEvent.data,
-			timestamp: analyticsEvent.timestamp,
+			timestamp: sql<string>`TO_CHAR(${analyticsEvent.timestamp}, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`.as('timestamp'),
 			visitor: {
 				id: visitor.id,
 				name: visitor.name,

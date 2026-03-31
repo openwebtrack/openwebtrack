@@ -21,6 +21,7 @@
 		sourceIcon: string;
 		source: string;
 		lastSeen: string;
+		lastActivityAt: string;
 		region: string | null;
 		city: string | null;
 		screenWidth: number | null;
@@ -165,11 +166,24 @@
 		return key ? countryCoords[key] : null;
 	}
 
-	let effectiveVisitors = $derived(visitors);
+	let effectiveVisitors = $derived(
+		visitors.filter((v) => {
+			if (!v.lastActivityAt) return false;
+			try {
+				const lastActivity = new Date(v.lastActivityAt).getTime();
+				if (isNaN(lastActivity)) return false;
+				const now = Date.now();
+				const fiveMinutes = 5 * 60 * 1000;
+				return now - lastActivity <= fiveMinutes;
+			} catch {
+				return false;
+			}
+		})
+	);
 
 	let referrerCounts = $derived(() => {
 		const map: Record<string, number> = {};
-		for (const v of visitors) {
+		for (const v of effectiveVisitors) {
 			const key = v.source || 'Direct';
 			map[key] = (map[key] || 0) + 1;
 		}
@@ -180,7 +194,7 @@
 
 	let countryCounts = $derived(() => {
 		const map: Record<string, { count: number; flag: string }> = {};
-		for (const v of visitors) {
+		for (const v of effectiveVisitors) {
 			const key = v.country || 'Unknown';
 			if (!map[key]) map[key] = { count: 0, flag: v.countryFlag };
 			map[key].count++;
@@ -193,7 +207,7 @@
 
 	let deviceCounts = $derived(() => {
 		const map: Record<string, number> = {};
-		for (const v of visitors) {
+		for (const v of effectiveVisitors) {
 			const key = v.device || 'Desktop';
 			map[key] = (map[key] || 0) + 1;
 		}

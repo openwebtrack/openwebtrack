@@ -28,7 +28,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 			name: visitor.name,
 			avatar: visitor.avatar,
 			isCustomer: visitor.isCustomer,
-			lastActivityAt: sql<string>`MAX(${analyticsSession.lastActivityAt})`.as('last_activity'),
+			lastActivityAt: sql<string>`TO_CHAR(MAX(${analyticsSession.lastActivityAt}), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`.as('lastActivityAt'),
 			country: sql<string | null>`(array_agg(${analyticsSession.country} ORDER BY ${analyticsSession.lastActivityAt} DESC))[1]`,
 			device: sql<string | null>`(array_agg(${analyticsSession.deviceType} ORDER BY ${analyticsSession.lastActivityAt} DESC))[1]`,
 			os: sql<string | null>`(array_agg(${analyticsSession.os} ORDER BY ${analyticsSession.lastActivityAt} DESC))[1]`,

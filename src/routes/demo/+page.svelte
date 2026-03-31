@@ -60,6 +60,9 @@
 			const referrer = referrers[Math.floor(Math.random() * referrers.length)];
 			const visitorId = `demo-visitor-${i}`;
 			const countryCode = getCountryCode(country.name);
+			// Some visitors are online (within last 5 min), others are not
+			const isOnline = i < 5;
+			const lastActivityAt = isOnline ? new Date(Date.now() - Math.random() * 5 * 60 * 1000).toISOString() : new Date(Date.now() - (5 * 60 * 1000 + Math.random() * 86400000)).toISOString();
 
 			visitors.push({
 				visitorId: visitorId,
@@ -75,7 +78,8 @@
 				browser: browser,
 				sourceIcon: referrer === 'Direct' ? '' : `https://icons.duckduckgo.com/ip3/${referrer}.ico`,
 				source: referrer === 'Direct' ? 'Direct' : referrer,
-				lastSeen: formatTime(new Date(Date.now() - Math.random() * 86400000).toISOString()),
+				lastSeen: formatTime(lastActivityAt),
+				lastActivityAt: lastActivityAt,
 				region: ['California', 'New York', 'London', 'Berlin', 'Paris'][Math.floor(Math.random() * 5)],
 				city: ['San Francisco', 'New York', 'London', 'Berlin', 'Paris'][Math.floor(Math.random() * 5)],
 				screenWidth: [1920, 1366, 1440, 375, 768][Math.floor(Math.random() * 5)],
@@ -126,7 +130,10 @@
 				pageviews: totalPageviews,
 				sessions: Math.floor(totalVisitors * 1.2),
 				avgSessionDuration: 185000,
-				online: 12,
+				online: visitors.filter((v) => {
+					const lastActivity = new Date(v.lastActivityAt).getTime();
+					return Date.now() - lastActivity <= 5 * 60 * 1000;
+				}).length,
 				revenue: totalRevenue,
 				customers: Math.floor(totalVisitors * 0.15)
 			},
