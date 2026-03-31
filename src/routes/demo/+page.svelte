@@ -52,7 +52,7 @@
 
 		// Generate visitors
 		const visitors = [];
-		for (let i = 0; i < 50; i++) {
+		for (let i = 0; i < 12; i++) {
 			const country = countries[Math.floor(Math.random() * countries.length)];
 			const browser = browsers[Math.floor(Math.random() * browsers.length)];
 			const os = osList[Math.floor(Math.random() * osList.length)];

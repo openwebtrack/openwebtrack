@@ -7,6 +7,7 @@
 	import getCountryCode from '$lib/utils/country-mapping';
 	import type { PageData } from './$types';
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import axios from 'axios';
 
 	interface Filter {
@@ -183,18 +184,25 @@
 	};
 
 	const updateUrlParams = () => {
-		const params = new URLSearchParams();
+		const url = new URL(window.location.href);
+		const params = url.searchParams;
 		if (dateRangeValue && dateRangeValue !== 'Last 7 days') {
 			params.set('dateRange', dateRangeValue);
+		} else {
+			params.delete('dateRange');
 		}
 		if (granularity && granularity !== 'Daily') {
 			params.set('granularity', granularity);
+		} else {
+			params.delete('granularity');
 		}
 		if (filters.length > 0) {
 			params.set('filters', JSON.stringify(filters));
+		} else {
+			params.delete('filters');
 		}
-		const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
-		window.history.replaceState({}, '', newUrl);
+		// Use goto to update URL without adding history entry
+		goto(url, { replaceState: true, keepFocus: true, noScroll: true });
 	};
 
 	const initFromUrl = () => {

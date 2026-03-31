@@ -1,30 +1,30 @@
 <script lang="ts">
-	import { getBrowserIcon, getOsIcon, getDeviceIcon, getCountryFlag, getRegionIcon, getCityIcon } from '$lib/utils/icons';
 	import { Lightbulb, RefreshCw, Search, Loader2, Users, ChevronDown, Check, Settings } from 'lucide-svelte';
-	import { generateVisitorName } from '$lib/utils/visitor';
-	import getCountryCode from '$lib/utils/country-mapping';
+	import { getBrowserIcon, getOsIcon, getDeviceIcon, getCountryFlag } from '$lib/utils/icons';
 	import { convertCurrencySync } from '$lib/utils/currency';
+	import { env } from '$env/dynamic/public';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 
 	import VisitorDetailsDialog from '$lib/components/dashboard/VisitorDetailsDialog.svelte';
 	import MetricDetailsDialog from '$lib/components/dashboard/MetricDetailsDialog.svelte';
 	import BarListCardSkeleton from '$lib/components/dashboard/BarListCardSkeleton.svelte';
 	import GranularityPicker from '$lib/components/dashboard/GranularityPicker.svelte';
 	import UserListSkeleton from '$lib/components/dashboard/UserListSkeleton.svelte';
+	import type { FilterType } from '$lib/components/dashboard/FilterPicker.svelte';
 	import DateRangePicker from '$lib/components/dashboard/DateRangePicker.svelte';
 	import DashboardChart from '$lib/components/dashboard/DashboardChart.svelte';
 	import FilterPicker from '$lib/components/dashboard/FilterPicker.svelte';
 	import DonutChart from '$lib/components/dashboard/DonutChart.svelte';
-	import * as Popover from '$lib/components/ui/popover/index.js';
 	import TabbedCard from '$lib/components/dashboard/TabbedCard.svelte';
 	import EventList from '$lib/components/dashboard/EventList.svelte';
 	import Skeleton from '$lib/components/dashboard/Skeleton.svelte';
 	import UserList from '$lib/components/dashboard/UserList.svelte';
 	import BarList from '$lib/components/dashboard/BarList.svelte';
+	import * as Popover from '$lib/components/ui/popover/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import type { FilterType } from '$lib/components/dashboard/FilterPicker.svelte';
+	import RealTimeMap from './RealTimeMap.svelte';
 
 	interface Filter {
 		type: FilterType;
@@ -187,6 +187,7 @@
 		granularity = 'Daily'
 	}: Props = $props();
 
+	let showGlobe = $state(false);
 	let browserActiveTab = $state(0);
 	let channelActiveTab = $state(0);
 	let pageActiveTab = $state(1);
@@ -199,6 +200,42 @@
 	let showMetricDetails = $state(false);
 	let currentMetricType = $state('');
 	let currentMetricTitle = $state('');
+
+	// Sync showGlobe with ?map=true query param
+	let prevMapParam: string | null = null;
+	$effect(() => {
+		const mapParam = $page.url.searchParams.get('map');
+		if (mapParam !== prevMapParam) {
+			if (mapParam === 'true') {
+				showGlobe = true;
+			} else if (mapParam === null || mapParam === 'false') {
+				showGlobe = false;
+			}
+			prevMapParam = mapParam;
+		}
+	});
+
+	// Helper to update URL with map param
+	function setMapParam(open: boolean) {
+		const url = new URL($page.url);
+		if (open) {
+			url.searchParams.set('map', 'true');
+		} else {
+			url.searchParams.delete('map');
+		}
+		// Use replaceState to avoid adding a new history entry
+		goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+	}
+
+	const openRealTimeMap = () => {
+		showGlobe = true;
+		setMapParam(true);
+	};
+
+	const closeRealTimeMap = () => {
+		showGlobe = false;
+		setMapParam(false);
+	};
 
 	const openMetricDetails = (type: string, title: string) => {
 		currentMetricType = type;
@@ -611,6 +648,15 @@
 
 			<div class="flex-1"></div>
 
+			<Button variant="secondary" size="icon" onclick={openRealTimeMap} title="Real-time map">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24"
+					><path
+						fill="currentColor"
+						d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10s10-4.49 10-10S17.51 2 12 2M4 12c0-.9.16-1.76.43-2.57L6 11l2 2v2l2 2l1 1v1.93c-3.94-.49-7-3.86-7-7.93m14.33 4.87c-.65-.53-1.64-.87-2.33-.87v-1c0-1.1-.9-2-2-2h-4v-3c1.1 0 2-.9 2-2V7h1c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41c0 1.83-.63 3.52-1.67 4.87"
+					/></svg
+				>
+			</Button>
+
 			<FilterPicker
 				{filters}
 				websiteId={website.id}
@@ -931,5 +977,9 @@
 			demoData={isDemo ? generateDemoMetricData(currentMetricType) : null}
 			onClose={() => (showMetricDetails = false)}
 		/>
+	{/if}
+
+	{#if showGlobe}
+		<RealTimeMap {visitors} {events} websiteDomain={website.domain} onlineCount={stats.online} onClose={closeRealTimeMap} />
 	{/if}
 </div>
