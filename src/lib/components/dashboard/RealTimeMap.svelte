@@ -444,15 +444,15 @@
 
 	<!-- Close button -->
 	<button
-		onclick={onClose}
-		class="absolute top-4 right-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white/70 backdrop-blur-md transition-colors hover:bg-black/60 hover:text-white"
+		class="absolute top-4 right-4 z-999 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white/70 backdrop-blur-md transition-colors hover:bg-black/60 hover:text-white"
 		aria-label="Close map"
+		onclick={onClose}
 	>
 		<X class="h-4 w-4" />
 	</button>
 
 	<!-- Top-left header pill -->
-	<div class="absolute top-4 left-4 z-10 flex items-center gap-3 rounded-xl border border-white/10 bg-black/50 px-3 py-2 backdrop-blur-md">
+	<div class="absolute top-4 left-4 z-999 flex items-center gap-3 rounded-xl border border-white/10 bg-black/50 px-3 py-2 backdrop-blur-md">
 		<span class="flex h-1.5 w-1.5 rounded-full bg-green-400 shadow-[0_0_6px_#4ade80]"></span>
 		<img src="https://icons.duckduckgo.com/ip3/{websiteDomain}.ico" alt={websiteDomain} class="h-4 w-4 rounded" onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')} />
 		<span class="text-sm font-semibold text-white">{websiteDomain}</span>
@@ -462,7 +462,7 @@
 	</div>
 
 	<!-- Top-left stats column -->
-	<div class="absolute top-16 left-4 z-10 flex w-56 flex-col gap-2">
+	<div class="absolute top-16 left-4 z-999 flex w-56 flex-col gap-2">
 		<div class="rounded-xl border border-white/10 bg-black/50 px-3 py-2 backdrop-blur-md">
 			<div class="mb-1.5 text-[10px] font-medium tracking-wider text-white/40 uppercase">Referrers</div>
 			<div class="flex flex-col gap-1">
@@ -535,7 +535,7 @@
 	</div>
 
 	<!-- Bottom-left live feed -->
-	<div class="absolute bottom-4 left-4 z-10 w-64">
+	<div class="absolute bottom-4 left-4 z-10 z-999 w-64">
 		<div class="rounded-xl border border-white/10 bg-black/50 p-3 backdrop-blur-md">
 			<div class="mb-2 flex items-center gap-1.5 text-[10px] font-medium tracking-wider text-white/40 uppercase">
 				<MousePointerClick class="h-3 w-3" />
@@ -573,7 +573,7 @@
 	</div>
 
 	<!-- Bottom-right OpenWebTrack branding -->
-	<div class="absolute right-4 bottom-4 z-10">
+	<div class="absolute right-4 bottom-4 z-999">
 		<a href="https://openwebtrack.github.io/" target="_blank" class="flex items-center gap-3">
 			<Logo class="h-6 w-6 text-primary" />
 			<span class="text-sm font-bold tracking-tight">OpenWebTrack</span>

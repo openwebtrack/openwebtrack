@@ -25,13 +25,93 @@
 			{ name: 'Japan', code: 'JP' },
 			{ name: 'Brazil', code: 'BR' },
 			{ name: 'India', code: 'IN' },
-			{ name: 'Netherlands', code: 'NL' }
+			{ name: 'Netherlands', code: 'NL' },
+			{ name: 'Romania', code: 'RO' }
 		];
 
 		const browsers = ['Chrome', 'Firefox', 'Safari', 'Edge'];
 		const osList = ['Windows', 'macOS', 'Linux', 'iOS', 'Android'];
 		const devices = ['Desktop', 'Mobile', 'Tablet'];
 		const referrers = ['google.com', 'twitter.com', 'github.com', 'Direct', 'linkedin.com', 'reddit.com'];
+
+		// Realistic city/region mappings by country
+		const locationByCountry: Record<string, { region: string; city: string }[]> = {
+			US: [
+				{ region: 'California', city: 'San Francisco' },
+				{ region: 'California', city: 'Los Angeles' },
+				{ region: 'New York', city: 'New York City' },
+				{ region: 'Texas', city: 'Austin' },
+				{ region: 'Washington', city: 'Seattle' },
+				{ region: 'Illinois', city: 'Chicago' },
+				{ region: 'Florida', city: 'Miami' }
+			],
+			GB: [
+				{ region: 'England', city: 'London' },
+				{ region: 'England', city: 'Manchester' },
+				{ region: 'England', city: 'Birmingham' },
+				{ region: 'Scotland', city: 'Edinburgh' },
+				{ region: 'England', city: 'Bristol' }
+			],
+			DE: [
+				{ region: 'Berlin', city: 'Berlin' },
+				{ region: 'Bavaria', city: 'Munich' },
+				{ region: 'Hamburg', city: 'Hamburg' },
+				{ region: 'Hesse', city: 'Frankfurt' },
+				{ region: 'North Rhine-Westphalia', city: 'Cologne' }
+			],
+			FR: [
+				{ region: 'Île-de-France', city: 'Paris' },
+				{ region: "Provence-Alpes-Côte d'Azur", city: 'Marseille' },
+				{ region: 'Auvergne-Rhône-Alpes', city: 'Lyon' },
+				{ region: 'Nouvelle-Aquitaine', city: 'Bordeaux' }
+			],
+			CA: [
+				{ region: 'Ontario', city: 'Toronto' },
+				{ region: 'British Columbia', city: 'Vancouver' },
+				{ region: 'Quebec', city: 'Montreal' },
+				{ region: 'Alberta', city: 'Calgary' }
+			],
+			AU: [
+				{ region: 'New South Wales', city: 'Sydney' },
+				{ region: 'Victoria', city: 'Melbourne' },
+				{ region: 'Queensland', city: 'Brisbane' },
+				{ region: 'Western Australia', city: 'Perth' }
+			],
+			JP: [
+				{ region: 'Kantō', city: 'Tokyo' },
+				{ region: 'Kansai', city: 'Osaka' },
+				{ region: 'Chūbu', city: 'Nagoya' },
+				{ region: 'Kyushu', city: 'Fukuoka' }
+			],
+			BR: [
+				{ region: 'São Paulo', city: 'São Paulo' },
+				{ region: 'Rio de Janeiro', city: 'Rio de Janeiro' },
+				{ region: 'Minas Gerais', city: 'Belo Horizonte' },
+				{ region: 'Bahia', city: 'Salvador' }
+			],
+			IN: [
+				{ region: 'Maharashtra', city: 'Mumbai' },
+				{ region: 'Karnataka', city: 'Bangalore' },
+				{ region: 'Delhi', city: 'New Delhi' },
+				{ region: 'Tamil Nadu', city: 'Chennai' },
+				{ region: 'Telangana', city: 'Hyderabad' }
+			],
+			NL: [
+				{ region: 'North Holland', city: 'Amsterdam' },
+				{ region: 'South Holland', city: 'Rotterdam' },
+				{ region: 'South Holland', city: 'The Hague' },
+				{ region: 'Utrecht', city: 'Utrecht' }
+			],
+			RO: [
+				{ region: 'Bucharest', city: 'Bucharest' },
+				{ region: 'Cluj', city: 'Cluj-Napoca' },
+				{ region: 'Timiș', city: 'Timișoara' },
+				{ region: 'Iași', city: 'Iași' },
+				{ region: 'Constanța', city: 'Constanța' },
+				{ region: 'Craiova', city: 'Craiova' },
+				{ region: 'Brașov', city: 'Brașov' }
+			]
+		};
 
 		// Generate time series data (last 30 days)
 		const timeSeries = [];
@@ -52,7 +132,7 @@
 
 		// Generate visitors
 		const visitors = [];
-		for (let i = 0; i < 12; i++) {
+		for (let i = 0; i < 30; i++) {
 			const country = countries[Math.floor(Math.random() * countries.length)];
 			const browser = browsers[Math.floor(Math.random() * browsers.length)];
 			const os = osList[Math.floor(Math.random() * osList.length)];
@@ -60,9 +140,12 @@
 			const referrer = referrers[Math.floor(Math.random() * referrers.length)];
 			const visitorId = `demo-visitor-${i}`;
 			const countryCode = getCountryCode(country.name);
-			// Some visitors are online (within last 5 min), others are not
-			const isOnline = i < 5;
+			// First 20 visitors are online (within last 5 min), others are not
+			const isOnline = i < 20;
 			const lastActivityAt = isOnline ? new Date(Date.now() - Math.random() * 5 * 60 * 1000).toISOString() : new Date(Date.now() - (5 * 60 * 1000 + Math.random() * 86400000)).toISOString();
+
+			const locations = locationByCountry[country.code] || [{ region: '', city: '' }];
+			const location = locations[Math.floor(Math.random() * locations.length)];
 
 			visitors.push({
 				visitorId: visitorId,
@@ -80,8 +163,8 @@
 				source: referrer === 'Direct' ? 'Direct' : referrer,
 				lastSeen: formatTime(lastActivityAt),
 				lastActivityAt: lastActivityAt,
-				region: ['California', 'New York', 'London', 'Berlin', 'Paris'][Math.floor(Math.random() * 5)],
-				city: ['San Francisco', 'New York', 'London', 'Berlin', 'Paris'][Math.floor(Math.random() * 5)],
+				region: location.region,
+				city: location.city,
 				screenWidth: [1920, 1366, 1440, 375, 768][Math.floor(Math.random() * 5)],
 				screenHeight: [1080, 768, 900, 812, 1024][Math.floor(Math.random() * 5)],
 				isPwa: Math.random() > 0.9
@@ -123,6 +206,20 @@
 		const totalVisitors = timeSeries.reduce((sum, d) => sum + d.visitors, 0);
 		const totalPageviews = timeSeries.reduce((sum, d) => sum + d.pageviews, 0);
 		const totalRevenue = timeSeries.reduce((sum, d) => sum + (d.revenue || 0), 0);
+
+		// Generate region and city stats from visitors
+		const regionCounts: Record<string, number> = {};
+		const cityCounts: Record<string, number> = {};
+		for (const v of visitors) {
+			if (v.region) regionCounts[v.region] = (regionCounts[v.region] || 0) + Math.floor(Math.random() * 500) + 100;
+			if (v.city) cityCounts[v.city] = (cityCounts[v.city] || 0) + Math.floor(Math.random() * 300) + 50;
+		}
+		const regionStats = Object.entries(regionCounts)
+			.map(([label, value]) => ({ label, value, icon: '' }))
+			.sort((a, b) => b.value - a.value);
+		const cityStats = Object.entries(cityCounts)
+			.map(([label, value]) => ({ label, value, icon: '' }))
+			.sort((a, b) => b.value - a.value);
 
 		return {
 			stats: {
@@ -214,18 +311,8 @@
 				{ label: 'France', value: 1234, icon: getCountryFlag('France') },
 				{ label: 'Canada', value: 876, icon: getCountryFlag('Canada') }
 			],
-			regionStats: [
-				{ label: 'California', value: 2341, icon: '' },
-				{ label: 'New York', value: 1876, icon: '' },
-				{ label: 'London', value: 1234, icon: '' },
-				{ label: 'Berlin', value: 876, icon: '' }
-			],
-			cityStats: [
-				{ label: 'San Francisco', value: 1234, icon: '' },
-				{ label: 'New York', value: 876, icon: '' },
-				{ label: 'London', value: 654, icon: '' },
-				{ label: 'Berlin', value: 432, icon: '' }
-			],
+			regionStats,
+			cityStats,
 			revenueByCountry: [
 				{ label: 'United States', value: 45230, icon: getCountryFlag('United States') },
 				{ label: 'United Kingdom', value: 23410, icon: getCountryFlag('United Kingdom') },
@@ -233,18 +320,8 @@
 				{ label: 'France', value: 12340, icon: getCountryFlag('France') },
 				{ label: 'Canada', value: 8760, icon: getCountryFlag('Canada') }
 			],
-			revenueByRegion: [
-				{ label: 'California', value: 23410, icon: '' },
-				{ label: 'New York', value: 18760, icon: '' },
-				{ label: 'London', value: 12340, icon: '' },
-				{ label: 'Berlin', value: 8760, icon: '' }
-			],
-			revenueByCity: [
-				{ label: 'San Francisco', value: 12340, icon: '' },
-				{ label: 'New York', value: 8760, icon: '' },
-				{ label: 'London', value: 6540, icon: '' },
-				{ label: 'Berlin', value: 4320, icon: '' }
-			],
+			revenueByRegion: regionStats.map((r) => ({ ...r, value: r.value * 10 })),
+			revenueByCity: cityStats.map((c) => ({ ...c, value: c.value * 10 })),
 			revenueByOs: [
 				{ label: 'Windows', value: 45230, icon: getOsIcon('Windows') },
 				{ label: 'macOS', value: 34560, icon: getOsIcon('macOS') },
