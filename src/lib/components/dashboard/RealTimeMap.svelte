@@ -2,7 +2,7 @@
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { onMount, onDestroy } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { X, Monitor, Smartphone, Globe, Users, MousePointerClick } from 'lucide-svelte';
+	import { X, Monitor, Smartphone, Globe, Users, MousePointerClick, PanelLeftOpen, PanelLeftClose } from 'lucide-svelte';
 	import Logo from '$lib/components/Logo.svelte';
 	import maplibregl from 'maplibre-gl';
 
@@ -55,6 +55,8 @@
 	}
 
 	let { visitors, events, websiteDomain, onlineCount = 0, onClose }: Props = $props();
+
+	let sidebarOpen = $state(false);
 
 	// Country centroid coordinates [lng, lat]
 	const countryCoords: Record<string, [number, number]> = {
@@ -461,122 +463,143 @@
 		<span class="text-sm text-white/80"><span class="font-bold text-white">{effectiveVisitors.length}</span> online</span>
 	</div>
 
-	<!-- Top-left stats column -->
-	<div class="absolute top-16 left-4 z-999 flex w-56 flex-col gap-2">
-		<div class="rounded-xl border border-white/10 bg-black/50 px-3 py-2 backdrop-blur-md">
-			<div class="mb-1.5 text-[10px] font-medium tracking-wider text-white/40 uppercase">Referrers</div>
-			<div class="flex flex-col gap-1">
-				{#if referrerCounts().length === 0}
-					<div class="flex items-center gap-2">
-						<span class="text-xs text-white/50">No referrer data</span>
-					</div>
-				{/if}
+	<!-- Toggle button for sidebar (mobile) -->
+	<button
+		class="sidebar-toggle absolute top-16 left-4 z-999 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white/70 backdrop-blur-md transition-colors hover:bg-black/80 hover:text-white md:hidden"
+		aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+		onclick={() => (sidebarOpen = !sidebarOpen)}
+	>
+		{#if sidebarOpen}
+			<PanelLeftClose class="h-4 w-4" />
+		{:else}
+			<PanelLeftOpen class="h-4 w-4" />
+		{/if}
+	</button>
 
-				{#each referrerCounts() as [source, count]}
-					<div class="flex items-center gap-2">
-						<img
-							src="https://icons.duckduckgo.com/ip3/{source}.ico"
-							alt={source}
-							class="h-3 w-3 shrink-0 rounded-sm"
-							onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
-						/>
-						<span class="max-w-28 truncate text-xs text-white/70">{source}</span>
-						<span class="ml-auto text-xs font-semibold text-white">({count})</span>
-					</div>
-				{/each}
+	<!-- Overlay for mobile when sidebar is open -->
+	{#if sidebarOpen}
+		<button class="sidebar-overlay fixed inset-0 z-998 bg-black/50 md:hidden" aria-label="Close sidebar" onclick={() => (sidebarOpen = false)} transition:fade={{ duration: 200 }}></button>
+	{/if}
+
+	<!-- Sidebar with stats and live feed -->
+	<div class="sidebar-container" class:sidebar-open={sidebarOpen}>
+		<!-- Top-left stats column -->
+		<div class="flex w-56 flex-col gap-2 pt-14">
+			<div class="rounded-xl border border-white/10 bg-black/50 px-3 py-2 backdrop-blur-md">
+				<div class="mb-1.5 text-[10px] font-medium tracking-wider text-white/40 uppercase">Referrers</div>
+				<div class="flex flex-col gap-1">
+					{#if referrerCounts().length === 0}
+						<div class="flex items-center gap-2">
+							<span class="text-xs text-white/50">No referrer data</span>
+						</div>
+					{/if}
+
+					{#each referrerCounts() as [source, count]}
+						<div class="flex items-center gap-2">
+							<img
+								src="https://icons.duckduckgo.com/ip3/{source}.ico"
+								alt={source}
+								class="h-3 w-3 shrink-0 rounded-sm"
+								onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
+							/>
+							<span class="max-w-28 truncate text-xs text-white/70">{source}</span>
+							<span class="ml-auto text-xs font-semibold text-white">({count})</span>
+						</div>
+					{/each}
+				</div>
+			</div>
+
+			<div class="rounded-xl border border-white/10 bg-black/50 px-3 py-2 backdrop-blur-md">
+				<div class="mb-1.5 text-[10px] font-medium tracking-wider text-white/40 uppercase">Countries</div>
+				<div class="flex flex-col gap-1">
+					{#if countryCounts().length === 0}
+						<div class="flex items-center gap-2">
+							<span class="text-xs text-white/50">No country data</span>
+						</div>
+					{/if}
+
+					{#each countryCounts() as { country, count, flag }}
+						<div class="flex items-center gap-2">
+							{#if flag}
+								<img src={flag} alt={country} class="h-3 w-4 shrink-0 rounded-[2px]" />
+							{:else}
+								<Globe class="h-3 w-3 shrink-0 text-white/40" />
+							{/if}
+							<span class="max-w-28 truncate text-xs text-white/70">{country}</span>
+							<span class="ml-auto text-xs font-semibold text-white">({count})</span>
+						</div>
+					{/each}
+				</div>
+			</div>
+
+			<div class="rounded-xl border border-white/10 bg-black/50 px-3 py-2 backdrop-blur-md">
+				<div class="mb-1.5 text-[10px] font-medium tracking-wider text-white/40 uppercase">Devices</div>
+				<div class="flex flex-col gap-1">
+					{#if deviceCounts().length === 0}
+						<div class="flex items-center gap-2">
+							<span class="text-xs text-white/50">No device data</span>
+						</div>
+					{/if}
+
+					{#each deviceCounts() as [device, count]}
+						<div class="flex items-center gap-2">
+							{#if device?.toLowerCase().includes('mobile') || device?.toLowerCase().includes('phone')}
+								<Smartphone class="h-3 w-3 shrink-0 text-white/60" />
+							{:else}
+								<Monitor class="h-3 w-3 shrink-0 text-white/60" />
+							{/if}
+							<span class="text-xs text-white/70">{device}</span>
+							<span class="ml-auto text-xs font-semibold text-white">({count})</span>
+						</div>
+					{/each}
+				</div>
 			</div>
 		</div>
 
-		<div class="rounded-xl border border-white/10 bg-black/50 px-3 py-2 backdrop-blur-md">
-			<div class="mb-1.5 text-[10px] font-medium tracking-wider text-white/40 uppercase">Countries</div>
-			<div class="flex flex-col gap-1">
-				{#if countryCounts().length === 0}
-					<div class="flex items-center gap-2">
-						<span class="text-xs text-white/50">No country data</span>
-					</div>
-				{/if}
+		<!-- Bottom-left live feed -->
+		<div class="mt-auto w-64 pb-4">
+			<div class="rounded-xl border border-white/10 bg-black/50 p-3 backdrop-blur-md">
+				<div class="mb-2 flex items-center gap-1.5 text-[10px] font-medium tracking-wider text-white/40 uppercase">
+					<MousePointerClick class="h-3 w-3" />
+					Live activity
+				</div>
+				<div class="flex max-h-44 flex-col gap-2 overflow-y-auto">
+					{#if recentEvents.length === 0}
+						<div class="flex items-center gap-2">
+							<span class="text-xs text-white/50">No recent activity</span>
+						</div>
+					{/if}
 
-				{#each countryCounts() as { country, count, flag }}
-					<div class="flex items-center gap-2">
-						{#if flag}
-							<img src={flag} alt={country} class="h-3 w-4 shrink-0 rounded-[2px]" />
-						{:else}
-							<Globe class="h-3 w-3 shrink-0 text-white/40" />
-						{/if}
-						<span class="max-w-28 truncate text-xs text-white/70">{country}</span>
-						<span class="ml-auto text-xs font-semibold text-white">({count})</span>
-					</div>
-				{/each}
-			</div>
-		</div>
-
-		<div class="rounded-xl border border-white/10 bg-black/50 px-3 py-2 backdrop-blur-md">
-			<div class="mb-1.5 text-[10px] font-medium tracking-wider text-white/40 uppercase">Devices</div>
-			<div class="flex flex-col gap-1">
-				{#if deviceCounts().length === 0}
-					<div class="flex items-center gap-2">
-						<span class="text-xs text-white/50">No device data</span>
-					</div>
-				{/if}
-
-				{#each deviceCounts() as [device, count]}
-					<div class="flex items-center gap-2">
-						{#if device?.toLowerCase().includes('mobile') || device?.toLowerCase().includes('phone')}
-							<Smartphone class="h-3 w-3 shrink-0 text-white/60" />
-						{:else}
-							<Monitor class="h-3 w-3 shrink-0 text-white/60" />
-						{/if}
-						<span class="text-xs text-white/70">{device}</span>
-						<span class="ml-auto text-xs font-semibold text-white">({count})</span>
-					</div>
-				{/each}
-			</div>
-		</div>
-	</div>
-
-	<!-- Bottom-left live feed -->
-	<div class="absolute bottom-4 left-4 z-10 z-999 w-64">
-		<div class="rounded-xl border border-white/10 bg-black/50 p-3 backdrop-blur-md">
-			<div class="mb-2 flex items-center gap-1.5 text-[10px] font-medium tracking-wider text-white/40 uppercase">
-				<MousePointerClick class="h-3 w-3" />
-				Live activity
-			</div>
-			<div class="flex max-h-44 flex-col gap-2 overflow-y-auto">
-				{#if recentEvents.length === 0}
-					<div class="flex items-center gap-2">
-						<span class="text-xs text-white/50">No recent activity</span>
-					</div>
-				{/if}
-
-				{#each recentEvents as event (event.id)}
-					<div class="flex items-start gap-2">
-						<img src={event.visitor.avatar} alt={event.visitor.name} class="mt-0.5 h-6 w-6 shrink-0 rounded-full" />
-						<div class="min-w-0">
-							<div class="flex items-center gap-1.5">
-								{#if event.visitor.countryFlag}
-									<img src={event.visitor.countryFlag} alt={event.visitor.country} class="h-2.5 w-3.5 rounded-[2px]" />
-								{/if}
-								<span class="truncate text-xs font-medium text-white/80">{event.visitor.name}</span>
-							</div>
-							<div class="truncate text-[11px] text-white/40">
-								{#if event.type === 'pageview'}
-									visited {event.name}
-								{:else}
-									{event.name || event.type}
-								{/if}
+					{#each recentEvents as event (event.id)}
+						<div class="flex items-start gap-2">
+							<img src={event.visitor.avatar} alt={event.visitor.name} class="mt-0.5 h-6 w-6 shrink-0 rounded-full" />
+							<div class="min-w-0">
+								<div class="flex items-center gap-1.5">
+									{#if event.visitor.countryFlag}
+										<img src={event.visitor.countryFlag} alt={event.visitor.country} class="h-2.5 w-3.5 rounded-[2px]" />
+									{/if}
+									<span class="truncate text-xs font-medium text-white/80">{event.visitor.name}</span>
+								</div>
+								<div class="truncate text-[11px] text-white/40">
+									{#if event.type === 'pageview'}
+										visited {event.name}
+									{:else}
+										{event.name || event.type}
+									{/if}
+								</div>
 							</div>
 						</div>
-					</div>
-				{/each}
+					{/each}
+				</div>
 			</div>
 		</div>
 	</div>
 
 	<!-- Bottom-right OpenWebTrack branding -->
 	<div class="absolute right-4 bottom-4 z-999">
-		<a href="https://openwebtrack.github.io/" target="_blank" class="flex items-center gap-3">
-			<Logo class="h-6 w-6 text-primary" />
-			<span class="text-sm font-bold tracking-tight">OpenWebTrack</span>
+		<a href="https://openwebtrack.github.io/" target="_blank" class="flex items-center gap-2 md:gap-3">
+			<Logo class="h-4 w-4 text-primary md:h-6 md:w-6" />
+			<span class="text-xs font-bold tracking-tight md:text-sm">OpenWebTrack</span>
 		</a>
 	</div>
 </div>
@@ -716,5 +739,32 @@
 
 	:global(.maplibregl-ctrl-logo) {
 		display: none !important;
+	}
+
+	.sidebar-container {
+		position: absolute;
+		top: 0;
+		left: 0;
+		bottom: 0;
+		z-index: 999;
+		display: flex;
+		flex-direction: column;
+		padding: 1rem;
+		transform: translateX(0);
+		transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+
+	@media (max-width: 768px) {
+		.sidebar-container {
+			transform: translateX(-110%);
+		}
+
+		.sidebar-container.sidebar-open {
+			transform: translateX(0);
+		}
+	}
+
+	.sidebar-overlay {
+		cursor: pointer;
 	}
 </style>
