@@ -1,9 +1,9 @@
 <script lang="ts">
 	import 'maplibre-gl/dist/maplibre-gl.css';
-	import { onMount, onDestroy } from 'svelte';
-	import { fade } from 'svelte/transition';
 	import { X, Monitor, Smartphone, Globe, Users, MousePointerClick, PanelLeftOpen, PanelLeftClose } from 'lucide-svelte';
 	import Logo from '$lib/components/Logo.svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import maplibregl from 'maplibre-gl';
 
 	interface VisitorItem {
@@ -276,100 +276,182 @@
 		}
 	}
 
+	const ZOOM_THRESHOLD = 5;
+
 	function addVisitorMarkers() {
 		if (!map) return;
 		clearMarkers();
 
 		const mapContainerEl = map.getContainer();
-		const countryCount: Record<string, number> = {};
-		const countryIndex: Record<string, number> = {};
+		const currentZoom = map.getZoom();
+		const isClustered = currentZoom < ZOOM_THRESHOLD;
 
-		for (const visitor of effectiveVisitors) {
-			const country = visitor.country || 'Unknown';
-			countryCount[country] = (countryCount[country] || 0) + 1;
-		}
+		if (isClustered) {
+			// Group visitors by country and show count bubbles
+			const countryGroups: Record<string, { visitors: VisitorItem[]; coords: [number, number] }> = {};
 
-		for (const visitor of effectiveVisitors) {
-			const coords = getCoords(visitor);
-			if (!coords) continue;
-
-			const [baseLng, baseLat] = coords;
-			const country = visitor.country || 'Unknown';
-			const totalInCountry = countryCount[country];
-			const indexInCountry = countryIndex[country] || 0;
-			countryIndex[country] = indexInCountry + 1;
-
-			let lng = baseLng;
-			let lat = baseLat;
-
-			if (totalInCountry > 1) {
-				const radius = 1.2 + Math.sqrt(totalInCountry) * 0.4;
-				const angle = (indexInCountry / totalInCountry) * Math.PI * 2;
-				lng += Math.cos(angle) * radius;
-				lat += Math.sin(angle) * radius * 0.6;
+			for (const visitor of effectiveVisitors) {
+				const coords = getCoords(visitor);
+				if (!coords) continue;
+				const country = visitor.country || 'Unknown';
+				if (!countryGroups[country]) {
+					countryGroups[country] = { visitors: [], coords };
+				}
+				countryGroups[country].visitors.push(visitor);
 			}
 
-			lng = Math.max(-180, Math.min(180, lng));
-			lat = Math.max(-85, Math.min(85, lat));
+			for (const [country, { visitors: countryVisitors, coords }] of Object.entries(countryGroups)) {
+				const [lng, lat] = coords;
+				const count = countryVisitors.length;
+				const flag = countryVisitors[0]?.countryFlag;
+				const size = Math.min(24 + count * 2, 42);
 
-			const el = document.createElement('div');
-			el.className = 'visitor-marker';
-			el.innerHTML = `
-                <div class="marker-inner">
-                    <img src="${visitor.avatar}" alt="${visitor.name}" />
-                </div>
-                <div class="marker-pulse"></div>
-            `;
+				const el = document.createElement('div');
+				el.className = 'cluster-marker';
+				el.innerHTML = `
+					<div class="cluster-inner" style="width:${size}px;height:${size}px;">
+						${flag ? `<img src="${flag}" alt="${country}" class="cluster-flag" />` : ''}
+						<span class="cluster-count">+${count}</span>
+					</div>
+					<div class="cluster-pulse" style="width:${size}px;height:${size}px;"></div>
+				`;
 
-			const popup = new maplibregl.Popup({
-				offset: 16,
-				closeButton: false,
-				className: 'visitor-popup'
-			}).setHTML(`
-                <div class="popup-inner">
-                    <div class="popup-header">
-                        <img src="${visitor.avatar}" class="popup-avatar" />
-                        <span class="popup-name">${visitor.name}</span>
-                    </div>
-                    <div class="popup-row">
-                        ${visitor.countryFlag ? `<img src="${visitor.countryFlag}" class="popup-flag" />` : ''}
-                        <span>${visitor.city ? visitor.city + ', ' : ''}${visitor.country}</span>
-                    </div>
-                    <div class="popup-row">
-                        <span class="popup-label">Device:</span> <span>${visitor.device}</span>
-                    </div>
-                    <div class="popup-row">
-                        <img src="${visitor.sourceIcon}" class="popup-icon" onerror="this.style.display='none'" />
-                        <span>${visitor.source}</span>
-                    </div>
-                </div>
-            `);
+				const visitorsListHtml = countryVisitors
+					.slice(0, 5)
+					.map(
+						(v) => `
+					<div class="popup-visitor-row">
+						<img src="${v.avatar}" class="popup-avatar" />
+						<span>${v.name}</span>
+					</div>
+				`
+					)
+					.join('');
+				const moreCount = count > 5 ? `<div class="popup-more">+${count - 5} more</div>` : '';
 
-			el.addEventListener('click', (e) => {
-				e.stopPropagation();
-				const opacity = getHemisphereVisibility(lng, lat);
-				if (opacity <= 0) return;
-				if (activePopup && activePopup !== popup) {
-					activePopup.remove();
+				const popup = new maplibregl.Popup({
+					offset: 16,
+					closeButton: false,
+					className: 'visitor-popup'
+				}).setHTML(`
+					<div class="popup-inner">
+						<div class="popup-header">
+							${flag ? `<img src="${flag}" class="popup-flag" />` : ''}
+							<span class="popup-name">${country}</span>
+							<span class="popup-count">(${count} online)</span>
+						</div>
+						${visitorsListHtml}
+						${moreCount}
+					</div>
+				`);
+
+				el.addEventListener('click', (e) => {
+					e.stopPropagation();
+					const opacity = getHemisphereVisibility(lng, lat);
+					if (opacity <= 0) return;
+					if (activePopup && activePopup !== popup) {
+						activePopup.remove();
+					}
+					popup.setLngLat([lng, lat]).addTo(map!);
+					activePopup = popup;
+				});
+
+				mapContainerEl.appendChild(el);
+				markerData.push({ element: el, lng, lat, popup });
+			}
+		} else {
+			// Show individual visitor markers
+			const countryCount: Record<string, number> = {};
+			const countryIndex: Record<string, number> = {};
+
+			for (const visitor of effectiveVisitors) {
+				const country = visitor.country || 'Unknown';
+				countryCount[country] = (countryCount[country] || 0) + 1;
+			}
+
+			for (const visitor of effectiveVisitors) {
+				const coords = getCoords(visitor);
+				if (!coords) continue;
+
+				const [baseLng, baseLat] = coords;
+				const country = visitor.country || 'Unknown';
+				const totalInCountry = countryCount[country];
+				const indexInCountry = countryIndex[country] || 0;
+				countryIndex[country] = indexInCountry + 1;
+
+				let lng = baseLng;
+				let lat = baseLat;
+
+				if (totalInCountry > 1) {
+					const radius = 1.2 + Math.sqrt(totalInCountry) * 0.4;
+					const angle = (indexInCountry / totalInCountry) * Math.PI * 2;
+					lng += Math.cos(angle) * radius;
+					lat += Math.sin(angle) * radius * 0.6;
 				}
-				popup.setLngLat([lng, lat]).addTo(map!);
-				activePopup = popup;
-			});
 
-			mapContainerEl.appendChild(el);
-			markerData.push({ element: el, lng, lat, popup });
+				lng = Math.max(-180, Math.min(180, lng));
+				lat = Math.max(-85, Math.min(85, lat));
+
+				const el = document.createElement('div');
+				el.className = 'visitor-marker';
+				el.innerHTML = `
+					<div class="marker-inner">
+						<img src="${visitor.avatar}" alt="${visitor.name}" />
+					</div>
+					<div class="marker-pulse"></div>
+				`;
+
+				const popup = new maplibregl.Popup({
+					offset: 16,
+					closeButton: false,
+					className: 'visitor-popup'
+				}).setHTML(`
+					<div class="popup-inner">
+						<div class="popup-header">
+							<img src="${visitor.avatar}" class="popup-avatar" />
+							<span class="popup-name">${visitor.name}</span>
+						</div>
+						<div class="popup-row">
+							${visitor.countryFlag ? `<img src="${visitor.countryFlag}" class="popup-flag" />` : ''}
+							<span>${visitor.city ? visitor.city + ', ' : ''}${visitor.country}</span>
+						</div>
+						<div class="popup-row">
+							<span class="popup-label">Device:</span> <span>${visitor.device}</span>
+						</div>
+						<div class="popup-row">
+							<img src="${visitor.sourceIcon}" class="popup-icon" onerror="this.style.display='none'" />
+							<span>${visitor.source}</span>
+						</div>
+					</div>
+				`);
+
+				el.addEventListener('click', (e) => {
+					e.stopPropagation();
+					const opacity = getHemisphereVisibility(lng, lat);
+					if (opacity <= 0) return;
+					if (activePopup && activePopup !== popup) {
+						activePopup.remove();
+					}
+					popup.setLngLat([lng, lat]).addTo(map!);
+					activePopup = popup;
+				});
+
+				mapContainerEl.appendChild(el);
+				markerData.push({ element: el, lng, lat, popup });
+			}
 		}
 
 		updateMarkerPositions();
 	}
 
 	onMount(() => {
+		document.body.style.overflow = 'hidden';
+
 		// ✅ No API token needed — OpenFreeMap is fully free & open source
 		map = new maplibregl.Map({
 			container: mapContainer,
 			style: 'https://tiles.openfreemap.org/styles/dark',
-			// MapLibre globe projection — set directly in style or via map options
-			zoom: 1.5,
+			zoom: 2.8,
 			center: [10, 25],
 			attributionControl: false
 		});
@@ -395,6 +477,7 @@
 		});
 
 		map.on('render', updateMarkerPositions);
+		map.on('zoomend', () => addVisitorMarkers());
 
 		let rotateId: ReturnType<typeof setInterval>;
 		let userInteracting = false;
@@ -420,6 +503,7 @@
 	});
 
 	onDestroy(() => {
+		document.body.style.overflow = '';
 		clearMarkers();
 		map?.remove();
 		map = null;
@@ -735,6 +819,89 @@
 
 	:global(.popup-label) {
 		color: rgba(255, 255, 255, 0.4);
+	}
+
+	:global(.cluster-marker) {
+		position: absolute;
+		top: 0;
+		left: 0;
+		cursor: pointer;
+		transform-origin: center center;
+		will-change: transform;
+		pointer-events: auto;
+		z-index: 100;
+	}
+
+	:global(.cluster-inner) {
+		position: relative;
+		z-index: 2;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 50%;
+		background: var(--color-secondary);
+		border: 2px solid var(--chart-1);
+		box-shadow: 0 0 10px color-mix(in oklch, var(--chart-1) 50%, transparent);
+		transition:
+			transform 0.2s,
+			box-shadow 0.2s;
+		overflow: hidden;
+	}
+
+	:global(.cluster-marker:hover .cluster-inner) {
+		transform: scale(1.12);
+		box-shadow: 0 0 24px color-mix(in oklch, var(--chart-1) 80%, transparent);
+	}
+
+	:global(.cluster-flag) {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		border-radius: 50%;
+		opacity: 0.5;
+		position: absolute;
+		inset: 0;
+	}
+
+	:global(.cluster-count) {
+		position: relative;
+		z-index: 3;
+		font-size: 11px;
+		font-weight: 800;
+		color: #fff;
+		text-shadow:
+			0 1px 4px rgba(0, 0, 0, 1),
+			0 0 2px rgba(0, 0, 0, 0.9);
+		letter-spacing: -0.3px;
+	}
+
+	:global(.cluster-pulse) {
+		position: absolute;
+		inset: -4px;
+		border-radius: 50%;
+		border: 2px solid color-mix(in oklch, var(--chart-1) 50%, transparent);
+		animation: pulse-ring 2s ease-out infinite;
+	}
+
+	:global(.popup-visitor-row) {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 12px;
+		color: var(--card-foreground);
+	}
+
+	:global(.popup-count) {
+		font-size: 11px;
+		color: var(--muted-foreground);
+		font-weight: 400;
+	}
+
+	:global(.popup-more) {
+		font-size: 11px;
+		color: var(--chart-1);
+		text-align: center;
+		padding-top: 2px;
 	}
 
 	:global(.maplibregl-ctrl-logo) {
