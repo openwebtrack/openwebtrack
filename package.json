@@ -2,7 +2,7 @@
 	"name": "openwebtrack",
 	"private": true,
 	"author": "Ge0rg3e",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"licence": "AGPL-3.0",
 	"type": "module",
 	"scripts": {

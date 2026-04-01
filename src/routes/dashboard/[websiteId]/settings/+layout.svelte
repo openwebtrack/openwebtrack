@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Settings, Bell, Filter, Users, Database, KeyRound, BookOpenText, ExternalLink } from 'lucide-svelte';
+	import { Settings, Bell, Filter, Users, Database, KeyRound, BookOpenText, ExternalLink, Grid2x2Plus } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { page } from '$app/state';
 
@@ -12,6 +12,7 @@
 		{ id: 'notifications', label: 'Notifications', icon: Bell, href: `/dashboard/${website.id}/settings/notifications` },
 		{ id: 'exclusions', label: 'Exclusions', icon: Filter, href: `/dashboard/${website.id}/settings/exclusions` },
 		{ id: 'team', label: 'Team', icon: Users, href: `/dashboard/${website.id}/settings/team` },
+		{ id: 'widgets', label: 'Widgets', icon: Grid2x2Plus, href: `/dashboard/${website.id}/settings/widgets` },
 		{ id: 'api-keys', label: 'API Keys', icon: KeyRound, href: `/dashboard/${website.id}/settings/api-keys` },
 		{ id: 'data', label: 'Data', icon: Database, href: `/dashboard/${website.id}/settings/data` }
 	];

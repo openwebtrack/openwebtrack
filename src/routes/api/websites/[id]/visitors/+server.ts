@@ -5,22 +5,24 @@ import { analyticsSession, website, visitor } from '$lib/server/db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 import { checkWebsiteAccess, isValidUUID } from '$lib/server/utils';
 
-export const GET: RequestHandler = async ({ locals, params }) => {
-	if (!locals.user) {
-		throw error(401, 'Unauthorized');
-	}
+export const GET: RequestHandler = async ({ locals, params, url }) => {
+	const isWidget = url.searchParams.get('isWidget') === 'true';
 
 	if (!isValidUUID(params.id)) {
 		throw error(400, 'Invalid website ID');
 	}
 
-	const access = await checkWebsiteAccess(locals.user.id, params.id);
+	if (!isWidget) {
+		if (!locals.user) {
+			throw error(401, 'Unauthorized');
+		}
 
-	if (!access) {
-		throw error(404, 'Website not found');
+		const access = await checkWebsiteAccess(locals.user.id, params.id);
+
+		if (!access) {
+			throw error(404, 'Website not found');
+		}
 	}
-
-	const site = access.site;
 
 	const uniqueVisitors = await db
 		.select({
@@ -42,7 +44,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		})
 		.from(analyticsSession)
 		.leftJoin(visitor, eq(analyticsSession.visitorId, visitor.id))
-		.where(eq(analyticsSession.websiteId, site.id))
+		.where(eq(analyticsSession.websiteId, params.id))
 		.groupBy(analyticsSession.visitorId, visitor.name, visitor.avatar, visitor.isCustomer)
 		.orderBy(sql`MAX(${analyticsSession.lastActivityAt}) DESC`)
 		.limit(100);
