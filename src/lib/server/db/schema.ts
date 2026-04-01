@@ -187,4 +187,19 @@ export const payment = pgTable(
 	]
 );
 
+export const apiKey = pgTable(
+	'api_key',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		websiteId: uuid('website_id')
+			.notNull()
+			.references(() => website.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		keyHash: text('key_hash').notNull().unique(),
+		lastUsedAt: timestamp('last_used_at'),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [index('apiKey_websiteId_idx').on(table.websiteId), index('apiKey_keyHash_idx').on(table.keyHash)]
+);
+
 export * from './auth.schema';

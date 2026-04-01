@@ -125,6 +125,10 @@ export const importSchema = z.object({
 	apiKey: z.string().optional()
 });
 
+export const apiKeyCreateSchema = z.object({
+	name: z.string().min(1, 'Name is required').max(100, 'Name too long').trim()
+});
+
 export const isValidUUID = (value: string): boolean => {
 	return uuidSchema.safeParse(value).success;
 };
