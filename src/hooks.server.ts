@@ -1,6 +1,7 @@
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import type { Handle } from '@sveltejs/kit';
 import { building } from '$app/environment';
+import { env } from '$env/dynamic/private';
 import auth from '$lib/server/auth';
 
 const handleBetterAuth: Handle = async ({ event, resolve }) => {
@@ -11,7 +12,13 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 		event.locals.user = session.user;
 	}
 
-	return svelteKitHandler({ event, resolve, auth, building });
+	const response = await svelteKitHandler({ event, resolve, auth, building });
+
+	if (env.ENABLE_INDEXING !== 'true') {
+		response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+	}
+
+	return response;
 };
 
 export const handle: Handle = handleBetterAuth;
