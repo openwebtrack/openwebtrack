@@ -2,7 +2,6 @@
 	import { Lightbulb, RefreshCw, Search, Loader2, Users, ChevronDown, Check, Settings } from 'lucide-svelte';
 	import { getBrowserIcon, getOsIcon, getDeviceIcon, getCountryFlag } from '$lib/utils/icons';
 	import { convertCurrencySync } from '$lib/utils/currency';
-	import { env } from '$env/dynamic/public';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 
@@ -24,6 +23,7 @@
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
+	import FunnelPanel from './FunnelPanel.svelte';
 	import RealTimeMap from './RealTimeMap.svelte';
 
 	interface Filter {
@@ -164,6 +164,8 @@
 		filters?: Filter[];
 		dateRangeValue?: string;
 		granularity?: string;
+		startDate?: string | null;
+		endDate?: string | null;
 	}
 
 	let {
@@ -185,7 +187,9 @@
 		onClearFilters,
 		filters = [],
 		dateRangeValue = 'Last 7 days',
-		granularity = 'Daily'
+		granularity = 'Daily',
+		startDate = null,
+		endDate = null
 	}: Props = $props();
 
 	let showGlobe = $state(false);
@@ -947,11 +951,19 @@
 						<Input type="text" bind:value={searchQuery} placeholder="Search..." class="w-64 pl-9" />
 					</div>
 				{/snippet}
-				<TabbedCard tabs={['Visitors', 'Events']} activeTab={mainTabActive} onTabChange={(i) => (mainTabActive = i)} {headerRight} class="min-h-[500px]">
+				<TabbedCard
+					tabs={['Visitors', 'Events', 'Funnels']}
+					activeTab={mainTabActive}
+					onTabChange={(i) => (mainTabActive = i)}
+					headerRight={mainTabActive !== 2 ? headerRight : undefined}
+					class="min-h-[500px]"
+				>
 					{#if mainTabActive === 0}
 						<UserList items={filteredVisitors} onVisitorClick={(visitor: VisitorItem) => (selectedVisitor = visitor)} />
-					{:else}
+					{:else if mainTabActive === 1}
 						<EventList items={filteredEvents} onEventClick={openVisitorDetails} />
+					{:else}
+						<FunnelPanel websiteId={website.id} {startDate} {endDate} {dateRangeValue} {isOwner} {isDemo} />
 					{/if}
 				</TabbedCard>
 			</div>

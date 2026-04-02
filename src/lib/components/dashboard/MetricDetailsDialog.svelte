@@ -72,7 +72,7 @@
 </script>
 
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>
-	<Dialog.Content class="flex max-h-[85vh] max-w-2xl flex-col overflow-hidden">
+	<Dialog.Content class="flex max-h-[85vh] max-w-4xl flex-col overflow-hidden">
 		<Dialog.Close />
 
 		<Dialog.Header class="border-b border-border pb-4">

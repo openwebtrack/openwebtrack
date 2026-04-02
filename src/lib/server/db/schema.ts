@@ -187,6 +187,26 @@ export const payment = pgTable(
 	]
 );
 
+export type FunnelStepDef = {
+	name: string;
+	type: 'page_visit' | 'goal';
+	value: string;
+};
+
+export const funnel = pgTable(
+	'funnel',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		websiteId: uuid('website_id')
+			.notNull()
+			.references(() => website.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		steps: jsonb('steps').$type<FunnelStepDef[]>().notNull().default([]),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [index('funnel_websiteId_idx').on(table.websiteId)]
+);
+
 export const apiKey = pgTable(
 	'api_key',
 	{

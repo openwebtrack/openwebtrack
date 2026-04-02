@@ -181,7 +181,7 @@
 </script>
 
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>
-	<Dialog.Content class="flex max-h-[85vh] max-w-2xl flex-col overflow-hidden">
+	<Dialog.Content class="flex max-h-[85vh] max-w-4xl flex-col overflow-hidden">
 		<Dialog.Close />
 
 		<div class="-mx-6 flex-1 overflow-y-auto px-6">

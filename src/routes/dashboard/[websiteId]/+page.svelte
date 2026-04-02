@@ -407,6 +407,8 @@
 	{filters}
 	{dateRangeValue}
 	{granularity}
+	{startDate}
+	{endDate}
 />
 
 <svelte:head>
