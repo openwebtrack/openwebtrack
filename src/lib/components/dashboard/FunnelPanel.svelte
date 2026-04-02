@@ -44,6 +44,13 @@
 	let openMenuId = $state<string | null>(null);
 	let showSidebar = $state(true);
 
+	// Hide sidebar on small screens by default
+	$effect(() => {
+		if (window.innerWidth < 768) {
+			showSidebar = false;
+		}
+	});
+
 	const MOCK_FUNNELS: FunnelDef[] = [
 		{
 			id: 'demo-funnel-1',
@@ -165,9 +172,9 @@
 	});
 </script>
 
-<div class="flex h-full min-h-0 gap-0">
+<div class="flex h-full gap-0">
 	<!-- Left: chart area -->
-	<div class="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+	<div class="relative flex flex-1 flex-col overflow-hidden">
 		<!-- Sidebar toggle button (top-right of chart area) -->
 		<button
 			onclick={() => (showSidebar = !showSidebar)}
@@ -199,7 +206,7 @@
 				<Loader2 class="h-5 w-5 animate-spin text-muted-foreground" />
 			</div>
 		{:else if funnelResults && funnelResults.steps.length > 0}
-			<div class="h-full overflow-y-auto pr-1">
+			<div class="h-full pr-1">
 				<FunnelChart steps={funnelResults.steps} conversionRate={funnelResults.conversionRate} funnelName={selectedFunnel.name} dateRange={dateRangeValue} />
 			</div>
 		{:else}

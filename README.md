@@ -80,6 +80,7 @@ volumes:
 - **Traffic Spike Alerts**: Get instant notifications when your website experiences unusual traffic spikes.
 - **Revenue Tracking**: Track payments and revenue per country, region, city, page, hostname, device, browser, OS, and referrer source with interactive tooltips showing detailed breakdowns.
 - **Real-Time Map**: Visualize visitors and movements on an interactive globe.
+- **Funnels**: Create custom funnels to analyze user journeys and identify drop-off points.
 
 ### Notifications & Alerts
 

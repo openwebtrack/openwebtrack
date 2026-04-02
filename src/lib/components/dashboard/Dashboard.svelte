@@ -25,6 +25,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import FunnelPanel from './FunnelPanel.svelte';
 	import RealTimeMap from './RealTimeMap.svelte';
+	import cn from '@/utils/helpers';
 
 	interface Filter {
 		type: FilterType;
@@ -946,9 +947,9 @@
 
 			<div class="mb-6">
 				{#snippet headerRight()}
-					<div class="relative">
-						<Search class="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-						<Input type="text" bind:value={searchQuery} placeholder="Search..." class="w-64 pl-9" />
+					<div class="relative w-full max-w-32 md:max-w-full">
+						<Search class="absolute top-1/2 left-3 h-3.5 -translate-y-1/2 text-muted-foreground " />
+						<Input type="text" bind:value={searchQuery} placeholder="Search..." class="pl-9" />
 					</div>
 				{/snippet}
 				<TabbedCard
@@ -956,7 +957,7 @@
 					activeTab={mainTabActive}
 					onTabChange={(i) => (mainTabActive = i)}
 					headerRight={mainTabActive !== 2 ? headerRight : undefined}
-					class="min-h-[500px]"
+					class={cn('min-h-[500px]', mainTabActive === 2 && 'min-h-screen! md:min-h-[500px]!')}
 				>
 					{#if mainTabActive === 0}
 						<UserList items={filteredVisitors} onVisitorClick={(visitor: VisitorItem) => (selectedVisitor = visitor)} />
