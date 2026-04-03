@@ -80,6 +80,10 @@
 		customersByDeviceType?: { label: string; value: number }[];
 		customersByHostname?: { label: string; value: number }[];
 		customersByPage?: { label: string; value: number }[];
+		customersByReferrer?: { label: string; value: number }[];
+		customersByCampaign?: { label: string; value: number }[];
+		customersByEntryPage?: { label: string; value: number }[];
+		customersByExitLink?: { label: string; value: number }[];
 		revenueByCountry: { label: string; value: number; icon?: string }[];
 		revenueByRegion: { label: string; value: number; icon?: string }[];
 		revenueByCity: { label: string; value: number; icon?: string }[];
@@ -88,6 +92,10 @@
 		revenueByDeviceType: { label: string; value: number; icon?: string }[];
 		revenueByHostname: { label: string; value: number; icon?: string }[];
 		revenueByPage: { label: string; value: number; icon?: string }[];
+		revenueByReferrer?: { label: string; value: number; icon?: string }[];
+		revenueByEntryPage?: { label: string; value: number; icon?: string }[];
+		revenueByExitLink?: { label: string; value: number; icon?: string }[];
+		revenueByCampaign?: { label: string; value: number; icon?: string }[];
 		timeSeries: TimeSeriesPoint[];
 	}
 
@@ -287,6 +295,10 @@
 	let customersByDeviceType = $derived(apiData?.customersByDeviceType || []);
 	let customersByHostname = $derived(apiData?.customersByHostname || []);
 	let customersByPage = $derived(apiData?.customersByPage || []);
+	let customersByReferrer = $derived(apiData?.customersByReferrer || []);
+	let customersByCampaign = $derived(apiData?.customersByCampaign || []);
+	let customersByEntryPage = $derived(apiData?.customersByEntryPage || []);
+	let customersByExitLink = $derived(apiData?.customersByExitLink || []);
 	let revenueByCountry = $derived(apiData?.revenueByCountry || []);
 	let revenueByRegion = $derived(apiData?.revenueByRegion || []);
 	let revenueByCity = $derived(apiData?.revenueByCity || []);
@@ -295,6 +307,10 @@
 	let revenueByDeviceType = $derived(apiData?.revenueByDeviceType || []);
 	let revenueByHostname = $derived(apiData?.revenueByHostname || []);
 	let revenueByPage = $derived(apiData?.revenueByPage || []);
+	let revenueByReferrer = $derived(apiData?.revenueByReferrer || []);
+	let revenueByEntryPage = $derived(apiData?.revenueByEntryPage || []);
+	let revenueByExitLink = $derived(apiData?.revenueByExitLink || []);
+	let revenueByCampaign = $derived(apiData?.revenueByCampaign || []);
 	let timeSeries = $derived(apiData?.timeSeries || []);
 
 	let filteredVisitors = $derived(
@@ -354,6 +370,10 @@
 	let convertedRevenueByDeviceType = $derived(revenueByDeviceType.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
 	let convertedRevenueByHostname = $derived(revenueByHostname.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
 	let convertedRevenueByPage = $derived(revenueByPage.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
+	let convertedRevenueByReferrer = $derived(revenueByReferrer.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
+	let convertedRevenueByEntryPage = $derived(revenueByEntryPage.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
+	let convertedRevenueByExitLink = $derived(revenueByExitLink.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
+	let convertedRevenueByCampaign = $derived(revenueByCampaign.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
 
 	const channelRevenueItems = $derived(
 		channelData.map((channel) => {
