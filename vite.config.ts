@@ -28,7 +28,6 @@ const trackingScriptPlugin = () => {
 					minify: !isDev,
 					bundle: true,
 					format: 'iife',
-					globalName: 'owt',
 					target: 'es2018',
 					platform: 'browser',
 					define: isDev ? {} : { __OWT_API_ENDPOINT__: '""' }
