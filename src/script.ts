@@ -80,7 +80,10 @@ const OS_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
 	'use strict';
 
 	const scriptEl = document.currentScript as HTMLScriptElement | null;
-	if (!scriptEl) return;
+	if (!scriptEl) {
+		w.owt = { trackEvent: () => {}, trackPayment: () => {} } as any;
+		return;
+	}
 
 	const attr = (name: string) => scriptEl.getAttribute(name);
 
@@ -399,22 +402,23 @@ const OS_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
 		recordCustomEvent(name, (data as Record<string, unknown>) || {}, cb);
 	};
 
-	if (isAutomated()) active = false;
-	if (active && ((isLocalhost(w.location.hostname) && !localhostOk) || (w.location.protocol === 'file:' && !fileProtoOk))) active = false;
-	if (active && w !== w.parent && !isDebug) active = false;
-	if (active && (!siteId || !hostDomain)) active = false;
-	if (!active) return;
-
 	w.owt = {
 		trackEvent: (n: string, d?: Record<string, unknown>, c?: (s: number) => void) => dispatch(n, d, c),
 		trackPayment: (a: number, cr?: string, tId?: string, c?: (s: number) => void) => recordPayment(a, cr, tId, c)
 	} as any;
+
+	if (isAutomated()) active = false;
+	if (active && ((isLocalhost(w.location.hostname) && !localhostOk) || (w.location.protocol === 'file:' && !fileProtoOk))) active = false;
+	if (active && w !== w.parent && !isDebug) active = false;
+	if (active && (!siteId || !hostDomain)) active = false;
 
 	for (const call of pendingQueue) {
 		try {
 			dispatch.apply(null, call as [string, unknown]);
 		} catch {}
 	}
+
+	if (!active) return;
 
 	try {
 		const stored = sessionStorage.getItem(STORAGE_PAGEVIEW);
