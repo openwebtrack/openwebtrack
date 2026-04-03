@@ -39,6 +39,8 @@
 		avgSessionDuration: number;
 		online: number;
 		revenue: number;
+		revenuePerVisitor?: number;
+		conversionRate?: number;
 		customers: number;
 	}
 
@@ -47,6 +49,9 @@
 		visitors: number;
 		pageviews: number;
 		revenue?: number;
+		revenuePerVisitor?: number;
+		conversionRate?: number;
+		customers?: number;
 	}
 
 	interface ApiData {
@@ -56,6 +61,7 @@
 		exitLinks: { label: string; value: number; icon?: string }[];
 		topReferrers: { label: string; value: number; icon?: string }[];
 		channelData: { label: string; value: number; icon?: string }[];
+		customersByChannel?: { label: string; value: number }[];
 		revenueByChannel: { label: string; value: number; icon?: string }[];
 		campaignData: { label: string; value: number; icon?: string }[];
 		customEvents: { type: string; name: string | null; value: number; icon?: string }[];
@@ -66,6 +72,14 @@
 		countryStats: { label: string; value: number; icon?: string }[];
 		regionStats: { label: string; value: number; icon?: string }[];
 		cityStats: { label: string; value: number; icon?: string }[];
+		customersByCountry?: { label: string; value: number }[];
+		customersByRegion?: { label: string; value: number }[];
+		customersByCity?: { label: string; value: number }[];
+		customersByOs?: { label: string; value: number }[];
+		customersByBrowser?: { label: string; value: number }[];
+		customersByDeviceType?: { label: string; value: number }[];
+		customersByHostname?: { label: string; value: number }[];
+		customersByPage?: { label: string; value: number }[];
 		revenueByCountry: { label: string; value: number; icon?: string }[];
 		revenueByRegion: { label: string; value: number; icon?: string }[];
 		revenueByCity: { label: string; value: number; icon?: string }[];
@@ -249,7 +263,7 @@
 		showMetricDetails = true;
 	};
 
-	let stats = $derived(apiData?.stats || { visitors: 0, pageviews: 0, sessions: 0, avgSessionDuration: 0, online: 0, revenue: 0, customers: 0 });
+	let stats = $derived(apiData?.stats || { visitors: 0, pageviews: 0, sessions: 0, avgSessionDuration: 0, online: 0, revenue: 0, revenuePerVisitor: 0, conversionRate: 0, customers: 0 });
 	let topPages = $derived(apiData?.topPages || []);
 	let entryPages = $derived(apiData?.entryPages || []);
 	let exitLinks = $derived(apiData?.exitLinks || []);
@@ -264,6 +278,15 @@
 	let countryStats = $derived(apiData?.countryStats || []);
 	let regionStats = $derived(apiData?.regionStats || []);
 	let cityStats = $derived(apiData?.cityStats || []);
+	let customersByChannel = $derived(apiData?.customersByChannel || []);
+	let customersByCountry = $derived(apiData?.customersByCountry || []);
+	let customersByRegion = $derived(apiData?.customersByRegion || []);
+	let customersByCity = $derived(apiData?.customersByCity || []);
+	let customersByOs = $derived(apiData?.customersByOs || []);
+	let customersByBrowser = $derived(apiData?.customersByBrowser || []);
+	let customersByDeviceType = $derived(apiData?.customersByDeviceType || []);
+	let customersByHostname = $derived(apiData?.customersByHostname || []);
+	let customersByPage = $derived(apiData?.customersByPage || []);
 	let revenueByCountry = $derived(apiData?.revenueByCountry || []);
 	let revenueByRegion = $derived(apiData?.revenueByRegion || []);
 	let revenueByCity = $derived(apiData?.revenueByCity || []);
@@ -318,7 +341,8 @@
 
 	let convertedStats = $derived({
 		...stats,
-		revenue: convertCurrencySync(stats.revenue, 'USD', websiteCurrency)
+		revenue: convertCurrencySync(stats.revenue, 'USD', websiteCurrency),
+		revenuePerVisitor: convertCurrencySync(stats.revenuePerVisitor || 0, 'USD', websiteCurrency)
 	});
 
 	let convertedRevenueByChannel = $derived(revenueByChannel.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
@@ -331,10 +355,21 @@
 	let convertedRevenueByHostname = $derived(revenueByHostname.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
 	let convertedRevenueByPage = $derived(revenueByPage.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
 
+	const channelRevenueItems = $derived(
+		channelData.map((channel) => {
+			const rev = convertedRevenueByChannel.find((r) => r.label === channel.label);
+			return {
+				label: channel.label,
+				value: rev?.value || 0
+			};
+		})
+	);
+
 	let convertedTimeSeries = $derived(
 		timeSeries.map((point) => ({
 			...point,
-			revenue: convertCurrencySync(point.revenue || 0, 'USD', websiteCurrency)
+			revenue: convertCurrencySync(point.revenue || 0, 'USD', websiteCurrency),
+			revenuePerVisitor: convertCurrencySync(point.revenuePerVisitor || 0, 'USD', websiteCurrency)
 		}))
 	);
 
@@ -685,7 +720,7 @@
 
 		{#if isLoading && !apiData}
 			<div class="mb-6 rounded-2xl border border-border bg-card p-6">
-				<div class="mb-8 grid grid-cols-2 gap-6 md:grid-cols-7">
+				<div class="mb-8 grid grid-cols-2 gap-6 md:grid-cols-8">
 					<div class="relative overflow-hidden rounded-xl bg-muted/50 p-4">
 						<div class="mb-2 flex items-center justify-between">
 							<Skeleton class="h-3 w-16" />
@@ -708,6 +743,11 @@
 							<Skeleton class="h-1.5 w-1.5 rounded-full" />
 						</div>
 						<Skeleton class="h-8 w-8" />
+					</div>
+
+					<div class="p-4">
+						<Skeleton class="mb-2 h-3 w-16" />
+						<Skeleton class="h-8 w-12" />
 					</div>
 
 					<div class="p-4">
@@ -781,12 +821,10 @@
 					class="h-[340px]"
 				>
 					{#if channelActiveTab === 0}
-						<div class="flex h-full w-full items-center justify-center p-8">
-							<DonutChart data={channelData} />
-						</div>
+						<BarList items={channelData} revenueItems={channelRevenueItems} customerItems={customersByChannel} {websiteCurrency} />
 					{:else if channelActiveTab === 1}
 						{#if topReferrers.length > 0}
-							<BarList items={topReferrers} />
+							<BarList items={topReferrers} revenueItems={convertedRevenueByReferrer} customerItems={customersByReferrer} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -795,7 +833,7 @@
 						{/if}
 					{:else if channelActiveTab === 2}
 						{#if campaignData.length > 0}
-							<BarList items={campaignData} />
+							<BarList items={campaignData} revenueItems={convertedRevenueByCampaign} customerItems={customersByCampaign} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -818,10 +856,10 @@
 					class="h-[339px]"
 				>
 					{#if pageActiveTab === 0}
-						<BarList items={hostnameData} revenueItems={convertedRevenueByHostname} {websiteCurrency} />
+						<BarList items={hostnameData} revenueItems={convertedRevenueByHostname} customerItems={customersByHostname} {websiteCurrency} />
 					{:else if pageActiveTab === 1}
 						{#if topPages.length > 0}
-							<BarList items={topPages} revenueItems={convertedRevenueByPage} {websiteCurrency} />
+							<BarList items={topPages} revenueItems={convertedRevenueByPage} customerItems={customersByPage} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -830,7 +868,7 @@
 						{/if}
 					{:else if pageActiveTab === 2}
 						{#if entryPages.length > 0}
-							<BarList items={entryPages} />
+							<BarList items={entryPages} revenueItems={convertedRevenueByEntryPage} customerItems={customersByEntryPage} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -839,7 +877,7 @@
 						{/if}
 					{:else if pageActiveTab === 3}
 						{#if exitLinks.length > 0}
-							<BarList items={exitLinks} />
+							<BarList items={exitLinks} revenueItems={convertedRevenueByExitLink} customerItems={customersByExitLink} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -865,7 +903,7 @@
 				>
 					{#if mapActiveTab === 0}
 						{#if countryStats.length > 0}
-							<BarList items={countryStats} revenueItems={convertedRevenueByCountry} {websiteCurrency} />
+							<BarList items={countryStats} revenueItems={convertedRevenueByCountry} customerItems={customersByCountry} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -874,7 +912,7 @@
 						{/if}
 					{:else if mapActiveTab === 1}
 						{#if regionStats.length > 0}
-							<BarList items={regionStats} revenueItems={convertedRevenueByRegion} {websiteCurrency} />
+							<BarList items={regionStats} revenueItems={convertedRevenueByRegion} customerItems={customersByRegion} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -883,7 +921,7 @@
 						{/if}
 					{:else if mapActiveTab === 2}
 						{#if cityStats.length > 0}
-							<BarList items={cityStats} revenueItems={convertedRevenueByCity} {websiteCurrency} />
+							<BarList items={cityStats} revenueItems={convertedRevenueByCity} customerItems={customersByCity} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -907,7 +945,7 @@
 				>
 					{#if browserActiveTab === 0}
 						{#if browserStats.length > 0}
-							<BarList items={browserStats} revenueItems={convertedRevenueByBrowser} {websiteCurrency} />
+							<BarList items={browserStats} revenueItems={convertedRevenueByBrowser} customerItems={customersByBrowser} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -916,7 +954,7 @@
 						{/if}
 					{:else if browserActiveTab === 1}
 						{#if osStats.length > 0}
-							<BarList items={osStats} revenueItems={convertedRevenueByOs} {websiteCurrency} />
+							<BarList items={osStats} revenueItems={convertedRevenueByOs} customerItems={customersByOs} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -925,7 +963,7 @@
 						{/if}
 					{:else if browserActiveTab === 2}
 						{#if deviceTypeStats.length > 0}
-							<BarList items={deviceTypeStats} revenueItems={convertedRevenueByDeviceType} {websiteCurrency} />
+							<BarList items={deviceTypeStats} revenueItems={convertedRevenueByDeviceType} customerItems={customersByDeviceType} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
@@ -934,7 +972,7 @@
 						{/if}
 					{:else if browserActiveTab === 3}
 						{#if deviceStats.length > 0}
-							<BarList items={deviceStats} />
+							<BarList items={deviceStats} revenueItems={convertedRevenueByScreen} customerItems={customersByScreen} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />

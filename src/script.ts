@@ -399,17 +399,16 @@ const OS_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
 		recordCustomEvent(name, (data as Record<string, unknown>) || {}, cb);
 	};
 
-	(w as unknown as Record<string, unknown>).owt = {
-		trackEvent: (n: string, d?: Record<string, unknown>, c?: (s: number) => void) => dispatch(n, d, c),
-		trackPayment: (a: number, cr?: string, tId?: string, c?: (s: number) => void) => recordPayment(a, cr, tId, c)
-	};
-	delete (w.owt as unknown as Record<string, unknown>)?.q;
-
 	if (isAutomated()) active = false;
 	if (active && ((isLocalhost(w.location.hostname) && !localhostOk) || (w.location.protocol === 'file:' && !fileProtoOk))) active = false;
 	if (active && w !== w.parent && !isDebug) active = false;
 	if (active && (!siteId || !hostDomain)) active = false;
 	if (!active) return;
+
+	w.owt = {
+		trackEvent: (n: string, d?: Record<string, unknown>, c?: (s: number) => void) => dispatch(n, d, c),
+		trackPayment: (a: number, cr?: string, tId?: string, c?: (s: number) => void) => recordPayment(a, cr, tId, c)
+	} as any;
 
 	for (const call of pendingQueue) {
 		try {

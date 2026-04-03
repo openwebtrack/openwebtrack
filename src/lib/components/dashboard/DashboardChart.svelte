@@ -17,6 +17,9 @@
 		date: string;
 		visitors: number;
 		revenue?: number;
+		revenuePerVisitor?: number;
+		conversionRate?: number;
+		customers?: number;
 	}
 
 	interface Stats {
@@ -25,6 +28,8 @@
 		avgSessionDuration: number;
 		online: number;
 		revenue?: number;
+		revenuePerVisitor?: number;
+		conversionRate?: number;
 		customers?: number;
 	}
 
@@ -111,6 +116,7 @@
 		const labels = timeSeries.map((p) => formatLabel(p.date));
 		const visitorsData = timeSeries.map((p) => p.visitors);
 		const revenueData = timeSeries.map((p) => p.revenue || 0);
+		const customersData = timeSeries.map((p) => p.customers || 0);
 
 		const hasRevenue = revenueData.some((r) => r > 0) && showRevenue;
 
@@ -178,6 +184,67 @@
 					bodyContainer.appendChild(row);
 				});
 
+				// Calculate and add Revenue per Visitor to tooltip
+				const visitorsIndex = bodyLines.findIndex((b: string[]) => b[0] && b[0].toLowerCase().includes('visitors'));
+				const revenueIndex = bodyLines.findIndex((b: string[]) => b[0] && b[0].toLowerCase().includes('revenue'));
+				const customersIndex = bodyLines.findIndex((b: string[]) => b[0] && b[0].toLowerCase().includes('customers'));
+
+				if (visitorsIndex !== -1) {
+					const visitorsText = bodyLines[visitorsIndex][0].split(': ')[1];
+					const visitorsValue = parseFloat(visitorsText.replace(/,/g, ''));
+
+					if (visitorsValue > 0) {
+						// Revenue section
+						if (revenueIndex !== -1) {
+							const revenueText = bodyLines[revenueIndex][0].split(': ')[1];
+							const revenueValue = parseFloat(revenueText.replace(/[^0-9.]/g, '')) * 100;
+
+							const rpv = revenueValue / visitorsValue;
+							const rpvText = isZeroDecimal ? Math.round(rpv / 100).toLocaleString() : (rpv / 100).toFixed(2);
+
+							const rpvRow = document.createElement('div');
+							rpvRow.className = 'mt-1 flex items-center justify-between gap-4 border-t border-border pt-1 text-xs text-muted-foreground';
+
+							const rpvLabel = document.createElement('span');
+							rpvLabel.textContent = 'Rev / Visitor';
+
+							const rpvValue = document.createElement('span');
+							rpvValue.className = 'font-medium text-foreground';
+							rpvValue.textContent = `${currencySymbol}${rpvText}`;
+
+							rpvRow.appendChild(rpvLabel);
+							rpvRow.appendChild(rpvValue);
+							bodyContainer.appendChild(rpvRow);
+						}
+
+						// Conversion section
+						const conversionRow = document.createElement('div');
+						conversionRow.className = 'flex items-center justify-between gap-4 text-xs text-muted-foreground';
+						if (revenueIndex === -1) {
+							conversionRow.className += ' mt-1 border-t border-border pt-1';
+						}
+
+						const conversionLabel = document.createElement('span');
+						conversionLabel.textContent = 'Conversion Rate';
+
+						const conversionValue = document.createElement('span');
+						conversionValue.className = 'font-medium text-foreground';
+
+						if (customersIndex !== -1) {
+							const customersText = bodyLines[customersIndex][0].split(': ')[1];
+							const customersValue = parseFloat(customersText.replace(/,/g, ''));
+							const conversionRate = (customersValue / visitorsValue) * 100;
+							conversionValue.textContent = `${conversionRate.toFixed(2)}%`;
+						} else {
+							conversionValue.textContent = '0.00%';
+						}
+
+						conversionRow.appendChild(conversionLabel);
+						conversionRow.appendChild(conversionValue);
+						bodyContainer.appendChild(conversionRow);
+					}
+				}
+
 				el.appendChild(bodyContainer);
 			}
 
@@ -207,6 +274,14 @@
 						hoverBorderWidth: 2,
 						fill: true,
 						yAxisID: 'y'
+					},
+					{
+						label: 'Customers',
+						data: customersData,
+						hidden: true,
+						pointRadius: 0,
+						pointHoverRadius: 0,
+						showLine: false
 					},
 					...(hasRevenue
 						? [
@@ -326,6 +401,7 @@
 		const labels = timeSeries.map((p) => formatLabel(p.date));
 		const visitorsData = timeSeries.map((p) => p.visitors);
 		const revenueData = timeSeries.map((p) => p.revenue || 0);
+		const customersData = timeSeries.map((p) => p.customers || 0);
 
 		const hasRevenue = revenueData.some((r) => r > 0) && showRevenue;
 
@@ -339,7 +415,10 @@
 			chart.data.datasets[0].data = showVisitors ? visitorsData : [];
 		}
 		if (chart.data.datasets[1]) {
-			chart.data.datasets[1].data = hasRevenue ? revenueData : [];
+			chart.data.datasets[1].data = customersData;
+		}
+		if (chart.data.datasets[2]) {
+			chart.data.datasets[2].data = hasRevenue ? revenueData : [];
 		}
 
 		if (chart.options.scales?.y) {
@@ -371,7 +450,7 @@
 </script>
 
 <div class="rounded-2xl border border-border bg-card p-6">
-	<div class="mb-8 grid grid-cols-2 gap-6 md:grid-cols-7">
+	<div class="mb-8 grid grid-cols-2 gap-6 md:grid-cols-8">
 		<button class="relative cursor-pointer overflow-hidden rounded-xl bg-muted/50 p-4 transition-all hover:bg-muted" onclick={() => (showRevenue = !showRevenue)}>
 			<div class="mb-2 flex items-center justify-between">
 				<span class="text-xs font-medium text-muted-foreground">Revenue</span>
@@ -396,6 +475,22 @@
 				<div class="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
 			</div>
 			<div class="text-2xl font-bold tracking-tight">{stats.online}</div>
+		</div>
+
+		<div class="p-4">
+			<div class="mb-2">
+				<span class="text-xs font-medium text-muted-foreground">Rev / Visitor</span>
+			</div>
+			<div class="text-2xl font-bold">
+				{currencySymbol}{isZeroDecimal ? Math.round((stats.revenuePerVisitor || 0) / 100).toLocaleString() : ((stats.revenuePerVisitor || 0) / 100).toFixed(2)}
+			</div>
+		</div>
+
+		<div class="p-4">
+			<div class="mb-2">
+				<span class="text-xs font-medium text-muted-foreground">Conv. Rate</span>
+			</div>
+			<div class="text-2xl font-bold">{(stats.conversionRate || 0).toFixed(2)}%</div>
 		</div>
 
 		<div class="p-4">

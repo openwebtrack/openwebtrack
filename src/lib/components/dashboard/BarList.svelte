@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getCurrencySymbol } from '$lib/utils/currency';
 
-	let { items = [], revenueItems = [], websiteCurrency = 'USD' } = $props();
+	let { items = [], revenueItems = [], customerItems = [], websiteCurrency = 'USD' } = $props();
 
 	let currencySymbol = $derived(getCurrencySymbol(websiteCurrency));
 	let isZeroDecimal = $derived(websiteCurrency === 'JPY' || websiteCurrency === 'KRW' || websiteCurrency === 'VND' || websiteCurrency === 'IDR');
@@ -14,21 +14,36 @@
 		return match ? { value: match.value, exists: true } : { value: 0, exists: false };
 	};
 
+	const getCustomers = (label: string): number => {
+		const match = (customerItems || []).find((c: any) => c.label === label);
+		return match ? match.value : 0;
+	};
+
 	const formatRevenue = (val: number): string => {
 		if (isZeroDecimal) {
-			if (val >= 1000000) return `${currencySymbol}${(val / 1000000).toFixed(1)}M`;
-			if (val >= 1000) return `${currencySymbol}${(val / 1000).toFixed(1)}k`;
 			return `${currencySymbol}${Math.round(val).toLocaleString()}`;
 		}
 		const displayVal = val / 100;
-		if (displayVal >= 1000) return `${currencySymbol}${(displayVal / 1000).toFixed(1)}k`;
-		if (displayVal === 0) return `${currencySymbol}0.00`;
+		return `${currencySymbol}${displayVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+	};
+
+	const formatRevPerVisitor = (revenue: number, visitors: number): string => {
+		if (visitors === 0) return `${currencySymbol}0.00`;
+		const val = revenue / visitors;
+		if (isZeroDecimal) {
+			return `${currencySymbol}${Math.round(val).toLocaleString()}`;
+		}
+		const displayVal = val / 100;
 		return `${currencySymbol}${displayVal.toFixed(2)}`;
 	};
 
+	const formatConversionRate = (customers: number, visitors: number): string => {
+		if (visitors === 0) return '0.00%';
+		return `${((customers / visitors) * 100).toFixed(2)}%`;
+	};
+
 	const formatVisitors = (val: number): string => {
-		if (val >= 1000) return `${(val / 1000).toFixed(1)}k`;
-		return `${val}`;
+		return val.toLocaleString();
 	};
 
 	const formatLabel = (label: string): { key: string; value: string }[] => {
@@ -66,11 +81,11 @@
 	{#if item}
 		{@const revenue = getRevenue(item.label)}
 		<div
-			class="pointer-events-none fixed z-9999 w-52 -translate-x-1/2 -translate-y-[calc(100%+12px)] rounded-xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur-md"
+			class="pointer-events-none fixed z-9999 w-52 -translate-x-1/2 -translate-y-[calc(100%+12px)] rounded-xl border border-border bg-card p-3 shadow-2xl"
 			style="left: {tooltipX}px; top: {tooltipY}px; animation: tooltipIn 0.12s ease-out both;"
 		>
 			<!-- header -->
-			<div class="mb-2.5 flex items-center gap-1.5">
+			<div class="mb-2.5 flex items-center gap-1.5 border-b border-border pb-2.5">
 				{#if item.icon}
 					<img src={item.icon} alt="" class="h-4 w-4 rounded-sm object-contain" />
 				{/if}
@@ -78,20 +93,29 @@
 			</div>
 
 			<!-- metrics -->
-			<div class="space-y-1.5">
-				<div class="flex items-center justify-between">
-					<div class="flex items-center gap-1.5">
-						<span class="inline-block h-2.5 w-2.5 rounded-sm bg-primary/70"></span>
-						<span class="text-xs text-muted-foreground">Visitors</span>
+			<div class="flex flex-col gap-1">
+				<div class="flex items-center justify-between gap-4 text-xs text-muted-foreground">
+					<div class="flex items-center gap-2">
+						<div class="h-2 w-2 rounded-full bg-primary/70" style="box-shadow: 0 0 8px color-mix(in srgb, var(--primary), transparent 20%)"></div>
+						<span>Visitors</span>
 					</div>
-					<span class="text-xs font-semibold text-foreground">{formatVisitors(item.value)}</span>
+					<span class="font-medium text-foreground">{formatVisitors(item.value)}</span>
 				</div>
-				<div class="flex items-center justify-between">
-					<div class="flex items-center gap-1.5">
-						<span class="inline-block h-2.5 w-2.5 rounded-sm bg-blue-400/80"></span>
-						<span class="text-xs text-muted-foreground">Revenue</span>
+				<div class="flex items-center justify-between gap-4 text-xs text-muted-foreground">
+					<div class="flex items-center gap-2">
+						<div class="h-2 w-2 rounded-full bg-blue-400" style="box-shadow: 0 0 8px color-mix(in srgb, #60a5fa, transparent 20%)"></div>
+						<span>Revenue</span>
 					</div>
-					<span class="text-xs font-semibold text-blue-400">{formatRevenue(revenue.value ?? 0)}</span>
+					<span class="font-medium text-foreground">{formatRevenue(revenue.value ?? 0)}</span>
+				</div>
+
+				<div class="mt-1 flex items-center justify-between gap-4 border-t border-border pt-1 text-xs text-muted-foreground">
+					<span>Rev / Visitor</span>
+					<span class="font-medium text-foreground">{formatRevPerVisitor(revenue.value ?? 0, item.value)}</span>
+				</div>
+				<div class="flex items-center justify-between gap-4 text-xs text-muted-foreground">
+					<span>Conversion Rate</span>
+					<span class="font-medium text-foreground">{formatConversionRate(getCustomers(item.label), item.value)}</span>
 				</div>
 			</div>
 		</div>

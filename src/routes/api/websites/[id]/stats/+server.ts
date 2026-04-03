@@ -27,6 +27,9 @@ interface TimeSeriesPoint {
 	visitors: number;
 	pageviews: number;
 	revenue?: number;
+	customers?: number;
+	revenuePerVisitor?: number;
+	conversionRate?: number;
 }
 
 const calculateAvgSessionDuration = async (websiteId: string, start: Date, end: Date): Promise<number> => {
@@ -102,13 +105,18 @@ const calculateTimeSeries = async (
 	basePageviewWhere: ReturnType<typeof and>,
 	granularity: Granularity,
 	timezone: string
-): Promise<{ pageviewMap: Map<string, number>; visitorMap: Map<string, number> }> => {
-	const [pageviews, visitors] = await Promise.all([
+): Promise<{ pageviewMap: Map<string, number>; visitorMap: Map<string, number>; customerMap: Map<string, number> }> => {
+	const [pageviews, visitors, customers] = await Promise.all([
 		db.select({ timestamp: pageview.timestamp }).from(pageview).where(basePageviewWhere).limit(DEFAULT_QUERY_LIMITS.pageviews),
 		db
 			.select({ id: visitor.id, lastSeen: visitor.lastSeen })
 			.from(visitor)
 			.where(and(eq(visitor.websiteId, websiteId), gte(visitor.lastSeen, start), lte(visitor.lastSeen, end)))
+			.limit(DEFAULT_QUERY_LIMITS.visitors),
+		db
+			.select({ id: visitor.id, lastSeen: visitor.lastSeen })
+			.from(visitor)
+			.where(and(eq(visitor.websiteId, websiteId), eq(visitor.isCustomer, true), gte(visitor.lastSeen, start), lte(visitor.lastSeen, end)))
 			.limit(DEFAULT_QUERY_LIMITS.visitors)
 	]);
 
@@ -148,7 +156,114 @@ const calculateTimeSeries = async (
 		visitorMap.set(date, visitorSet.size);
 	}
 
-	return { pageviewMap, visitorMap };
+	const customerByDate = new Map<string, Set<string>>();
+	for (const c of customers) {
+		let dateStr: string;
+		if (granularity === 'weekly') {
+			dateStr = getWeekKey(c.lastSeen, timezone);
+		} else if (granularity === 'monthly') {
+			dateStr = getMonthKey(c.lastSeen, timezone);
+		} else {
+			dateStr = getDayKey(c.lastSeen, timezone);
+		}
+		if (!customerByDate.has(dateStr)) {
+			customerByDate.set(dateStr, new Set());
+		}
+		customerByDate.get(dateStr)!.add(c.id);
+	}
+
+	const customerMap = new Map<string, number>();
+	for (const [date, customerSet] of customerByDate) {
+		customerMap.set(date, customerSet.size);
+	}
+
+	return { pageviewMap, visitorMap, customerMap };
+};
+
+const calculateCustomerStats = async (websiteId: string, start: Date, end: Date, basePaymentWhere: ReturnType<typeof and>) => {
+	const [customersByCountry, customersByRegion, customersByCity, customersByOs, customersByBrowser, customersByDeviceType, customersByChannel, customersByPage] = await Promise.all([
+		db
+			.select({ country: analyticsSession.country, count: count() })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.where(and(basePaymentWhere, sql`${analyticsSession.country} IS NOT NULL`))
+			.groupBy(analyticsSession.country)
+			.orderBy(desc(count()))
+			.limit(10),
+		db
+			.select({ region: analyticsSession.region, count: count() })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.where(and(basePaymentWhere, sql`${analyticsSession.region} IS NOT NULL`))
+			.groupBy(analyticsSession.region)
+			.orderBy(desc(count()))
+			.limit(10),
+		db
+			.select({ city: analyticsSession.city, count: count() })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.where(and(basePaymentWhere, sql`${analyticsSession.city} IS NOT NULL`))
+			.groupBy(analyticsSession.city)
+			.orderBy(desc(count()))
+			.limit(10),
+		db
+			.select({ os: analyticsSession.os, count: count() })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.where(and(basePaymentWhere, sql`${analyticsSession.os} IS NOT NULL`))
+			.groupBy(analyticsSession.os)
+			.orderBy(desc(count()))
+			.limit(10),
+		db
+			.select({ browser: analyticsSession.browser, count: count() })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.where(and(basePaymentWhere, sql`${analyticsSession.browser} IS NOT NULL`))
+			.groupBy(analyticsSession.browser)
+			.orderBy(desc(count()))
+			.limit(10),
+		db
+			.select({ deviceType: analyticsSession.deviceType, count: count() })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.where(and(basePaymentWhere, sql`${analyticsSession.deviceType} IS NOT NULL`))
+			.groupBy(analyticsSession.deviceType)
+			.orderBy(desc(count()))
+			.limit(10),
+		db
+			.select({
+				referrer: analyticsSession.referrer,
+				utmSource: analyticsSession.utmSource,
+				utmMedium: analyticsSession.utmMedium,
+				count: count()
+			})
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.where(basePaymentWhere)
+			.groupBy(analyticsSession.referrer, analyticsSession.utmSource, analyticsSession.utmMedium)
+			.orderBy(desc(count()))
+			.limit(20),
+		db
+			.select({ pathname: pageview.pathname, count: count() })
+			.from(payment)
+			.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
+			.innerJoin(pageview, and(eq(pageview.sessionId, analyticsSession.id), gte(pageview.timestamp, start), lte(pageview.timestamp, end)))
+			.where(and(eq(payment.websiteId, websiteId), sql`${pageview.pathname} IS NOT NULL`))
+			.groupBy(pageview.pathname)
+			.orderBy(desc(count()))
+			.limit(10)
+	]);
+
+	return {
+		customersByCountry,
+		customersByRegion,
+		customersByCity,
+		customersByOs,
+		customersByBrowser,
+		customersByDeviceType,
+		customersByChannel,
+		customersByPage
+	};
 };
 
 const calculateRevenueTimeSeries = async (websiteId: string, start: Date, end: Date, granularity: Granularity, timezone: string): Promise<Map<string, number>> => {
@@ -176,7 +291,15 @@ const calculateRevenueTimeSeries = async (websiteId: string, start: Date, end: D
 	return revenueMap;
 };
 
-const buildTimeSeries = (pageviewMap: Map<string, number>, visitorMap: Map<string, number>, start: Date, end: Date, granularity: Granularity, timezone: string): TimeSeriesPoint[] => {
+const buildTimeSeries = (
+	pageviewMap: Map<string, number>,
+	visitorMap: Map<string, number>,
+	customerMap: Map<string, number>,
+	start: Date,
+	end: Date,
+	granularity: Granularity,
+	timezone: string
+): TimeSeriesPoint[] => {
 	const timeSeries: TimeSeriesPoint[] = [];
 
 	if (granularity === 'hourly') {
@@ -187,10 +310,14 @@ const buildTimeSeries = (pageviewMap: Map<string, number>, visitorMap: Map<strin
 		for (let current = startTime; current <= endTime; current += hourMs) {
 			const currentDate = new Date(current);
 			const dateStr = getHourKey(currentDate, timezone);
+			const pointVisitors = visitorMap.get(dateStr) || 0;
+			const pointCustomers = customerMap.get(dateStr) || 0;
 			timeSeries.push({
 				date: dateStr,
-				visitors: visitorMap.get(dateStr) || 0,
-				pageviews: pageviewMap.get(dateStr) || 0
+				visitors: pointVisitors,
+				pageviews: pageviewMap.get(dateStr) || 0,
+				customers: pointCustomers,
+				conversionRate: pointVisitors > 0 ? pointCustomers / pointVisitors : 0
 			});
 		}
 	} else if (granularity === 'daily') {
@@ -201,10 +328,14 @@ const buildTimeSeries = (pageviewMap: Map<string, number>, visitorMap: Map<strin
 		for (let i = 0; i <= numDays; i++) {
 			const currentDate = new Date(startTime + i * 24 * 60 * 60 * 1000);
 			const dateStr = getDayKey(currentDate, timezone);
+			const pointVisitors = visitorMap.get(dateStr) || 0;
+			const pointCustomers = customerMap.get(dateStr) || 0;
 			timeSeries.push({
 				date: dateStr,
-				visitors: visitorMap.get(dateStr) || 0,
-				pageviews: pageviewMap.get(dateStr) || 0
+				visitors: pointVisitors,
+				pageviews: pageviewMap.get(dateStr) || 0,
+				customers: pointCustomers,
+				conversionRate: pointVisitors > 0 ? pointCustomers / pointVisitors : 0
 			});
 		}
 	} else if (granularity === 'weekly') {
@@ -216,10 +347,14 @@ const buildTimeSeries = (pageviewMap: Map<string, number>, visitorMap: Map<strin
 
 		while (current <= end) {
 			const dateStr = current.toISOString().split('T')[0];
+			const pointVisitors = visitorMap.get(dateStr) || 0;
+			const pointCustomers = customerMap.get(dateStr) || 0;
 			timeSeries.push({
 				date: dateStr,
-				visitors: visitorMap.get(dateStr) || 0,
-				pageviews: pageviewMap.get(dateStr) || 0
+				visitors: pointVisitors,
+				pageviews: pageviewMap.get(dateStr) || 0,
+				customers: pointCustomers,
+				conversionRate: pointVisitors > 0 ? pointCustomers / pointVisitors : 0
 			});
 			current.setUTCDate(current.getUTCDate() + 7);
 		}
@@ -229,10 +364,14 @@ const buildTimeSeries = (pageviewMap: Map<string, number>, visitorMap: Map<strin
 
 		while (current <= end) {
 			const dateStr = `${current.getUTCFullYear()}-${String(current.getUTCMonth() + 1).padStart(2, '0')}-01`;
+			const pointVisitors = visitorMap.get(dateStr) || 0;
+			const pointCustomers = customerMap.get(dateStr) || 0;
 			timeSeries.push({
 				date: dateStr,
-				visitors: visitorMap.get(dateStr) || 0,
-				pageviews: pageviewMap.get(dateStr) || 0
+				visitors: pointVisitors,
+				pageviews: pageviewMap.get(dateStr) || 0,
+				customers: pointCustomers,
+				conversionRate: pointVisitors > 0 ? pointCustomers / pointVisitors : 0
 			});
 			current.setUTCMonth(current.getUTCMonth() + 1);
 		}
@@ -517,17 +656,23 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			.limit(10)
 	]);
 
-	const [avgSessionDurationMs, entryPages, { pageviewMap, visitorMap }, revenueMap] = await Promise.all([
+	const [avgSessionDurationMs, entryPages, { pageviewMap, visitorMap, customerMap }, revenueMap, customerStats] = await Promise.all([
 		calculateAvgSessionDuration(site.id, start, end),
 		calculateEntryPages(site.id, start, end),
 		calculateTimeSeries(site.id, start, end, basePageviewWhere, granularity, site.timezone),
-		calculateRevenueTimeSeries(site.id, start, end, granularity, site.timezone)
+		calculateRevenueTimeSeries(site.id, start, end, granularity, site.timezone),
+		calculateCustomerStats(site.id, start, end, basePaymentWhere)
 	]);
 
-	const timeSeries = buildTimeSeries(pageviewMap, visitorMap, start, end, granularity, site.timezone).map((point) => ({
-		...point,
-		revenue: revenueMap.get(point.date) || 0
-	}));
+	const timeSeries = buildTimeSeries(pageviewMap, visitorMap, customerMap, start, end, granularity, site.timezone).map((point) => {
+		const pointRevenue = revenueMap.get(point.date) || 0;
+		return {
+			...point,
+			revenue: pointRevenue,
+			revenuePerVisitor: point.visitors > 0 ? pointRevenue / point.visitors : 0,
+			conversionRate: point.visitors > 0 ? (point.customers / point.visitors) * 100 : 0
+		};
+	});
 
 	const filteredReferrers = topReferrers.filter((r) => !isInternalReferrer(r.referrer)).slice(0, 10);
 
@@ -556,13 +701,15 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	return json({
 		website: site,
 		stats: {
-			visitors: visitorStats?.count || 0,
-			pageviews: pageviewStats?.count || 0,
-			sessions: sessionStats?.count || 0,
+			visitors: Number(visitorStats?.count || 0),
+			pageviews: Number(pageviewStats?.count || 0),
+			sessions: Number(sessionStats?.count || 0),
 			avgSessionDuration: avgSessionDurationMs,
-			online: onlineCount?.count || 0,
-			revenue: totalRevenue?.totalRevenue || 0,
-			customers: customerCount?.count || 0
+			online: Number(onlineCount?.count || 0),
+			revenue: Number(totalRevenue?.totalRevenue || 0),
+			revenuePerVisitor: Number(visitorStats?.count || 0) > 0 ? Number(totalRevenue?.totalRevenue || 0) / Number(visitorStats?.count) : 0,
+			conversionRate: Number(visitorStats?.count || 0) > 0 ? (Number(customerCount?.count || 0) / Number(visitorStats?.count)) * 100 : 0,
+			customers: Number(customerCount?.count || 0)
 		},
 		topPages: topPages.map((p) => ({ label: p.pathname || '/', value: p.count })),
 		entryPages: entryPages.map((p) => ({ label: p.pathname, value: Number(p.count) })),
@@ -582,6 +729,10 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			return { label, value: r.count };
 		}),
 		channelData: data,
+		customersByChannel: customerStats.customersByChannel.map((c) => {
+			const channel = categorizeChannel(c.referrer, c.utmSource, c.utmMedium);
+			return { label: channel, value: Number(c.count) };
+		}),
 		revenueByChannel: revenueChannelData,
 		campaignData: campaignData.map((c) => {
 			const parts: string[] = [];
@@ -599,6 +750,13 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		countryStats: countryStats.map((c) => ({ label: c.country || 'Unknown', value: c.count })),
 		regionStats: regionStats.map((r) => ({ label: r.region || 'Unknown', value: r.count })),
 		cityStats: cityStats.map((c) => ({ label: c.city || 'Unknown', value: c.count })),
+		customersByCountry: customerStats.customersByCountry.map((c) => ({ label: c.country || 'Unknown', value: Number(c.count) })),
+		customersByRegion: customerStats.customersByRegion.map((r) => ({ label: r.region || 'Unknown', value: Number(r.count) })),
+		customersByCity: customerStats.customersByCity.map((c) => ({ label: c.city || 'Unknown', value: Number(c.count) })),
+		customersByOs: customerStats.customersByOs.map((o) => ({ label: o.os || 'Unknown', value: Number(o.count) })),
+		customersByBrowser: customerStats.customersByBrowser.map((b) => ({ label: b.browser || 'Unknown', value: Number(b.count) })),
+		customersByDeviceType: customerStats.customersByDeviceType.map((d) => ({ label: d.deviceType || 'Unknown', value: Number(d.count) })),
+		customersByPage: customerStats.customersByPage.map((p) => ({ label: p.pathname || '/', value: Number(p.count) })),
 		revenueByCountry: revenueByCountry.map((c) => ({ label: c.country || 'Unknown', value: Number(c.revenue) })),
 		revenueByRegion: revenueByRegion.map((r) => ({ label: r.region || 'Unknown', value: Number(r.revenue) })),
 		revenueByCity: revenueByCity.map((c) => ({ label: c.city || 'Unknown', value: Number(c.revenue) })),

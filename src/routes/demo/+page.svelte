@@ -122,10 +122,13 @@
 			const baseVisitors = Math.floor(Math.random() * 200) + 100;
 			const pageviews = Math.floor(baseVisitors * (1.5 + Math.random()));
 			const hasRevenue = Math.random() > 0.6;
+			const customers = Math.floor(baseVisitors * (Math.random() * 0.1 + 0.05));
 			timeSeries.push({
 				date: date.toISOString(),
 				visitors: baseVisitors,
 				pageviews: pageviews,
+				customers: customers,
+				conversionRate: (customers / baseVisitors) * 100,
 				revenue: hasRevenue ? Math.floor(Math.random() * 2500) + 500 : 0
 			});
 		}
@@ -232,6 +235,8 @@
 					return Date.now() - lastActivity <= 5 * 60 * 1000;
 				}).length,
 				revenue: totalRevenue,
+				revenuePerVisitor: totalVisitors > 0 ? totalRevenue / totalVisitors : 0,
+				conversionRate: totalVisitors > 0 ? (Math.floor(totalVisitors * 0.15) / totalVisitors) * 100 : 0,
 				customers: Math.floor(totalVisitors * 0.15)
 			},
 			topPages: [
@@ -265,6 +270,13 @@
 				{ label: 'Referral', value: 1876 },
 				{ label: 'Email', value: 1234 }
 			],
+			customersByChannel: [
+				{ label: 'Organic Search', value: 452 },
+				{ label: 'Direct', value: 321 },
+				{ label: 'Social', value: 198 },
+				{ label: 'Referral', value: 154 },
+				{ label: 'Email', value: 92 }
+			],
 			revenueByChannel: [
 				{ label: 'Organic Search', value: 52340 },
 				{ label: 'Direct', value: 34560 },
@@ -292,6 +304,12 @@
 				{ label: 'Firefox', value: 1234, icon: getBrowserIcon('Firefox') },
 				{ label: 'Edge', value: 876, icon: getBrowserIcon('Edge') }
 			],
+			customersByBrowser: [
+				{ label: 'Chrome', value: 452 },
+				{ label: 'Safari', value: 2341 },
+				{ label: 'Firefox', value: 123 },
+				{ label: 'Edge', value: 87 }
+			],
 			osStats: [
 				{ label: 'Windows', value: 4523, icon: getOsIcon('Windows') },
 				{ label: 'macOS', value: 3456, icon: getOsIcon('macOS') },
@@ -299,10 +317,22 @@
 				{ label: 'Android', value: 1234, icon: getOsIcon('Android') },
 				{ label: 'Linux', value: 567, icon: getOsIcon('Linux') }
 			],
+			customersByOs: [
+				{ label: 'Windows', value: 452 },
+				{ label: 'macOS', value: 345 },
+				{ label: 'iOS', value: 187 },
+				{ label: 'Android', value: 123 },
+				{ label: 'Linux', value: 56 }
+			],
 			deviceTypeStats: [
 				{ label: 'Desktop', value: 7890, icon: getDeviceIcon('Desktop') },
 				{ label: 'Mobile', value: 3456, icon: getDeviceIcon('Mobile') },
 				{ label: 'Tablet', value: 1234, icon: getDeviceIcon('Tablet') }
+			],
+			customersByDeviceType: [
+				{ label: 'Desktop', value: 789 },
+				{ label: 'Mobile', value: 345 },
+				{ label: 'Tablet', value: 123 }
 			],
 			countryStats: [
 				{ label: 'United States', value: 4523, icon: getCountryFlag('United States') },
@@ -311,8 +341,17 @@
 				{ label: 'France', value: 1234, icon: getCountryFlag('France') },
 				{ label: 'Canada', value: 876, icon: getCountryFlag('Canada') }
 			],
+			customersByCountry: [
+				{ label: 'United States', value: 452 },
+				{ label: 'United Kingdom', value: 234 },
+				{ label: 'Germany', value: 187 },
+				{ label: 'France', value: 123 },
+				{ label: 'Canada', value: 87 }
+			],
 			regionStats,
 			cityStats,
+			customersByRegion: regionStats.map((r) => ({ ...r, value: Math.floor(r.value / 10) })),
+			customersByCity: cityStats.map((c) => ({ ...c, value: Math.floor(c.value / 10) })),
 			revenueByCountry: [
 				{ label: 'United States', value: 45230, icon: getCountryFlag('United States') },
 				{ label: 'United Kingdom', value: 23410, icon: getCountryFlag('United Kingdom') },
@@ -342,6 +381,8 @@
 			],
 			revenueByHostname: [],
 			revenueByPage: [],
+			customersByHostname: [],
+			customersByPage: [],
 			timeSeries,
 			visitors,
 			events
@@ -402,6 +443,7 @@
 				pageviews: totalPageviews,
 				sessions: Math.floor(visitorCount * 1.2),
 				revenue: totalRevenue,
+				revenuePerVisitor: visitorCount > 0 ? totalRevenue / visitorCount : 0,
 				customers: filteredVisitors.filter((v) => v.isCustomer).length
 			},
 			visitors: filteredVisitors,
