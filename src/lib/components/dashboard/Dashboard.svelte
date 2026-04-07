@@ -175,6 +175,7 @@
 		visitors: VisitorItem[];
 		events: EventItem[];
 		isLoading?: boolean;
+		isDataLoading?: boolean;
 		error?: string | null;
 		showWebsiteSwitcher?: boolean;
 		isDemo?: boolean;
@@ -199,6 +200,7 @@
 		visitors,
 		events,
 		isLoading = false,
+		isDataLoading = false,
 		error = null,
 		showWebsiteSwitcher = true,
 		isDemo = false,
@@ -1054,6 +1056,6 @@
 	{/if}
 
 	{#if showGlobe}
-		<RealTimeMap {visitors} {events} websiteDomain={website.domain} onlineCount={stats.online} onClose={closeRealTimeMap} />
+		<RealTimeMap {visitors} {events} websiteDomain={website.domain} onlineCount={stats.online} {isDataLoading} onClose={closeRealTimeMap} />
 	{/if}
 </div>

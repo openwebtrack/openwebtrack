@@ -396,6 +396,7 @@
 	{visitors}
 	{events}
 	{isLoading}
+	isDataLoading={isLoading || isFetching}
 	{error}
 	showWebsiteSwitcher={true}
 	onRefresh={handleRefresh}

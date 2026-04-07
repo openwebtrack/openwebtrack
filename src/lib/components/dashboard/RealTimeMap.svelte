@@ -51,10 +51,11 @@
 		events: EventItem[];
 		websiteDomain: string;
 		onlineCount?: number;
+		isDataLoading?: boolean;
 		onClose: () => void;
 	}
 
-	let { visitors, events, websiteDomain, onlineCount = 0, onClose }: Props = $props();
+	let { visitors, events, websiteDomain, onlineCount = 0, isDataLoading = false, onClose }: Props = $props();
 
 	let sidebarOpen = $state(false);
 
@@ -224,6 +225,8 @@
 	let map: maplibregl.Map | null = null;
 	let markerData: Array<{ element: HTMLElement; lng: number; lat: number; popup: maplibregl.Popup }> = [];
 	let activePopup: maplibregl.Popup | null = null;
+	let isMapLoaded = $state(false);
+	let showLoading = $derived(isDataLoading || !isMapLoaded);
 
 	function clearMarkers() {
 		for (const { element, popup } of markerData) {
@@ -446,6 +449,7 @@
 
 	onMount(() => {
 		document.body.style.overflow = 'hidden';
+		isMapLoaded = false;
 
 		// ✅ No API token needed — OpenFreeMap is fully free & open source
 		map = new maplibregl.Map({
@@ -459,6 +463,7 @@
 		// Enable globe projection after map loads
 		map.on('load', () => {
 			if (!map) return;
+			isMapLoaded = true;
 
 			// Set globe projection
 			map.setProjection({ type: 'globe' });
@@ -527,6 +532,13 @@
 <div class="fixed inset-0 z-50 h-screen w-screen overflow-hidden bg-[#12100c]" role="dialog" aria-modal="true" aria-label="Real-time visitor map" transition:fade={{ duration: 300 }}>
 	<!-- Map — full bleed -->
 	<div bind:this={mapContainer} class="absolute inset-0 h-screen w-screen"></div>
+
+	{#if showLoading}
+		<div class="absolute inset-0 z-997 flex flex-col items-center justify-center gap-3 bg-[#12100c]/90 backdrop-blur-sm">
+			<div class="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white"></div>
+			<p class="text-sm font-medium text-white/90">Loading real-time map...</p>
+		</div>
+	{/if}
 
 	<!-- Close button -->
 	<button
