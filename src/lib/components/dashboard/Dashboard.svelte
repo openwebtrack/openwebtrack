@@ -345,6 +345,7 @@
 
 	let filteredEvents = $derived(
 		events.filter((e) => {
+			if (e.type === 'exit_link') return false;
 			if (!searchQuery) return true;
 			const q = searchQuery.toLowerCase();
 			return e.name.toLowerCase().includes(q) || e.type.toLowerCase().includes(q) || e.visitor.name.toLowerCase().includes(q);

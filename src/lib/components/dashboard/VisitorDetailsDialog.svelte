@@ -1,8 +1,8 @@
 <script lang="ts" module>
-	const getHostName = (url: string | null) => {
+	const getDisplayUrl = (url: string | null) => {
 		if (!url) return 'Direct';
 		try {
-			return new URL(url).hostname;
+			return new URL(url).toString();
 		} catch {
 			return url;
 		}
@@ -79,6 +79,31 @@
 	});
 
 	const formatTime = (dateStr: string) => new Date(dateStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+	const parseEventData = (eventData: unknown): Record<string, unknown> | null => {
+		if (!eventData) return null;
+		if (typeof eventData === 'object') return eventData as Record<string, unknown>;
+		if (typeof eventData !== 'string') return null;
+
+		try {
+			const parsed = JSON.parse(eventData);
+			return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : null;
+		} catch {
+			return null;
+		}
+	};
+
+	const getExitUrl = (eventData: unknown): string | null => {
+		const parsed = parseEventData(eventData);
+		const urlValue = parsed?.url;
+		if (typeof urlValue !== 'string' || !urlValue) return null;
+
+		try {
+			return new URL(urlValue).toString();
+		} catch {
+			return null;
+		}
+	};
 
 	const getTimelineGroups = (journey: any[], filters: string[] = []) => {
 		const items: any[] = [];
@@ -304,6 +329,8 @@
 													<Eye class="h-5 w-5 text-muted-foreground" />
 												{:else if item.activityType === 'payment'}
 													<DollarSign class="h-5 w-5 text-green-500" />
+												{:else if item.type === 'exit_link'}
+													<ExternalLink class="h-5 w-5 text-amber-500/70" />
 												{:else}
 													<Activity class="h-5 w-5 text-amber-500/70" />
 												{/if}
@@ -317,7 +344,7 @@
 															{#if item.referrer}
 																<ExternalLink class="mr-1 inline h-3 w-3 align-text-bottom" />
 															{/if}
-															{item.referrer ? getHostName(item.referrer) : 'Direct'}
+															{item.referrer ? getDisplayUrl(item.referrer) : 'Direct'}
 														</Badge>
 													{:else if item.activityType === 'pageview' || item.pathname}
 														<span class="text-muted-foreground">Viewed page </span>
@@ -331,6 +358,9 @@
 														{#if item.transactionId}
 															<span class="ml-1 text-xs text-muted-foreground">#{item.transactionId.slice(0, 8)}</span>
 														{/if}
+													{:else if item.type === 'exit_link'}
+														<span class="text-muted-foreground">Exit page </span>
+														<Badge variant="outline" class="font-medium">{getExitUrl(item.data) || 'External link'}</Badge>
 													{:else}
 														<div class="flex flex-col gap-1 whitespace-normal">
 															<span>{item.name || item.type}</span>
