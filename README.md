@@ -71,12 +71,14 @@ volumes:
 
 - **Real-time Traffic Monitoring**: Watch your visitors in real-time.
 - **Detailed Pageviews**: Track URLs, titles, and referrers.
+- **Entry & Exit Pages**: Identify which pages visitors land on and which pages they leave from.
 - **Session Recording**: Monitor session duration and activity.
 - **Custom Events**: Track specific user interactions (clicks, signups, etc.).
 - **Customer Identification**: Identify and track customers based on payment data.
 - **Geolocation Data**: See where your users are coming from (Country, Region, City).
 - **Device & Tech Specs**: Analyze Browsers, OS, Device Types, and Screen Sizes.
-- **UTM Tracking**: Measure campaign performance with automatic UTM parameter extraction.
+- **PWA Detection**: Identify visitors using your site as a Progressive Web App.
+- **UTM & Channel Tracking**: Measure campaign performance with automatic UTM parameter extraction and channel attribution (organic, paid, social, email, and more).
 - **Traffic Spike Alerts**: Get instant notifications when your website experiences unusual traffic spikes.
 - **Revenue Tracking**: Track payments and revenue per country, region, city, page, hostname, device, browser, OS, and referrer source with interactive tooltips showing detailed breakdowns.
 - **Real-Time Map**: Visualize visitors and movements on an interactive globe.
@@ -100,6 +102,9 @@ volumes:
 - **Team Collaboration**: Invite team members to view analytics.
 - **Data Export/Import**: Full ownership of your data with easy export options.
 - **Filtering**: Deep dive into data with filters (Date, Device, Location, etc.).
+- **Traffic Exclusions**: Exclude specific IPs, URL paths, and countries from being tracked to filter out internal traffic and bots.
+- **Embeddable Widget**: Embed a customisable real-time visitor counter widget on any webpage or external dashboard.
+- **REST API**: Programmatic access to your analytics data using secure API keys.
 
 ## Contributing
 
