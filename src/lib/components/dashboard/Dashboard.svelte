@@ -78,6 +78,7 @@
 		customersByOs?: { label: string; value: number }[];
 		customersByBrowser?: { label: string; value: number }[];
 		customersByDeviceType?: { label: string; value: number }[];
+		customersByScreen?: { label: string; value: number }[];
 		customersByHostname?: { label: string; value: number }[];
 		customersByPage?: { label: string; value: number }[];
 		customersByReferrer?: { label: string; value: number }[];
@@ -90,6 +91,7 @@
 		revenueByOs: { label: string; value: number; icon?: string }[];
 		revenueByBrowser: { label: string; value: number; icon?: string }[];
 		revenueByDeviceType: { label: string; value: number; icon?: string }[];
+		revenueByScreen?: { label: string; value: number; icon?: string }[];
 		revenueByHostname: { label: string; value: number; icon?: string }[];
 		revenueByPage: { label: string; value: number; icon?: string }[];
 		revenueByReferrer?: { label: string; value: number; icon?: string }[];
@@ -295,6 +297,7 @@
 	let customersByOs = $derived(apiData?.customersByOs || []);
 	let customersByBrowser = $derived(apiData?.customersByBrowser || []);
 	let customersByDeviceType = $derived(apiData?.customersByDeviceType || []);
+	let customersByScreen = $derived(apiData?.customersByScreen || []);
 	let customersByHostname = $derived(apiData?.customersByHostname || []);
 	let customersByPage = $derived(apiData?.customersByPage || []);
 	let customersByReferrer = $derived(apiData?.customersByReferrer || []);
@@ -307,6 +310,7 @@
 	let revenueByOs = $derived(apiData?.revenueByOs || []);
 	let revenueByBrowser = $derived(apiData?.revenueByBrowser || []);
 	let revenueByDeviceType = $derived(apiData?.revenueByDeviceType || []);
+	let revenueByScreen = $derived(apiData?.revenueByScreen || []);
 	let revenueByHostname = $derived(apiData?.revenueByHostname || []);
 	let revenueByPage = $derived(apiData?.revenueByPage || []);
 	let revenueByReferrer = $derived(apiData?.revenueByReferrer || []);
@@ -371,6 +375,7 @@
 	let convertedRevenueByOs = $derived(revenueByOs.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
 	let convertedRevenueByBrowser = $derived(revenueByBrowser.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
 	let convertedRevenueByDeviceType = $derived(revenueByDeviceType.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
+	let convertedRevenueByScreen = $derived(revenueByScreen.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
 	let convertedRevenueByHostname = $derived(revenueByHostname.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
 	let convertedRevenueByPage = $derived(revenueByPage.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
 	let convertedRevenueByReferrer = $derived(revenueByReferrer.map((item) => ({ ...item, value: convertCurrencySync(item.value, 'USD', websiteCurrency) })));
