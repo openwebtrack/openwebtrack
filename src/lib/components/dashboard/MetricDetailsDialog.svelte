@@ -1,36 +1,33 @@
 <script lang="ts">
-	import { X, Search, Loader2 } from 'lucide-svelte';
+	import { Search, Loader2, TrendingUp, Users, DollarSign, BarChart2 } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import axios from 'axios';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { formatCurrency } from '$lib/utils/currency';
 
-	let { websiteId, metricType, title, onClose, demoData = null } = $props();
+	type MetricRow = { label: string; value: number; revenue: number; customers: number; icon?: string };
+
+	let { websiteId, metricType, title, onClose, demoData = null, websiteCurrency = 'USD' } = $props();
 
 	let searchQuery = $state('');
-	let data = $state<{ label: string; value: number; icon?: string }[]>([]);
+	let data = $state<MetricRow[]>([]);
 	let loading = $state(true);
-	let error = $state<string | null>(null);
+	let errorMsg = $state<string | null>(null);
 	let open = $state(true);
 
 	let timeout: NodeJS.Timeout;
 
 	const fetchData = async () => {
 		loading = true;
-		error = null;
+		errorMsg = null;
 		try {
 			if (demoData) {
-				// Use provided demo data
 				data = demoData;
 			} else {
-				const params = new URLSearchParams({
-					type: metricType,
-					limit: '100'
-				});
-				if (searchQuery) {
-					params.append('search', searchQuery);
-				}
+				const params = new URLSearchParams({ type: metricType, limit: '100' });
+				if (searchQuery) params.append('search', searchQuery);
 
 				const urlParams = new URLSearchParams(window.location.search);
 				if (urlParams.has('startDate')) params.append('startDate', urlParams.get('startDate')!);
@@ -42,33 +39,34 @@
 			}
 		} catch (e) {
 			console.error(e);
-			error = 'Failed to load data';
+			errorMsg = 'Failed to load data';
 		} finally {
 			loading = false;
 		}
 	};
 
 	const handleSearch = (e: Event) => {
-		const value = (e.target as HTMLInputElement).value;
-		searchQuery = value;
+		searchQuery = (e.target as HTMLInputElement).value;
 		clearTimeout(timeout);
-		timeout = setTimeout(() => {
-			fetchData();
-		}, 300);
+		timeout = setTimeout(() => fetchData(), 300);
 	};
 
-	onMount(() => {
-		fetchData();
-	});
-
-	let maxVal = $derived(data.length > 0 ? Math.max(...data.map((i) => i.value)) : 0);
+	onMount(() => fetchData());
 
 	function handleOpenChange(value: boolean) {
 		open = value;
-		if (!value) {
-			onClose();
-		}
+		if (!value) onClose();
 	}
+
+	const hasRevenue = $derived(data.some((d) => d.revenue > 0));
+	const hasCustomers = $derived(data.some((d) => d.customers > 0));
+
+	const totalVisitors = $derived(data.reduce((s, d) => s + d.value, 0));
+	const totalRevenue = $derived(data.reduce((s, d) => s + (d.revenue ?? 0), 0));
+	const totalCustomers = $derived(data.reduce((s, d) => s + (d.customers ?? 0), 0));
+
+	const convRate = (customers: number, visitors: number) =>
+		visitors > 0 ? ((customers / visitors) * 100).toFixed(1) + '%' : '—';
 </script>
 
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>
@@ -76,9 +74,11 @@
 		<Dialog.Close />
 
 		<Dialog.Header class="border-b border-border pb-4">
-			<div class="relative w-full max-w-xs">
-				<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-				<Input type="text" placeholder="Search..." value={searchQuery} oninput={handleSearch} class="pl-10" />
+			<div class="flex items-center justify-between gap-4">
+				<div class="relative w-full max-w-xs">
+					<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Input type="text" placeholder="Search..." value={searchQuery} oninput={handleSearch} class="pl-10" />
+				</div>
 			</div>
 		</Dialog.Header>
 
@@ -88,9 +88,9 @@
 					<Loader2 class="h-6 w-6 animate-spin" />
 					<p>Loading data...</p>
 				</div>
-			{:else if error}
+			{:else if errorMsg}
 				<div class="flex h-64 flex-col items-center justify-center text-destructive">
-					<p>{error}</p>
+					<p>{errorMsg}</p>
 					<Button variant="secondary" onclick={fetchData} class="mt-4">Try again</Button>
 				</div>
 			{:else if data.length === 0}
@@ -98,23 +98,71 @@
 					<p>No results found.</p>
 				</div>
 			{:else}
-				<div class="space-y-2">
-					{#each data as item}
-						<div class="group relative flex h-12 items-center overflow-hidden rounded-lg border border-border bg-muted/50">
-							<div class="absolute inset-y-0 left-0 bg-primary/10 transition-all duration-500 ease-out" style="width: {maxVal > 0 ? (item.value / maxVal) * 100 : 0}%"></div>
-
-							<div class="relative z-10 flex w-full items-center justify-between px-4">
-								<div class="flex items-center gap-3 overflow-hidden">
-									{#if item.icon}
-										<img src={item.icon} alt="" class="h-5 w-5 shrink-0 rounded-sm object-contain" />
+				<table class="w-full text-sm">
+					<thead>
+						<tr class="border-b border-border text-xs text-muted-foreground">
+							<th class="pb-2 text-left font-medium">{title}</th>
+							<th class="pb-2 text-right font-medium">
+								<span class="flex items-center justify-end gap-1"><Users class="h-3 w-3" /> Visitors</span>
+							</th>
+							<th class="pb-2 text-right font-medium">
+								<span class="flex items-center justify-end gap-1"><DollarSign class="h-3 w-3" /> Revenue</span>
+							</th>
+							<th class="pb-2 text-right font-medium">
+								<span class="flex items-center justify-end gap-1"><TrendingUp class="h-3 w-3" /> Conv. Rate</span>
+							</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-border">
+						{#each data as item}
+							<tr class="group hover:bg-muted/30 transition-colors">
+								<td class="py-2.5 pr-4">
+									<div class="flex items-center gap-2 overflow-hidden">
+										{#if item.icon}
+											<img src={item.icon} alt="" class="h-4 w-4 shrink-0 rounded-sm object-contain" />
+										{/if}
+										<span class="truncate font-medium text-foreground" title={item.label}>{item.label}</span>
+									</div>
+								</td>
+								<td class="py-2.5 pr-4 text-right tabular-nums text-muted-foreground">
+									{item.value.toLocaleString()}
+								</td>
+								<td class="py-2.5 pr-4 text-right tabular-nums">
+									<span class="text-{(item.revenue ?? 0) > 0 ? 'foreground' : 'muted-foreground'}">{formatCurrency(item.revenue ?? 0, websiteCurrency)}</span>
+								</td>
+								<td class="py-2.5 text-right tabular-nums">
+									{#if (item.customers ?? 0) > 0}
+										<span class="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400">
+											{convRate(item.customers, item.value)}
+										</span>
+									{:else}
+										<span class="text-muted-foreground">0.0%</span>
 									{/if}
-									<span class="truncate text-sm font-medium" title={item.label}>{item.label}</span>
-								</div>
-								<span class="ml-4 shrink-0 text-sm text-muted-foreground">{item.value.toLocaleString()}</span>
-							</div>
-						</div>
-					{/each}
-				</div>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+					{#if data.length > 1}
+						<tfoot>
+							<tr class="border-t-2 border-border text-xs text-muted-foreground">
+								<td class="pt-2.5 pr-4 font-medium">Total</td>
+								<td class="pt-2.5 pr-4 text-right tabular-nums font-medium text-foreground">{totalVisitors.toLocaleString()}</td>
+								<td class="pt-2.5 pr-4 text-right tabular-nums font-medium text-foreground">
+									{formatCurrency(totalRevenue, websiteCurrency)}
+								</td>
+								<td class="pt-2.5 text-right tabular-nums">
+									{#if totalCustomers > 0}
+										<span class="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400">
+											{convRate(totalCustomers, totalVisitors)}
+										</span>
+									{:else}
+										<span class="text-muted-foreground">0.0%</span>
+									{/if}
+									</td>
+							</tr>
+						</tfoot>
+					{/if}
+				</table>
 			{/if}
 		</div>
 	</Dialog.Content>

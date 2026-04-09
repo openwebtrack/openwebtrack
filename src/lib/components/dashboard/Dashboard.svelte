@@ -523,100 +523,100 @@
 		};
 	};
 
-	const generateDemoMetricData = (metricType: string): { label: string; value: number; icon?: string }[] => {
-		const data: Record<string, { label: string; value: number; icon?: string }[]> = {
+	const generateDemoMetricData = (metricType: string): { label: string; value: number; revenue: number; customers: number; icon?: string }[] => {
+		const data: Record<string, { label: string; value: number; revenue: number; customers: number; icon?: string }[]> = {
 			channels: [
-				{ label: 'Organic Search', value: 5234 },
-				{ label: 'Direct', value: 3456 },
-				{ label: 'Social', value: 2341 },
-				{ label: 'Referral', value: 1876 },
-				{ label: 'Email', value: 1234 }
+				{ label: 'Organic Search', value: 5234, revenue: 1243800, customers: 312 },
+				{ label: 'Direct', value: 3456, revenue: 876500, customers: 198 },
+				{ label: 'Social', value: 2341, revenue: 412300, customers: 87 },
+				{ label: 'Referral', value: 1876, revenue: 298700, customers: 64 },
+				{ label: 'Email', value: 1234, revenue: 567200, customers: 143 }
 			],
 			referrers: [
-				{ label: 'google.com', value: 5234, icon: 'https://icons.duckduckgo.com/ip3/google.com.ico' },
-				{ label: 'twitter.com', value: 2341, icon: 'https://icons.duckduckgo.com/ip3/twitter.com.ico' },
-				{ label: 'github.com', value: 1876, icon: 'https://icons.duckduckgo.com/ip3/github.com.ico' },
-				{ label: 'linkedin.com', value: 1234, icon: 'https://icons.duckduckgo.com/ip3/linkedin.com.ico' },
-				{ label: 'reddit.com', value: 876, icon: 'https://icons.duckduckgo.com/ip3/reddit.com.ico' }
+				{ label: 'google.com', value: 5234, revenue: 1243800, customers: 312, icon: 'https://icons.duckduckgo.com/ip3/google.com.ico' },
+				{ label: 'twitter.com', value: 2341, revenue: 187400, customers: 42, icon: 'https://icons.duckduckgo.com/ip3/twitter.com.ico' },
+				{ label: 'github.com', value: 1876, revenue: 93200, customers: 28, icon: 'https://icons.duckduckgo.com/ip3/github.com.ico' },
+				{ label: 'linkedin.com', value: 1234, revenue: 312600, customers: 71, icon: 'https://icons.duckduckgo.com/ip3/linkedin.com.ico' },
+				{ label: 'reddit.com', value: 876, revenue: 44300, customers: 19, icon: 'https://icons.duckduckgo.com/ip3/reddit.com.ico' }
 			],
 			campaigns: [
-				{ label: 'summer_sale_2024', value: 1234 },
-				{ label: 'newsletter_jan', value: 876 },
-				{ label: 'black_friday', value: 654 },
-				{ label: 'product_launch', value: 432 }
+				{ label: 'summer_sale_2024', value: 1234, revenue: 487200, customers: 98 },
+				{ label: 'newsletter_jan', value: 876, revenue: 231400, customers: 67 },
+				{ label: 'black_friday', value: 654, revenue: 893600, customers: 134 },
+				{ label: 'product_launch', value: 432, revenue: 156700, customers: 43 }
 			],
-			hostnames: [{ label: 'demo.example.com', value: 12580 }],
+			hostnames: [{ label: 'demo.example.com', value: 12580, revenue: 3398500, customers: 804 }],
 			pages: [
-				{ label: '/', value: 12543 },
-				{ label: '/pricing', value: 3421 },
-				{ label: '/features', value: 2890 },
-				{ label: '/about', value: 1876 },
-				{ label: '/contact', value: 1234 }
+				{ label: '/', value: 12543, revenue: 0, customers: 0 },
+				{ label: '/pricing', value: 3421, revenue: 1243800, customers: 312 },
+				{ label: '/features', value: 2890, revenue: 412300, customers: 87 },
+				{ label: '/about', value: 1876, revenue: 0, customers: 0 },
+				{ label: '/contact', value: 1234, revenue: 98700, customers: 34 }
 			],
 			entry_pages: [
-				{ label: '/', value: 8923 },
-				{ label: '/blog/getting-started', value: 2341 },
-				{ label: '/pricing', value: 1876 },
-				{ label: '/features/analytics', value: 1234 }
+				{ label: '/', value: 8923, revenue: 0, customers: 0 },
+				{ label: '/blog/getting-started', value: 2341, revenue: 187400, customers: 42 },
+				{ label: '/pricing', value: 1876, revenue: 934200, customers: 218 },
+				{ label: '/features/analytics', value: 1234, revenue: 231600, customers: 54 }
 			],
 			exit_links: [
-				{ label: 'https://github.com', value: 234 },
-				{ label: 'https://twitter.com', value: 187 },
-				{ label: 'https://linkedin.com', value: 123 }
+				{ label: 'https://github.com', value: 234, revenue: 0, customers: 0 },
+				{ label: 'https://twitter.com', value: 187, revenue: 0, customers: 0 },
+				{ label: 'https://linkedin.com', value: 123, revenue: 0, customers: 0 }
 			],
 			countries: [
-				{ label: 'United States', value: 4523, icon: getCountryFlag('United States') },
-				{ label: 'United Kingdom', value: 2341, icon: getCountryFlag('United Kingdom') },
-				{ label: 'Germany', value: 1876, icon: getCountryFlag('Germany') },
-				{ label: 'France', value: 1234, icon: getCountryFlag('France') },
-				{ label: 'Canada', value: 876, icon: getCountryFlag('Canada') },
-				{ label: 'Australia', value: 654, icon: getCountryFlag('Australia') }
+				{ label: 'United States', value: 4523, revenue: 1876300, customers: 412, icon: getCountryFlag('United States') },
+				{ label: 'United Kingdom', value: 2341, revenue: 543200, customers: 134, icon: getCountryFlag('United Kingdom') },
+				{ label: 'Germany', value: 1876, revenue: 321400, customers: 87, icon: getCountryFlag('Germany') },
+				{ label: 'France', value: 1234, revenue: 198700, customers: 54, icon: getCountryFlag('France') },
+				{ label: 'Canada', value: 876, revenue: 234100, customers: 63, icon: getCountryFlag('Canada') },
+				{ label: 'Australia', value: 654, revenue: 124800, customers: 41, icon: getCountryFlag('Australia') }
 			],
 			regions: [
-				{ label: 'California', value: 2341 },
-				{ label: 'New York', value: 1876 },
-				{ label: 'London', value: 1234 },
-				{ label: 'Berlin', value: 876 },
-				{ label: 'Paris', value: 654 }
+				{ label: 'California', value: 2341, revenue: 743200, customers: 178 },
+				{ label: 'New York', value: 1876, revenue: 521400, customers: 124 },
+				{ label: 'London', value: 1234, revenue: 312600, customers: 87 },
+				{ label: 'Berlin', value: 876, revenue: 198700, customers: 54 },
+				{ label: 'Paris', value: 654, revenue: 134200, customers: 38 }
 			],
 			cities: [
-				{ label: 'San Francisco', value: 1234 },
-				{ label: 'New York', value: 876 },
-				{ label: 'London', value: 654 },
-				{ label: 'Berlin', value: 432 },
-				{ label: 'Paris', value: 321 }
+				{ label: 'San Francisco', value: 1234, revenue: 412600, customers: 98 },
+				{ label: 'New York', value: 876, revenue: 287400, customers: 67 },
+				{ label: 'London', value: 654, revenue: 198700, customers: 54 },
+				{ label: 'Berlin', value: 432, revenue: 134200, customers: 38 },
+				{ label: 'Paris', value: 321, revenue: 87600, customers: 24 }
 			],
 			browsers: [
-				{ label: 'Chrome', value: 6234, icon: getBrowserIcon('Chrome') },
-				{ label: 'Safari', value: 2341, icon: getBrowserIcon('Safari') },
-				{ label: 'Firefox', value: 1234, icon: getBrowserIcon('Firefox') },
-				{ label: 'Edge', value: 876, icon: getBrowserIcon('Edge') }
+				{ label: 'Chrome', value: 6234, revenue: 1876300, customers: 412, icon: getBrowserIcon('Chrome') },
+				{ label: 'Safari', value: 2341, revenue: 654200, customers: 178, icon: getBrowserIcon('Safari') },
+				{ label: 'Firefox', value: 1234, revenue: 243100, customers: 67, icon: getBrowserIcon('Firefox') },
+				{ label: 'Edge', value: 876, revenue: 187400, customers: 54, icon: getBrowserIcon('Edge') }
 			],
 			os: [
-				{ label: 'Windows', value: 4523, icon: getOsIcon('Windows') },
-				{ label: 'macOS', value: 3456, icon: getOsIcon('macOS') },
-				{ label: 'iOS', value: 1876, icon: getOsIcon('iOS') },
-				{ label: 'Android', value: 1234, icon: getOsIcon('Android') },
-				{ label: 'Linux', value: 567, icon: getOsIcon('Linux') }
+				{ label: 'Windows', value: 4523, revenue: 1243800, customers: 312, icon: getOsIcon('Windows') },
+				{ label: 'macOS', value: 3456, revenue: 987600, customers: 267, icon: getOsIcon('macOS') },
+				{ label: 'iOS', value: 1876, revenue: 432100, customers: 98, icon: getOsIcon('iOS') },
+				{ label: 'Android', value: 1234, revenue: 198700, customers: 54, icon: getOsIcon('Android') },
+				{ label: 'Linux', value: 567, revenue: 134200, customers: 38, icon: getOsIcon('Linux') }
 			],
 			devices: [
-				{ label: 'Desktop', value: 7890, icon: getDeviceIcon('Desktop') },
-				{ label: 'Mobile', value: 3456, icon: getDeviceIcon('Mobile') },
-				{ label: 'Tablet', value: 1234, icon: getDeviceIcon('Tablet') }
+				{ label: 'Desktop', value: 7890, revenue: 2476300, customers: 612, icon: getDeviceIcon('Desktop') },
+				{ label: 'Mobile', value: 3456, revenue: 654200, customers: 178, icon: getDeviceIcon('Mobile') },
+				{ label: 'Tablet', value: 1234, revenue: 267400, customers: 54, icon: getDeviceIcon('Tablet') }
 			],
 			screens: [
-				{ label: '1920x1080', value: 4523 },
-				{ label: '1366x768', value: 2341 },
-				{ label: '375x812', value: 1876 },
-				{ label: '1440x900', value: 1234 }
+				{ label: '1920x1080', value: 4523, revenue: 1243800, customers: 312 },
+				{ label: '1366x768', value: 2341, revenue: 543200, customers: 134 },
+				{ label: '375x812', value: 1876, revenue: 334100, customers: 87 },
+				{ label: '1440x900', value: 1234, revenue: 198700, customers: 54 }
 			]
 		};
 
 		return (
 			data[metricType] || [
-				{ label: 'Demo Item 1', value: 1234 },
-				{ label: 'Demo Item 2', value: 876 },
-				{ label: 'Demo Item 3', value: 654 }
+				{ label: 'Demo Item 1', value: 1234, revenue: 0, customers: 0 },
+				{ label: 'Demo Item 2', value: 876, revenue: 0, customers: 0 },
+				{ label: 'Demo Item 3', value: 654, revenue: 0, customers: 0 }
 			]
 		);
 	};
@@ -1056,6 +1056,7 @@
 			metricType={currentMetricType}
 			title={currentMetricTitle}
 			demoData={isDemo ? generateDemoMetricData(currentMetricType) : null}
+			{websiteCurrency}
 			onClose={() => (showMetricDetails = false)}
 		/>
 	{/if}
