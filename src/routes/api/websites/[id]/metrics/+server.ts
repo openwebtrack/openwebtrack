@@ -10,11 +10,7 @@ import { DEFAULT_QUERY_LIMITS } from '@/utils/constants';
 type MetricRow = { label: string; value: number; revenue: number; customers: number; icon?: string };
 
 /** Merge revenue and customer maps into the base data array by label. */
-function mergeRevAndCustomers(
-	data: { label: string; value: number; icon?: string }[],
-	revMap: Map<string, number>,
-	custMap: Map<string, number>
-): MetricRow[] {
+function mergeRevAndCustomers(data: { label: string; value: number; icon?: string }[], revMap: Map<string, number>, custMap: Map<string, number>): MetricRow[] {
 	return data.map((d) => ({
 		...d,
 		revenue: revMap.get(d.label) ?? 0,
@@ -182,13 +178,23 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 					.where(baseSessionWhere)
 					.groupBy(analyticsSession.referrer, analyticsSession.utmSource, analyticsSession.utmMedium),
 				db
-					.select({ referrer: analyticsSession.referrer, utmSource: analyticsSession.utmSource, utmMedium: analyticsSession.utmMedium, revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)`.as('revenue') })
+					.select({
+						referrer: analyticsSession.referrer,
+						utmSource: analyticsSession.utmSource,
+						utmMedium: analyticsSession.utmMedium,
+						revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)`.as('revenue')
+					})
 					.from(payment)
 					.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
 					.where(basePaymentWhere)
 					.groupBy(analyticsSession.referrer, analyticsSession.utmSource, analyticsSession.utmMedium),
 				db
-					.select({ referrer: analyticsSession.referrer, utmSource: analyticsSession.utmSource, utmMedium: analyticsSession.utmMedium, customers: sql<number>`COUNT(DISTINCT ${analyticsSession.visitorId})`.as('customers') })
+					.select({
+						referrer: analyticsSession.referrer,
+						utmSource: analyticsSession.utmSource,
+						utmMedium: analyticsSession.utmMedium,
+						customers: sql<number>`COUNT(DISTINCT ${analyticsSession.visitorId})`.as('customers')
+					})
 					.from(analyticsSession)
 					.innerJoin(visitor, and(eq(visitor.id, analyticsSession.visitorId), eq(visitor.isCustomer, true)))
 					.where(baseSessionWhere)
@@ -225,18 +231,33 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 				db
 					.select({ utmSource: analyticsSession.utmSource, utmMedium: analyticsSession.utmMedium, utmCampaign: analyticsSession.utmCampaign, count: count() })
 					.from(analyticsSession)
-					.where(and(baseSessionWhere, sql`(${analyticsSession.utmSource} IS NOT NULL AND ${analyticsSession.utmSource} != '') OR (${analyticsSession.utmMedium} IS NOT NULL AND ${analyticsSession.utmMedium} != '') OR (${analyticsSession.utmCampaign} IS NOT NULL AND ${analyticsSession.utmCampaign} != '')`))
+					.where(
+						and(
+							baseSessionWhere,
+							sql`(${analyticsSession.utmSource} IS NOT NULL AND ${analyticsSession.utmSource} != '') OR (${analyticsSession.utmMedium} IS NOT NULL AND ${analyticsSession.utmMedium} != '') OR (${analyticsSession.utmCampaign} IS NOT NULL AND ${analyticsSession.utmCampaign} != '')`
+						)
+					)
 					.groupBy(analyticsSession.utmSource, analyticsSession.utmMedium, analyticsSession.utmCampaign)
 					.orderBy(desc(count()))
 					.limit(limit * 2),
 				db
-					.select({ utmSource: analyticsSession.utmSource, utmMedium: analyticsSession.utmMedium, utmCampaign: analyticsSession.utmCampaign, revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)`.as('revenue') })
+					.select({
+						utmSource: analyticsSession.utmSource,
+						utmMedium: analyticsSession.utmMedium,
+						utmCampaign: analyticsSession.utmCampaign,
+						revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)`.as('revenue')
+					})
 					.from(payment)
 					.innerJoin(analyticsSession, eq(payment.sessionId, analyticsSession.id))
 					.where(basePaymentWhere)
 					.groupBy(analyticsSession.utmSource, analyticsSession.utmMedium, analyticsSession.utmCampaign),
 				db
-					.select({ utmSource: analyticsSession.utmSource, utmMedium: analyticsSession.utmMedium, utmCampaign: analyticsSession.utmCampaign, customers: sql<number>`COUNT(DISTINCT ${analyticsSession.visitorId})`.as('customers') })
+					.select({
+						utmSource: analyticsSession.utmSource,
+						utmMedium: analyticsSession.utmMedium,
+						utmCampaign: analyticsSession.utmCampaign,
+						customers: sql<number>`COUNT(DISTINCT ${analyticsSession.visitorId})`.as('customers')
+					})
 					.from(analyticsSession)
 					.innerJoin(visitor, and(eq(visitor.id, analyticsSession.visitorId), eq(visitor.isCustomer, true)))
 					.where(baseSessionWhere)
@@ -264,7 +285,12 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			break;
 		}
 		case 'countries': {
-			const whereClause = and(baseSessionWhere, sql`${analyticsSession.country} IS NOT NULL`, sql`${analyticsSession.country} != ''`, search ? ilike(analyticsSession.country, `%${search}%`) : undefined);
+			const whereClause = and(
+				baseSessionWhere,
+				sql`${analyticsSession.country} IS NOT NULL`,
+				sql`${analyticsSession.country} != ''`,
+				search ? ilike(analyticsSession.country, `%${search}%`) : undefined
+			);
 			const [rows, revRows, custRows] = await Promise.all([
 				db.select({ country: analyticsSession.country, count: count() }).from(analyticsSession).where(whereClause).groupBy(analyticsSession.country).orderBy(desc(count())).limit(limit),
 				db
@@ -286,7 +312,12 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			break;
 		}
 		case 'regions': {
-			const whereClause = and(baseSessionWhere, sql`${analyticsSession.region} IS NOT NULL`, sql`${analyticsSession.region} != ''`, search ? ilike(analyticsSession.region, `%${search}%`) : undefined);
+			const whereClause = and(
+				baseSessionWhere,
+				sql`${analyticsSession.region} IS NOT NULL`,
+				sql`${analyticsSession.region} != ''`,
+				search ? ilike(analyticsSession.region, `%${search}%`) : undefined
+			);
 			const [rows, revRows, custRows] = await Promise.all([
 				db.select({ region: analyticsSession.region, count: count() }).from(analyticsSession).where(whereClause).groupBy(analyticsSession.region).orderBy(desc(count())).limit(limit),
 				db
@@ -330,7 +361,12 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			break;
 		}
 		case 'browsers': {
-			const whereClause = and(baseSessionWhere, sql`${analyticsSession.browser} IS NOT NULL`, sql`${analyticsSession.browser} != ''`, search ? ilike(analyticsSession.browser, `%${search}%`) : undefined);
+			const whereClause = and(
+				baseSessionWhere,
+				sql`${analyticsSession.browser} IS NOT NULL`,
+				sql`${analyticsSession.browser} != ''`,
+				search ? ilike(analyticsSession.browser, `%${search}%`) : undefined
+			);
 			const [rows, revRows, custRows] = await Promise.all([
 				db.select({ browser: analyticsSession.browser, count: count() }).from(analyticsSession).where(whereClause).groupBy(analyticsSession.browser).orderBy(desc(count())).limit(limit),
 				db
@@ -374,9 +410,20 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			break;
 		}
 		case 'devices': {
-			const whereClause = and(baseSessionWhere, sql`${analyticsSession.deviceType} IS NOT NULL`, sql`${analyticsSession.deviceType} != ''`, search ? ilike(analyticsSession.deviceType, `%${search}%`) : undefined);
+			const whereClause = and(
+				baseSessionWhere,
+				sql`${analyticsSession.deviceType} IS NOT NULL`,
+				sql`${analyticsSession.deviceType} != ''`,
+				search ? ilike(analyticsSession.deviceType, `%${search}%`) : undefined
+			);
 			const [rows, revRows, custRows] = await Promise.all([
-				db.select({ deviceType: analyticsSession.deviceType, count: count() }).from(analyticsSession).where(whereClause).groupBy(analyticsSession.deviceType).orderBy(desc(count())).limit(limit),
+				db
+					.select({ deviceType: analyticsSession.deviceType, count: count() })
+					.from(analyticsSession)
+					.where(whereClause)
+					.groupBy(analyticsSession.deviceType)
+					.orderBy(desc(count()))
+					.limit(limit),
 				db
 					.select({ deviceType: analyticsSession.deviceType, revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)`.as('revenue') })
 					.from(payment)
@@ -411,7 +458,11 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 					.where(and(basePaymentWhere, sql`${analyticsSession.screenWidth} IS NOT NULL`))
 					.groupBy(analyticsSession.screenWidth, analyticsSession.screenHeight),
 				db
-					.select({ screenWidth: analyticsSession.screenWidth, screenHeight: analyticsSession.screenHeight, customers: sql<number>`COUNT(DISTINCT ${analyticsSession.visitorId})`.as('customers') })
+					.select({
+						screenWidth: analyticsSession.screenWidth,
+						screenHeight: analyticsSession.screenHeight,
+						customers: sql<number>`COUNT(DISTINCT ${analyticsSession.visitorId})`.as('customers')
+					})
 					.from(analyticsSession)
 					.innerJoin(visitor, and(eq(visitor.id, analyticsSession.visitorId), eq(visitor.isCustomer, true)))
 					.where(and(baseSessionWhere, sql`${analyticsSession.screenWidth} IS NOT NULL`))
@@ -430,9 +481,21 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		}
 		case 'hostnames': {
 			const [visitorRow, revRow, custRow] = await Promise.all([
-				db.select({ count: count() }).from(visitor).where(and(eq(visitor.websiteId, site.id), gte(visitor.lastSeen, start), lte(visitor.lastSeen, end))).then((r) => r[0]),
-				db.select({ revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)`.as('revenue') }).from(payment).where(basePaymentWhere).then((r) => r[0]),
-				db.select({ customers: count() }).from(visitor).where(and(eq(visitor.websiteId, site.id), eq(visitor.isCustomer, true), gte(visitor.lastSeen, start), lte(visitor.lastSeen, end))).then((r) => r[0])
+				db
+					.select({ count: count() })
+					.from(visitor)
+					.where(and(eq(visitor.websiteId, site.id), gte(visitor.lastSeen, start), lte(visitor.lastSeen, end)))
+					.then((r) => r[0]),
+				db
+					.select({ revenue: sql<number>`COALESCE(SUM(${payment.amount}), 0)`.as('revenue') })
+					.from(payment)
+					.where(basePaymentWhere)
+					.then((r) => r[0]),
+				db
+					.select({ customers: count() })
+					.from(visitor)
+					.where(and(eq(visitor.websiteId, site.id), eq(visitor.isCustomer, true), gte(visitor.lastSeen, start), lte(visitor.lastSeen, end)))
+					.then((r) => r[0])
 			]);
 			data = [{ label: site.domain, value: visitorRow.count, revenue: Number(revRow.revenue), customers: custRow.customers }];
 			break;

@@ -65,8 +65,7 @@
 	const totalRevenue = $derived(data.reduce((s, d) => s + (d.revenue ?? 0), 0));
 	const totalCustomers = $derived(data.reduce((s, d) => s + (d.customers ?? 0), 0));
 
-	const convRate = (customers: number, visitors: number) =>
-		visitors > 0 ? ((customers / visitors) * 100).toFixed(1) + '%' : '—';
+	const convRate = (customers: number, visitors: number) => (visitors > 0 ? ((customers / visitors) * 100).toFixed(1) + '%' : '—');
 </script>
 
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>
@@ -115,7 +114,7 @@
 					</thead>
 					<tbody class="divide-y divide-border">
 						{#each data as item}
-							<tr class="group hover:bg-muted/30 transition-colors">
+							<tr class="group transition-colors hover:bg-muted/30">
 								<td class="py-2.5 pr-4">
 									<div class="flex items-center gap-2 overflow-hidden">
 										{#if item.icon}
@@ -124,7 +123,7 @@
 										<span class="truncate font-medium text-foreground" title={item.label}>{item.label}</span>
 									</div>
 								</td>
-								<td class="py-2.5 pr-4 text-right tabular-nums text-muted-foreground">
+								<td class="py-2.5 pr-4 text-right text-muted-foreground tabular-nums">
 									{item.value.toLocaleString()}
 								</td>
 								<td class="py-2.5 pr-4 text-right tabular-nums">
@@ -146,8 +145,8 @@
 						<tfoot>
 							<tr class="border-t-2 border-border text-xs text-muted-foreground">
 								<td class="pt-2.5 pr-4 font-medium">Total</td>
-								<td class="pt-2.5 pr-4 text-right tabular-nums font-medium text-foreground">{totalVisitors.toLocaleString()}</td>
-								<td class="pt-2.5 pr-4 text-right tabular-nums font-medium text-foreground">
+								<td class="pt-2.5 pr-4 text-right font-medium text-foreground tabular-nums">{totalVisitors.toLocaleString()}</td>
+								<td class="pt-2.5 pr-4 text-right font-medium text-foreground tabular-nums">
 									{formatCurrency(totalRevenue, websiteCurrency)}
 								</td>
 								<td class="pt-2.5 text-right tabular-nums">
@@ -158,7 +157,7 @@
 									{:else}
 										<span class="text-muted-foreground">0.0%</span>
 									{/if}
-									</td>
+								</td>
 							</tr>
 						</tfoot>
 					{/if}
