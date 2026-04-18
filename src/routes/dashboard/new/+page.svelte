@@ -61,7 +61,10 @@
 		}
 	};
 
-	let scriptCode = $derived(`<script defer data-website-id="${createdWebsite?.id}" data-domain="${domain}" src="${browser ? window.location.origin : ''}/script.js"><\/script>`);
+	let cookieless = $state(false);
+	let scriptCode = $derived(
+		`<script defer data-website-id="${createdWebsite?.id}" data-domain="${domain}" src="${browser ? window.location.origin : ''}/${cookieless ? 'script.cookieless.js' : 'script.js'}"><\/script>`
+	);
 
 	const handleCopy = () => {
 		if (!createdWebsite) return;
@@ -167,12 +170,36 @@
 							</div>
 							<pre class="w-full overflow-x-auto rounded-lg border bg-muted p-4 text-sm [&::-webkit-scrollbar]:hidden">{scriptCode}</pre>
 						</div>
+						<label class="mt-3 flex cursor-pointer items-center gap-2 text-sm select-none">
+							<input type="checkbox" bind:checked={cookieless} class="h-4 w-4 cursor-pointer accent-primary" />
+							<span class="flex items-center gap-x-2">
+								<svg
+									class="size-7"
+									xmlns="http://www.w3.org/2000/svg"
+									shape-rendering="geometricPrecision"
+									text-rendering="geometricPrecision"
+									image-rendering="optimizeQuality"
+									fill-rule="evenodd"
+									clip-rule="evenodd"
+									viewBox="0 0 512 356.18"
+									><path
+										fill="#039"
+										fill-rule="nonzero"
+										d="M28.137 0H483.86C499.337 0 512 12.663 512 28.14v299.9c0 15.477-12.663 28.14-28.14 28.14H28.137C12.663 356.18 0 343.517 0 328.04V28.14C0 12.663 12.663 0 28.137 0z"
+									/><path
+										fill="#FC0"
+										d="M237.179 53.246h14.378L256 39.572l4.443 13.674h14.378l-11.633 8.451 4.444 13.673L256 66.919l-11.632 8.451 4.444-13.673-11.633-8.451zm0 237.458h14.378L256 277.03l4.443 13.674h14.378l-11.633 8.451 4.444 13.673L256 304.377l-11.632 8.451 4.444-13.673-11.633-8.451zM118.45 171.975h14.378l4.443-13.674 4.443 13.674h14.378l-11.633 8.451 4.443 13.673-11.631-8.451-11.632 8.451 4.444-13.673-11.633-8.451zm59.363-102.796h14.377l4.443-13.674 4.443 13.674h14.378l-11.632 8.451 4.443 13.674-11.632-8.451-11.632 8.451 4.443-13.674-11.631-8.451zm-43.429 43.429h14.378l4.442-13.673 4.444 13.673h14.377l-11.632 8.451 4.443 13.674-11.632-8.451-11.631 8.451 4.443-13.674-11.632-8.451zm-.032 118.737h14.377l4.443-13.674 4.443 13.674h14.377l-11.631 8.451 4.443 13.674-11.632-8.451-11.632 8.451 4.443-13.674-11.631-8.451zm43.471 43.46h14.378l4.443-13.674 4.443 13.674h14.378l-11.632 8.451 4.443 13.674-11.632-8.451-11.631 8.451 4.443-13.674-11.633-8.451zm178.085-102.83h14.378l4.443-13.674 4.443 13.674h14.378l-11.633 8.451 4.444 13.673-11.632-8.451-11.631 8.451 4.443-13.673-11.633-8.451zM296.546 69.179h14.378l4.443-13.674 4.443 13.674h14.377l-11.631 8.451 4.443 13.674-11.632-8.451-11.632 8.451 4.443-13.674-11.632-8.451zm43.429 43.429h14.377l4.444-13.673 4.442 13.673h14.378l-11.632 8.451 4.443 13.674-11.631-8.451-11.632 8.451 4.443-13.674-11.632-8.451zm.033 118.737h14.377l4.443-13.674 4.443 13.674h14.377l-11.631 8.451 4.443 13.674-11.632-8.451-11.632 8.451 4.443-13.674-11.631-8.451zm-43.473 43.46h14.378l4.443-13.674 4.443 13.674h14.378l-11.633 8.451 4.443 13.674-11.631-8.451-11.632 8.451 4.443-13.674-11.632-8.451z"
+									/></svg
+								>
+								Cookieless mode <span class="text-xs text-muted-foreground">(GDPR-friendly, no cookies)</span></span
+							>
+						</label>
+
+						<Button class="mt-3 w-full gap-2" onclick={() => goto(`/dashboard/${createdWebsite?.id || ''}`)}>
+							Go to website <ArrowLeft class="h-4 w-4 rotate-180" />
+						</Button>
 					</Card.Content>
 				</Card.Root>
-
-				<Button class="w-full gap-2" onclick={() => goto(`/dashboard/${createdWebsite?.id || ''}`)}>
-					Go to website <ArrowLeft class="h-4 w-4 rotate-180" />
-				</Button>
 			</div>
 		{/if}
 	</main>

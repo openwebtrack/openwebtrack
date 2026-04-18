@@ -15,25 +15,31 @@ const trackingScriptPlugin = () => {
 		},
 		async buildStart() {
 			const outDir = isDev ? 'static' : 'static';
-			const outFile = join(outDir, 'script.js');
 
 			if (!existsSync(outDir)) {
 				mkdirSync(outDir, { recursive: true });
 			}
 
-			try {
-				await build({
-					entryPoints: ['src/script.ts'],
-					outfile: outFile,
-					minify: !isDev,
-					bundle: true,
-					format: 'iife',
-					target: 'es2018',
-					platform: 'browser',
-					define: isDev ? {} : { __OWT_API_ENDPOINT__: '""' }
-				});
-			} catch (e) {
-				console.error('Failed to build tracking script:', e);
+			const scripts = [
+				{ entry: 'src/script.ts', outfile: join(outDir, 'script.js') },
+				{ entry: 'src/script.cookieless.ts', outfile: join(outDir, 'script.cookieless.js') }
+			];
+
+			for (const { entry, outfile } of scripts) {
+				try {
+					await build({
+						entryPoints: [entry],
+						outfile,
+						minify: !isDev,
+						bundle: true,
+						format: 'iife',
+						target: 'es2018',
+						platform: 'browser',
+						define: isDev ? {} : { __OWT_API_ENDPOINT__: '""' }
+					});
+				} catch (e) {
+					console.error(`Failed to build tracking script (${entry}):`, e);
+				}
 			}
 		},
 		configureServer(server: ViteDevServer) {

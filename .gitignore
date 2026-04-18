@@ -25,5 +25,6 @@ vite.config.ts.timestamp-*
 
 # Other
 /static/script.js
+/static/script.cookieless.js
 telemetry-id
 /scripts
