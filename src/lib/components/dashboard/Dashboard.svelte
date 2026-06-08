@@ -1062,6 +1062,16 @@
 	{/if}
 
 	{#if showGlobe}
-		<RealTimeMap {visitors} {events} websiteDomain={website.domain} onlineCount={stats.online} {isDataLoading} onClose={closeRealTimeMap} />
+		<RealTimeMap
+			websiteId={website.id}
+			{visitors}
+			{events}
+			websiteDomain={website.domain}
+			onlineCount={stats.online}
+			{isDataLoading}
+			{startDate}
+			{endDate}
+			onClose={closeRealTimeMap}
+		/>
 	{/if}
 </div>

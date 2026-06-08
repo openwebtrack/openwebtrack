@@ -1,7 +1,9 @@
 <script lang="ts">
 	import 'maplibre-gl/dist/maplibre-gl.css';
-	import { X, Monitor, Smartphone, Globe, Users, MousePointerClick, PanelLeftOpen, PanelLeftClose } from 'lucide-svelte';
+	import { X, Monitor, Smartphone, Globe, Users, MousePointerClick, PanelLeftOpen, PanelLeftClose, History, Radio } from 'lucide-svelte';
 	import Logo from '$lib/components/Logo.svelte';
+	import { generateAvatarUrl, generateVisitorName } from '$lib/utils/visitor';
+	import getCountryCode from '$lib/utils/country-mapping';
 	import { onMount, onDestroy } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import maplibregl from 'maplibre-gl';
@@ -47,17 +49,44 @@
 	}
 
 	interface Props {
+		websiteId: string;
 		visitors: VisitorItem[];
 		events: EventItem[];
 		websiteDomain: string;
 		onlineCount?: number;
 		isDataLoading?: boolean;
+		startDate?: string | null;
+		endDate?: string | null;
 		onClose: () => void;
 	}
 
-	let { visitors, events, websiteDomain, onlineCount = 0, isDataLoading = false, onClose }: Props = $props();
+	interface ApiVisitor {
+		visitorId: string;
+		name: string | null;
+		avatar: string | null;
+		isCustomer: boolean | null;
+		lastActivityAt: string;
+		country: string | null;
+		device: string | null;
+		os: string | null;
+		browser: string | null;
+		referrer: string | null;
+		region: string | null;
+		city: string | null;
+		screenWidth: number | null;
+		screenHeight: number | null;
+		isPwa: boolean | null;
+	}
+
+	let { websiteId, visitors, events, websiteDomain, onlineCount = 0, isDataLoading = false, startDate = null, endDate = null, onClose }: Props = $props();
 
 	let sidebarOpen = $state(false);
+	let mapMode = $state<'realtime' | 'history'>('realtime');
+	let historyVisitors = $state<VisitorItem[]>([]);
+	let historyEvents = $state<EventItem[]>([]);
+	let isHistoryLoading = $state(false);
+	let historyLoadedKey = $state<string | null>(null);
+	let historyError = $state<string | null>(null);
 
 	// Country centroid coordinates [lng, lat]
 	const countryCoords: Record<string, [number, number]> = {
@@ -169,7 +198,60 @@
 		return key ? countryCoords[key] : null;
 	}
 
-	let effectiveVisitors = $derived(
+	const formatTime = (dateStr: string) => {
+		const date = new Date(dateStr);
+		const now = new Date();
+		const isToday = date.toDateString() === now.toDateString();
+		const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+		return isToday ? `Today at ${time}` : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at ' + time;
+	};
+
+	const getSourceDomain = (referrer: string | null) => {
+		if (!referrer) return { hostname: 'Direct', domain: websiteDomain };
+		try {
+			const url = new URL(referrer);
+			return { hostname: url.hostname, domain: url.hostname };
+		} catch {
+			return { hostname: 'Direct', domain: websiteDomain };
+		}
+	};
+
+	const mapVisitor = (v: ApiVisitor): VisitorItem => {
+		const countryCode = getCountryCode(v.country);
+		const source = getSourceDomain(v.referrer);
+
+		return {
+			visitorId: v.visitorId,
+			avatar: v.avatar || generateAvatarUrl(v.visitorId),
+			name: v.name || generateVisitorName(v.visitorId),
+			isCustomer: v.isCustomer || false,
+			countryFlag: countryCode ? `https://flagsapi.com/${countryCode}/flat/64.png` : '',
+			country: v.country || 'Unknown',
+			device: v.device || 'Desktop',
+			osIcon: '',
+			os: v.os || 'Unknown',
+			browserIcon: '',
+			browser: v.browser || 'Unknown',
+			sourceIcon: `https://icons.duckduckgo.com/ip3/${source.domain}.ico`,
+			source: source.hostname,
+			lastSeen: formatTime(v.lastActivityAt),
+			lastActivityAt: v.lastActivityAt,
+			region: v.region,
+			city: v.city,
+			screenWidth: v.screenWidth,
+			screenHeight: v.screenHeight,
+			isPwa: v.isPwa
+		};
+	};
+
+	const mapEvent = (event: Omit<EventItem, 'formattedTime'>): EventItem => ({
+		...event,
+		formattedTime: formatTime(event.timestamp)
+	});
+
+	const historyRangeKey = $derived(`${websiteId}:${startDate ?? ''}:${endDate ?? ''}`);
+
+	let realtimeVisitors = $derived(
 		visitors.filter((v) => {
 			if (!v.lastActivityAt) return false;
 			try {
@@ -183,6 +265,10 @@
 			}
 		})
 	);
+
+	let effectiveVisitors = $derived(mapMode === 'history' ? historyVisitors : realtimeVisitors);
+	let visibleEvents = $derived(mapMode === 'history' ? historyEvents : events);
+	let visibleCount = $derived(mapMode === 'history' ? historyVisitors.length : effectiveVisitors.length);
 
 	let referrerCounts = $derived(() => {
 		const map: Record<string, number> = {};
@@ -219,14 +305,57 @@
 			.slice(0, 3);
 	});
 
-	let recentEvents = $derived(events.slice(0, 8));
+	let recentEvents = $derived(visibleEvents.slice(0, 8));
 
 	let mapContainer: HTMLDivElement;
 	let map: maplibregl.Map | null = null;
 	let markerData: Array<{ element: HTMLElement; lng: number; lat: number; popup: maplibregl.Popup }> = [];
 	let activePopup: maplibregl.Popup | null = null;
 	let isMapLoaded = $state(false);
-	let showLoading = $derived(isDataLoading || !isMapLoaded);
+	let showLoading = $derived(!isMapLoaded || (mapMode === 'realtime' ? isDataLoading : isHistoryLoading));
+
+	async function loadHistoryData(force = false) {
+		if (!force && historyLoadedKey === historyRangeKey) return;
+
+		isHistoryLoading = true;
+		historyError = null;
+
+		const visitorParams = new URLSearchParams();
+		if (startDate) visitorParams.set('startDate', startDate);
+		if (endDate) visitorParams.set('endDate', endDate);
+		visitorParams.set('limit', '1000');
+		visitorParams.set('t', Date.now().toString());
+
+		const eventParams = new URLSearchParams();
+		if (startDate) eventParams.set('startDate', startDate);
+		if (endDate) eventParams.set('endDate', endDate);
+		eventParams.set('limit', '100');
+		eventParams.set('t', Date.now().toString());
+
+		try {
+			const [visitorsRes, eventsRes] = await Promise.all([
+				fetch(`/api/websites/${websiteId}/visitors?${visitorParams.toString()}`),
+				fetch(`/api/websites/${websiteId}/events?${eventParams.toString()}`)
+			]);
+
+			if (!visitorsRes.ok || !eventsRes.ok) {
+				throw new Error('Failed to load history');
+			}
+
+			const visitorsData: ApiVisitor[] = await visitorsRes.json();
+			const eventsData: Omit<EventItem, 'formattedTime'>[] = await eventsRes.json();
+
+			historyVisitors = visitorsData.map(mapVisitor);
+			historyEvents = eventsData.map(mapEvent);
+			historyLoadedKey = historyRangeKey;
+		} catch (e) {
+			historyError = e instanceof Error ? e.message : 'Failed to load history';
+			historyVisitors = [];
+			historyEvents = [];
+		} finally {
+			isHistoryLoading = false;
+		}
+	}
 
 	function clearMarkers() {
 		for (const { element, popup } of markerData) {
@@ -341,7 +470,7 @@
 						<div class="popup-header">
 							${flag ? `<img src="${flag}" class="popup-flag" />` : ''}
 							<span class="popup-name">${country}</span>
-							<span class="popup-count">(${count} online)</span>
+							<span class="popup-count">(${count} ${mapMode === 'history' ? 'visitors' : 'online'})</span>
 						</div>
 						${visitorsListHtml}
 						${moreCount}
@@ -521,6 +650,12 @@
 		}
 	});
 
+	$effect(() => {
+		if (mapMode === 'history') {
+			loadHistoryData();
+		}
+	});
+
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') onClose();
 	}
@@ -536,7 +671,7 @@
 	{#if showLoading}
 		<div class="absolute inset-0 z-997 flex flex-col items-center justify-center gap-3 bg-[#12100c]/90 backdrop-blur-sm">
 			<div class="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white"></div>
-			<p class="text-sm font-medium text-white/90">Loading real-time map...</p>
+			<p class="text-sm font-medium text-white/90">{mapMode === 'history' ? 'Loading history map...' : 'Loading real-time map...'}</p>
 		</div>
 	{/if}
 
@@ -556,12 +691,34 @@
 		<span class="text-sm font-semibold text-white">{websiteDomain}</span>
 		<div class="mx-1 h-3.5 w-px bg-white/20"></div>
 		<Users class="h-3.5 w-3.5" style="color: var(--chart-1)" />
-		<span class="text-sm text-white/80"><span class="font-bold text-white">{effectiveVisitors.length}</span> online</span>
+		<span class="text-sm text-white/80">
+			<span class="font-bold text-white">{visibleCount}</span>
+			{mapMode === 'history' ? ' visitors' : ' online'}
+		</span>
+	</div>
+
+	<div class="absolute top-16 left-4 z-999 flex items-center gap-1 rounded-xl border border-white/10 bg-black/50 p-1 backdrop-blur-md md:top-4 md:left-1/2 md:-translate-x-1/2">
+		<button
+			class:mode-active={mapMode === 'realtime'}
+			class="mode-toggle flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white/65 transition-colors hover:text-white"
+			onclick={() => (mapMode = 'realtime')}
+		>
+			<Radio class="h-3.5 w-3.5" />
+			Real-time
+		</button>
+		<button
+			class:mode-active={mapMode === 'history'}
+			class="mode-toggle flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white/65 transition-colors hover:text-white"
+			onclick={() => (mapMode = 'history')}
+		>
+			<History class="h-3.5 w-3.5" />
+			History
+		</button>
 	</div>
 
 	<!-- Toggle button for sidebar (mobile) -->
 	<button
-		class="sidebar-toggle absolute top-16 left-4 z-999 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white/70 backdrop-blur-md transition-colors hover:bg-black/80 hover:text-white md:hidden"
+		class="sidebar-toggle absolute top-28 left-4 z-999 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white/70 backdrop-blur-md transition-colors hover:bg-black/80 hover:text-white md:hidden"
 		aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
 		onclick={() => (sidebarOpen = !sidebarOpen)}
 	>
@@ -657,12 +814,18 @@
 			<div class="rounded-xl border border-white/10 bg-black/50 p-3 backdrop-blur-md">
 				<div class="mb-2 flex items-center gap-1.5 text-[10px] font-medium tracking-wider text-white/40 uppercase">
 					<MousePointerClick class="h-3 w-3" />
-					Live activity
+					{mapMode === 'history' ? 'Activity history' : 'Live activity'}
 				</div>
 				<div class="flex max-h-44 flex-col gap-2 overflow-y-auto">
+					{#if historyError && mapMode === 'history'}
+						<div class="flex items-center gap-2">
+							<span class="text-xs text-red-300/80">{historyError}</span>
+						</div>
+					{/if}
+
 					{#if recentEvents.length === 0}
 						<div class="flex items-center gap-2">
-							<span class="text-xs text-white/50">No recent activity</span>
+							<span class="text-xs text-white/50">{mapMode === 'history' ? 'No history for this range' : 'No recent activity'}</span>
 						</div>
 					{/if}
 
@@ -701,6 +864,11 @@
 </div>
 
 <style>
+	.mode-toggle.mode-active {
+		background: color-mix(in oklch, var(--chart-1) 18%, transparent);
+		color: white;
+	}
+
 	:global(.visitor-marker) {
 		position: absolute;
 		top: 0;

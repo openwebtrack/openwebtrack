@@ -1,9 +1,9 @@
 import { website, visitor, analyticsSession, analyticsEvent } from '$lib/server/db/schema';
 import { generateAvatarUrl, generateVisitorName } from '$lib/utils/visitor';
 import { eventsQuerySchema, validateQuery } from '$lib/server/validation';
-import { checkWebsiteAccess, isValidUUID } from '$lib/server/utils';
+import { checkWebsiteAccess, isValidUUID, parseDateRange } from '$lib/server/utils';
 import getCountryCode from '$lib/utils/country-mapping';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import db from '$lib/server/db';
@@ -30,7 +30,12 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		return json({ error: queryValidation.error, errors: queryValidation.errors }, { status: 400 });
 	}
 
-	const { limit, offset } = queryValidation.data;
+	const { limit, offset, startDate, endDate } = queryValidation.data;
+	const { start, end } = parseDateRange(startDate ?? null, endDate ?? null, site.timezone);
+	const whereClause =
+		startDate || endDate
+			? and(eq(analyticsEvent.websiteId, site.id), gte(analyticsEvent.timestamp, start), lte(analyticsEvent.timestamp, end))
+			: eq(analyticsEvent.websiteId, site.id);
 
 	// Fetch recent events with visitor details
 	const events = await db
@@ -53,7 +58,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		.from(analyticsEvent)
 		.innerJoin(analyticsSession, eq(analyticsEvent.sessionId, analyticsSession.id))
 		.innerJoin(visitor, eq(analyticsSession.visitorId, visitor.id))
-		.where(eq(analyticsEvent.websiteId, site.id))
+		.where(whereClause)
 		.orderBy(desc(analyticsEvent.timestamp))
 		.limit(limit)
 		.offset(offset);

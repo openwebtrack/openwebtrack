@@ -2,11 +2,16 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import db from '$lib/server/db';
 import { analyticsSession, website, visitor } from '$lib/server/db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
-import { checkWebsiteAccess, isValidUUID } from '$lib/server/utils';
+import { eq, desc, sql, and, gte, lte } from 'drizzle-orm';
+import { checkWebsiteAccess, isValidUUID, parseDateRange } from '$lib/server/utils';
 
 export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const isWidget = url.searchParams.get('isWidget') === 'true';
+	const startDate = url.searchParams.get('startDate');
+	const endDate = url.searchParams.get('endDate');
+	const limitParam = Number(url.searchParams.get('limit') || (startDate || endDate ? '1000' : '100'));
+	const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 1000) : 100;
+	let siteTimezone = 'UTC';
 
 	if (!isValidUUID(params.id)) {
 		throw error(400, 'Invalid website ID');
@@ -22,7 +27,12 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		if (!access) {
 			throw error(404, 'Website not found');
 		}
+
+		siteTimezone = access.site.timezone;
 	}
+
+	const { start, end } = parseDateRange(startDate, endDate, siteTimezone);
+	const whereClause = startDate || endDate ? and(eq(analyticsSession.websiteId, params.id), gte(analyticsSession.lastActivityAt, start), lte(analyticsSession.lastActivityAt, end)) : eq(analyticsSession.websiteId, params.id);
 
 	const uniqueVisitors = await db
 		.select({
@@ -44,10 +54,10 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		})
 		.from(analyticsSession)
 		.leftJoin(visitor, eq(analyticsSession.visitorId, visitor.id))
-		.where(eq(analyticsSession.websiteId, params.id))
+		.where(whereClause)
 		.groupBy(analyticsSession.visitorId, visitor.name, visitor.avatar, visitor.isCustomer)
 		.orderBy(sql`MAX(${analyticsSession.lastActivityAt}) DESC`)
-		.limit(100);
+		.limit(limit);
 
 	return json(uniqueVisitors);
 };

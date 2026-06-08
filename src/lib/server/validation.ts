@@ -117,7 +117,9 @@ export const statsQuerySchema = z.object({
 
 export const eventsQuerySchema = z.object({
 	limit: z.coerce.number().int().min(1).max(100).default(20),
-	offset: z.coerce.number().int().min(0).max(10000).default(0)
+	offset: z.coerce.number().int().min(0).max(10000).default(0),
+	startDate: z.string().optional(),
+	endDate: z.string().optional()
 });
 
 export const importSchema = z.object({
