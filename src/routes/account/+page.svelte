@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { User, Lock, ArrowLeft, Check, Loader2, LogOut } from 'lucide-svelte';
+	import { User, Lock, ArrowLeft, Check, Loader2, LogOut, Bot } from 'lucide-svelte';
 	import authClient from '$lib/auth-client';
 	import type { PageData } from './$types';
 	import { fade } from 'svelte/transition';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -13,7 +14,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let activeTab = $state('profile');
+	let activeTab = $state(page.url.searchParams.get('tab') === 'password' ? 'password' : 'profile');
 
 	let name = $state('');
 	$effect(() => {
@@ -130,6 +131,10 @@
 							{item.label}
 						</Button>
 					{/each}
+					<Button variant="ghost" href="/account/mcp" class="w-full justify-start">
+						<Bot size={18} class="mr-3" />
+						MCP access
+					</Button>
 				</nav>
 			</div>
 

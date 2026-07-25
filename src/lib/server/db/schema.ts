@@ -222,4 +222,20 @@ export const apiKey = pgTable(
 	(table) => [index('apiKey_websiteId_idx').on(table.websiteId), index('apiKey_keyHash_idx').on(table.keyHash)]
 );
 
+/** Dedicated credentials for AI assistants using the MCP endpoint. */
+export const mcpKey = pgTable(
+	'mcp_key',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		keyHash: text('key_hash').notNull().unique(),
+		lastUsedAt: timestamp('last_used_at'),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [index('mcpKey_userId_idx').on(table.userId), index('mcpKey_keyHash_idx').on(table.keyHash)]
+);
+
 export * from './auth.schema';
