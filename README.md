@@ -105,6 +105,7 @@ volumes:
 - **Traffic Exclusions**: Exclude specific IPs, URL paths, and countries from being tracked to filter out internal traffic and bots.
 - **Embeddable Widget**: Embed a customisable real-time visitor counter widget on any webpage or external dashboard.
 - **REST API**: Programmatic access to your analytics data using secure API keys.
+- **MCP Server**: Connect AI assistants through the Model Context Protocol with one account-scoped key for every website you own or that is shared with you.
 
 ## Contributing
 
