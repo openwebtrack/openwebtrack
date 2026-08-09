@@ -13,7 +13,11 @@ const requireUser = (userId: string | undefined) => {
 
 export const GET: RequestHandler = async ({ locals }) => {
 	const userId = requireUser(locals.user?.id);
-	const keys = await db.select({ id: mcpKey.id, name: mcpKey.name, lastUsedAt: mcpKey.lastUsedAt, createdAt: mcpKey.createdAt }).from(mcpKey).where(eq(mcpKey.userId, userId)).orderBy(desc(mcpKey.createdAt));
+	const keys = await db
+		.select({ id: mcpKey.id, name: mcpKey.name, lastUsedAt: mcpKey.lastUsedAt, createdAt: mcpKey.createdAt })
+		.from(mcpKey)
+		.where(eq(mcpKey.userId, userId))
+		.orderBy(desc(mcpKey.createdAt));
 	return json({ keys });
 };
 
@@ -24,7 +28,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!validation.success) return json({ error: validation.error, errors: validation.errors }, { status: 400 });
 	const key = `owt_mcp_${randomBytes(32).toString('hex')}`;
 	const keyHash = createHash('sha256').update(key).digest('hex');
-	const [created] = await db.insert(mcpKey).values({ userId, name: validation.data.name, keyHash }).returning({ id: mcpKey.id, name: mcpKey.name, lastUsedAt: mcpKey.lastUsedAt, createdAt: mcpKey.createdAt });
+	const [created] = await db
+		.insert(mcpKey)
+		.values({ userId, name: validation.data.name, keyHash })
+		.returning({ id: mcpKey.id, name: mcpKey.name, lastUsedAt: mcpKey.lastUsedAt, createdAt: mcpKey.createdAt });
 	return json({ ...created, key }, { status: 201 });
 };
 

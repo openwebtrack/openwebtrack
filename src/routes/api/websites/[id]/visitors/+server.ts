@@ -32,7 +32,10 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	}
 
 	const { start, end } = parseDateRange(startDate, endDate, siteTimezone);
-	const whereClause = startDate || endDate ? and(eq(analyticsSession.websiteId, params.id), gte(analyticsSession.lastActivityAt, start), lte(analyticsSession.lastActivityAt, end)) : eq(analyticsSession.websiteId, params.id);
+	const whereClause =
+		startDate || endDate
+			? and(eq(analyticsSession.websiteId, params.id), gte(analyticsSession.lastActivityAt, start), lte(analyticsSession.lastActivityAt, end))
+			: eq(analyticsSession.websiteId, params.id);
 
 	const uniqueVisitors = await db
 		.select({

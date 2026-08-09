@@ -33,9 +33,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const { limit, offset, startDate, endDate } = queryValidation.data;
 	const { start, end } = parseDateRange(startDate ?? null, endDate ?? null, site.timezone);
 	const whereClause =
-		startDate || endDate
-			? and(eq(analyticsEvent.websiteId, site.id), gte(analyticsEvent.timestamp, start), lte(analyticsEvent.timestamp, end))
-			: eq(analyticsEvent.websiteId, site.id);
+		startDate || endDate ? and(eq(analyticsEvent.websiteId, site.id), gte(analyticsEvent.timestamp, start), lte(analyticsEvent.timestamp, end)) : eq(analyticsEvent.websiteId, site.id);
 
 	// Fetch recent events with visitor details
 	const events = await db
