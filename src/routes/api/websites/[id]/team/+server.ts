@@ -1,10 +1,11 @@
 import { json, error } from '@sveltejs/kit';
 import db from '$lib/server/db';
 import { website, teamMember, user } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, count } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { isValidUUID } from '$lib/server/utils';
 import { teamInviteSchema, validateBody } from '$lib/server/validation';
+import { getEntitlementForUser } from '$lib/server/saas/entitlements';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) {
@@ -92,6 +93,16 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 
 	if (existingMember) {
 		throw error(409, 'User is already a team member');
+	}
+
+	// SAAS: enforce per-website member limit
+	const ent = await getEntitlementForUser(site.userId);
+	const [{ count: memberCount }] = await db
+		.select({ count: count() })
+		.from(teamMember)
+		.where(eq(teamMember.websiteId, params.id));
+	if (memberCount >= ent.maxMembersPerWebsite) {
+		throw error(402, `Member limit reached (${ent.maxMembersPerWebsite} for ${ent.tierName ?? 'Free'}). Upgrade to add more.`);
 	}
 
 	const [newMember] = await db

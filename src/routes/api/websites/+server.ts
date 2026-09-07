@@ -5,6 +5,7 @@ import { json, error } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import db from '$lib/server/db';
 import { websiteCreateSchema, validateBody } from '$lib/server/validation';
+import { getEntitlementForUser } from '$lib/server/saas/entitlements';
 
 const sanitizeDomain = (domain: string): string =>
 	domain
@@ -94,6 +95,19 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 	if (existing) {
 		throw error(409, 'Domain already registered');
+	}
+
+	// SAAS gating: check website quota
+	const ent = await getEntitlementForUser(locals.user.id);
+	if (ent.maxWebsites === 0) {
+		throw error(402, 'Subscription required to add websites. Please subscribe to a plan.');
+	}
+	const [{ count: siteCount }] = await db
+		.select({ count: count() })
+		.from(website)
+		.where(eq(website.userId, locals.user.id));
+	if (siteCount >= ent.maxWebsites) {
+		throw error(402, `Website limit reached (${ent.maxWebsites} for ${ent.tierName}). Upgrade your plan to add more.`);
 	}
 
 	const [newWebsite] = await db

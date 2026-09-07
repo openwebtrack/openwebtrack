@@ -4,6 +4,7 @@ import { eq, count, gte, and, lte, inArray, getTableColumns } from 'drizzle-orm'
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import db from '$lib/server/db';
+import { SAAS_MODE } from '$lib/config';
 
 interface SparklinePoint {
 	value: number;
@@ -90,5 +91,28 @@ export const load: PageServerLoad = async ({ locals }) => {
 		})
 	);
 
-	return { user: locals.user, websites: websitesWithStats };
+	let entitlement: {
+		saasEnabled: boolean;
+		maxWebsites: number;
+		tierName: string | null;
+		canAddWebsite: boolean;
+		websitesCount: number;
+		dashboardLocked: boolean;
+	} | null = null;
+	if (SAAS_MODE) {
+		const { getEntitlementForUser } = await import('$lib/server/saas/entitlements');
+		const ent = await getEntitlementForUser(locals.user.id);
+		entitlement = {
+			saasEnabled: true,
+			maxWebsites: ent.maxWebsites,
+			tierName: ent.tierName,
+			canAddWebsite: ownedWebsites.length < ent.maxWebsites,
+			websitesCount: ownedWebsites.length,
+			dashboardLocked: ent.dashboardLocked
+		};
+	} else {
+		entitlement = { saasEnabled: false, maxWebsites: 999, tierName: null, canAddWebsite: true, websitesCount: ownedWebsites.length, dashboardLocked: false };
+	}
+
+	return { user: locals.user, websites: websitesWithStats, entitlement };
 };

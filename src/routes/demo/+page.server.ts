@@ -3,7 +3,7 @@ import type { PageServerLoad } from './$types';
 import { env } from '$env/dynamic/private';
 
 export const load: PageServerLoad = async () => {
-	if (env.ENABLE_DEMO_PAGE !== 'true') {
+	if (env.SAAS_MODE !== 'true') {
 		throw error(404, 'Not Found');
 	}
 

@@ -54,7 +54,12 @@
 			inviteEmail = '';
 			showInviteModal = false;
 		} catch (e: any) {
-			inviteError = e.response?.data?.message || 'Failed to invite member';
+			const serverMsg = e.response?.data?.error ?? e.response?.data?.message;
+			if (e.response?.status === 402) {
+				inviteError = serverMsg ?? 'Member limit reached for your plan. Upgrade to add more members.';
+			} else {
+				inviteError = serverMsg ?? e.response?.data?.message ?? 'Failed to invite member';
+			}
 		} finally {
 			isInviting = false;
 		}
@@ -148,7 +153,12 @@
 
 			{#if inviteError}
 				<Alert.Root variant="destructive">
-					<Alert.Description>{inviteError}</Alert.Description>
+					<Alert.Description class="flex flex-col gap-2">
+						<span>{inviteError}</span>
+						{#if inviteError.toLowerCase().includes('limit reached') || inviteError.toLowerCase().includes('upgrade')}
+							<a href="/account?tab=billing" class="text-sm underline">View plans</a>
+						{/if}
+					</Alert.Description>
 				</Alert.Root>
 			{/if}
 		</div>

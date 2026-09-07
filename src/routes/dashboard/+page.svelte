@@ -186,10 +186,17 @@
 					</Tabs.Trigger>
 				</Tabs.List>
 			</Tabs.Root>
-			<Button href="/dashboard/new" size="sm">
-				<Plus class="mr-2 h-4 w-4" />
-				Add website
-			</Button>
+			{#if data.entitlement?.saasEnabled && !data.entitlement.canAddWebsite}
+				<Button href="/account?tab=billing" size="sm">
+					<Plus class="mr-2 h-4 w-4" />
+					{data.entitlement.tierName ? 'Upgrade' : 'Subscribe'}
+				</Button>
+			{:else}
+				<Button href="/dashboard/new" size="sm">
+					<Plus class="mr-2 h-4 w-4" />
+					Add website
+				</Button>
+			{/if}
 		</div>
 
 		<div class="grid grid-cols-1 gap-6 transition-opacity duration-200 md:grid-cols-2 lg:grid-cols-3 {isReady ? 'opacity-100' : 'opacity-0'}">

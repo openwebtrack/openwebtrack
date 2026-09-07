@@ -8,11 +8,12 @@ import type { TrackingPayload, GeoData } from '$lib/server/types';
 import { sendEmail, isEmailConfigured } from '$lib/server/email';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, count, gte, inArray } from 'drizzle-orm';
 import { json } from '@sveltejs/kit';
 import { sql } from 'drizzle-orm';
 import db from '$lib/server/db';
 import axios from 'axios';
+import { SAAS_MODE } from '$lib/config';
 
 const SPIKE_COOLDOWN_MS = 15 * 60 * 1000;
 const ORIGIN = env.ORIGIN;
@@ -389,6 +390,37 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 
 	if (!site) {
 		return json({ error: 'Website not found' }, { status: 404, headers: corsHeaders });
+	}
+
+	// SAAS: enforce monthly event quota (skip heartbeats/excluded, but count pageviews/events)
+	if (SAAS_MODE && payload.type !== 'heartbeat') {
+		const { getEntitlementForUser } = await import('$lib/server/saas/entitlements');
+		const ent = await getEntitlementForUser(site.userId);
+		if (ent.maxEventsPerMonth === 0) {
+			return json({ error: 'Event quota exceeded - subscription required' }, { status: 402, headers: corsHeaders });
+		}
+		if (Number.isFinite(ent.maxEventsPerMonth)) {
+			const startOfMonth = new Date();
+			startOfMonth.setUTCDate(1);
+			startOfMonth.setUTCHours(0, 0, 0, 0);
+			// Count events across all websites owned by this user this month
+			const owned = await db.select({ id: website.id }).from(website).where(eq(website.userId, site.userId));
+			const ownedIds = owned.map((w) => w.id);
+			if (ownedIds.length > 0) {
+				const [pv] = await db
+					.select({ count: count() })
+					.from(pageview)
+					.where(and(inArray(pageview.websiteId, ownedIds), gte(pageview.timestamp, startOfMonth)));
+				const [ev] = await db
+					.select({ count: count() })
+					.from(analyticsEvent)
+					.where(and(inArray(analyticsEvent.websiteId, ownedIds), gte(analyticsEvent.timestamp, startOfMonth)));
+				const total = (pv?.count ?? 0) + (ev?.count ?? 0);
+				if (total >= ent.maxEventsPerMonth) {
+					return json({ error: 'Monthly event quota exceeded', quota: ent.maxEventsPerMonth }, { status: 429, headers: corsHeaders });
+				}
+			}
+		}
 	}
 
 	const clientIP = getClientIP(request, socketIP);

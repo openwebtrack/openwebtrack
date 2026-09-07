@@ -52,7 +52,16 @@
 				createdWebsite = response.data;
 				step++;
 			} catch (e) {
-				error = e instanceof Error ? e.message : 'Failed to create website';
+				const axiosErr = e as { response?: { data?: { error?: string; message?: string } }; message?: string };
+				const serverMsg = axiosErr.response?.data?.error ?? axiosErr.response?.data?.message;
+				if (axiosErr.response?.status === 402) {
+					error = serverMsg ?? 'Subscription required. Please subscribe to add websites.';
+				} else if (axiosErr.response?.status === 409) {
+					error = serverMsg ?? 'Domain already registered.';
+				} else {
+					error = serverMsg ?? axiosErr.message ?? 'Failed to create website';
+				}
+				// If subscription required, offer upgrade link via error text
 			} finally {
 				isLoading = false;
 			}
@@ -134,7 +143,12 @@
 
 						{#if error}
 							<Alert.Root variant="destructive">
-								{error}
+								<div class="flex flex-col gap-2">
+									<span>{error}</span>
+									{#if error.toLowerCase().includes('subscription') || error.toLowerCase().includes('limit reached')}
+										<Button href="/account?tab=billing" size="sm" variant="outline" class="w-fit">View plans</Button>
+									{/if}
+								</div>
 							</Alert.Root>
 						{/if}
 

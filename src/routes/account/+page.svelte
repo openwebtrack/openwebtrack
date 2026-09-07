@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { User, Lock, ArrowLeft, Check, Loader2, LogOut, Bot } from 'lucide-svelte';
+	import { User, Lock, ArrowLeft, Check, Loader2, LogOut, Bot, CreditCard } from 'lucide-svelte';
 	import authClient from '$lib/auth-client';
 	import type { PageData } from './$types';
 	import { fade } from 'svelte/transition';
@@ -11,10 +11,19 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
+	import BillingTab from '$lib/components/BillingTab.svelte';
 
 	let { data }: { data: PageData } = $props();
 
-	let activeTab = $state(page.url.searchParams.get('tab') === 'password' ? 'password' : 'profile');
+	const billingTab = data.saasEnabled ? 'billing' : null;
+	let activeTab = $state(
+		(() => {
+			const t = page.url.searchParams.get('tab');
+			if (t === 'billing' && data.saasEnabled) return 'billing';
+			if (t === 'password') return 'password';
+			return 'profile';
+		})()
+	);
 
 	let name = $state('');
 	$effect(() => {
@@ -104,7 +113,8 @@
 
 	const sidebarItems = [
 		{ id: 'profile', label: 'Profile', icon: User },
-		{ id: 'password', label: 'Password', icon: Lock }
+		{ id: 'password', label: 'Password', icon: Lock },
+		...(data.saasEnabled ? [{ id: 'billing', label: 'Billing', icon: CreditCard }] : [])
 	];
 </script>
 
@@ -239,6 +249,8 @@
 							</Card.Content>
 						</Card.Root>
 					</div>
+				{:else if activeTab === 'billing' && data.saasEnabled}
+					<BillingTab tiers={data.tiers} />
 				{/if}
 			</div>
 		</div>

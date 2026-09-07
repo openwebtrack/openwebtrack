@@ -54,5 +54,8 @@ const trackingScriptPlugin = () => {
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit(), trackingScriptPlugin()],
-	server: { port: 8424 }
+	server: { port: 8424 },
+	build: {
+		target: 'esnext'
+	}
 });
