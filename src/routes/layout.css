@@ -3,11 +3,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ═══════════════════════════════════════════════════
-   Dark Mode Tokens (ink-based)
-   One ink at fixed percentages → all neutrals
-   ═══════════════════════════════════════════════════ */
-
 :root {
 	--ink: #ededed;
 
@@ -84,10 +79,6 @@
 	--spacing: 0.25rem;
 }
 
-/* ═══════════════════════════════════════════════════
-   Tailwind v4 Theme Mapping
-   ═══════════════════════════════════════════════════ */
-
 @theme inline {
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
@@ -147,10 +138,6 @@
 	--shadow-2xl: var(--shadow-2xl);
 }
 
-/* ═══════════════════════════════════════════════════
-   Base Layer
-   ═══════════════════════════════════════════════════ */
-
 @layer base {
 	* {
 		@apply border-border outline-ring/50;
@@ -168,10 +155,6 @@
 		-moz-osx-font-smoothing: grayscale;
 	}
 }
-
-/* ═══════════════════════════════════════════════════
-   Squircle Surface – continuous curvature
-   ═══════════════════════════════════════════════════ */
 
 .squircle {
 	border-radius: 50px;
@@ -192,29 +175,17 @@
 	corner-shape: squircle;
 }
 
-/* ═══════════════════════════════════════════════════
-   Glass Panel – floating chrome
-   ═══════════════════════════════════════════════════ */
-
 .glass-panel {
 	background: color-mix(in srgb, var(--card) 80%, transparent);
 	backdrop-filter: blur(24px) saturate(125%);
 	box-shadow: var(--shadow-floating);
 }
 
-/* ═══════════════════════════════════════════════════
-   Glass Card – resting surface
-   ═══════════════════════════════════════════════════ */
-
 .glass-card {
 	background: var(--card);
 	border: 1px solid var(--border);
 	box-shadow: var(--shadow-resting);
 }
-
-/* ═══════════════════════════════════════════════════
-   Pill Button – active pressed state
-   ═══════════════════════════════════════════════════ */
 
 .pill {
 	border-radius: 9999px;
@@ -225,20 +196,12 @@
 	transform: translateY(1px) scale(0.98);
 }
 
-/* ═══════════════════════════════════════════════════
-   Accent Wash Hover
-   ═══════════════════════════════════════════════════ */
-
 .wash-hover {
 	transition: background-color 0.1s ease;
 }
 .wash-hover:hover {
 	background-color: var(--accent);
 }
-
-/* ═══════════════════════════════════════════════════
-   Scrollbar
-   ═══════════════════════════════════════════════════ */
 
 ::-webkit-scrollbar {
 	width: 6px;
@@ -258,10 +221,6 @@
 	background: color-mix(in srgb, var(--ink) 24%, transparent);
 }
 
-/* ═══════════════════════════════════════════════════
-   No Scrollbar Utility
-   ═══════════════════════════════════════════════════ */
-
 .no-scrollbar {
 	scrollbar-width: none;
 	-ms-overflow-style: none;
@@ -270,10 +229,6 @@
 .no-scrollbar::-webkit-scrollbar {
 	display: none;
 }
-
-/* ═══════════════════════════════════════════════════
-   Spring Timing Functions
-   ═══════════════════════════════════════════════════ */
 
 @keyframes spring-in {
 	from {
@@ -287,8 +242,12 @@
 }
 
 @keyframes fade-in {
-	from { opacity: 0; }
-	to { opacity: 1; }
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
 }
 
 @keyframes slide-up {
@@ -301,10 +260,6 @@
 		transform: translateY(0);
 	}
 }
-
-/* ═══════════════════════════════════════════════════
-   Reduced Motion
-   ═══════════════════════════════════════════════════ */
 
 @media (prefers-reduced-motion: reduce) {
 	* {
