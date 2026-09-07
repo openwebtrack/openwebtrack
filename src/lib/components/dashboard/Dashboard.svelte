@@ -648,84 +648,77 @@
 	};
 </script>
 
-<div class="relative min-h-screen bg-background pb-32 selection:bg-primary/30">
-	<main class="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
-		<div class="glass-panel sticky top-4 z-50 mt-6 flex flex-wrap items-center gap-4 rounded-2xl border-border bg-card/60 p-2 backdrop-blur-xl">
+<div class="relative min-h-screen bg-background pb-36 selection:bg-primary/30">
+	<main class="mx-auto max-w-6xl space-y-4 px-4 pt-6 sm:px-6">
+		<div class="flex items-center justify-between">
+			<div class="flex items-center gap-3">
+				<h1 class="text-xl font-medium tracking-tight text-foreground">Overview</h1>
+			</div>
+			<div class="flex items-center gap-2">
+				<DateRangePicker value={dateRangeValue} onSelect={handleDateChange} />
+				<GranularityPicker value={granularity} onSelect={handleGranularityChange} />
+				<Button variant="secondary" size="icon-sm" onclick={refresh} disabled={isFetching}>
+					{#if isFetching}
+						<Loader2 class="h-3.5 w-3.5 animate-spin" />
+					{:else}
+						<RefreshCw class="h-3.5 w-3.5" />
+					{/if}
+				</Button>
+			</div>
+		</div>
+
+		<!-- Filter Bar -->
+		<div class="flex items-center gap-2">
 			{#if showWebsiteSwitcher && websites.length > 0}
 				<Popover.Root>
-					<Popover.Trigger class="group ml-1 flex cursor-pointer items-center rounded-xl border border-border bg-muted/50 px-2 py-1.5 pr-3 transition-colors hover:bg-muted">
-						<img src="https://icons.duckduckgo.com/ip3/{website.domain}.ico" alt={website.domain} class="mr-2 size-4" />
-						<span class="mr-2 text-sm font-semibold tracking-tight transition-colors group-hover:text-foreground">{website.domain}</span>
+					<Popover.Trigger class="group flex cursor-pointer items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent">
+						<img src="https://icons.duckduckgo.com/ip3/{website.domain}.ico" alt={website.domain} class="size-3.5" />
+						<span class="transition-colors group-hover:text-foreground">{website.domain}</span>
 						{#if !isOwner}
-							<div title="Shared">
-								<Users class="h-3 w-3 text-primary" />
-							</div>
+							<Users class="h-3 w-3 text-primary" />
 						{/if}
-						<ChevronDown class="h-3.5 w-3.5 text-muted-foreground" />
+						<ChevronDown class="h-3 w-3 text-muted-foreground" />
 					</Popover.Trigger>
-					<Popover.Content class="w-64 p-2" align="start">
-						<div class="mb-2 px-2 text-xs font-medium text-muted-foreground">Switch Website</div>
+					<Popover.Content class="w-56 p-1.5" align="start">
+						<div class="mb-1 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Switch website</div>
 						<div class="max-h-64 overflow-y-auto">
 							{#each websites as site}
 								<button
-									class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+									class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent"
 									onclick={() => {
 										if (site.id !== website.id) {
 											goto(`/dashboard/${site.id}`);
 										}
 									}}
 								>
-									<img src="https://icons.duckduckgo.com/ip3/{site.domain}.ico" alt={site.domain} class="size-4 shrink-0" />
+									<img src="https://icons.duckduckgo.com/ip3/{site.domain}.ico" alt={site.domain} class="size-3.5 shrink-0" />
 									<span class="flex-1 truncate font-medium">{site.domain}</span>
 									{#if !site.isOwner}
-										<span class="flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-											<Users class="h-2.5 w-2.5" />
+										<span class="inline-flex items-center gap-0.5 rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+											<Users class="h-2 w-2" />
 											Shared
 										</span>
 									{/if}
 									{#if site.id === website.id}
-										<Check class="h-4 w-4 text-primary" />
+										<Check class="h-3.5 w-3.5 text-primary" />
 									{/if}
 								</button>
 							{/each}
 						</div>
 						{#if isOwner}
-							<div class="mt-2 border-t pt-2">
+							<div class="mt-1 border-t border-border pt-1">
 								<button
-									class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+									class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent"
 									onclick={() => goto(`/dashboard/${website.id}/settings`)}
 								>
-									<Settings class="h-4 w-4 text-muted-foreground" />
-									<span>Website Settings</span>
+									<Settings class="h-3.5 w-3.5 text-muted-foreground" />
+									<span>Website settings</span>
 								</button>
 							</div>
 						{/if}
 					</Popover.Content>
 				</Popover.Root>
-
-				<div class="mx-2 h-6 w-px bg-border"></div>
-			{:else}
-				<div class="ml-1 flex items-center rounded-xl border border-border bg-muted/50 px-3 py-1.5">
-					<img src="https://icons.duckduckgo.com/ip3/{website.domain}.ico" alt={website.domain} class="mr-2 size-4" />
-					<span class="text-sm font-semibold tracking-tight">{website.domain}</span>
-				</div>
-				<div class="mx-2 h-6 w-px bg-border"></div>
 			{/if}
-
-			<DateRangePicker value={dateRangeValue} onSelect={handleDateChange} />
-
-			<GranularityPicker value={granularity} onSelect={handleGranularityChange} />
-
-			<div class="flex-1"></div>
-
-			<Button variant="secondary" size="icon" onclick={openRealTimeMap} title="Real-time map">
-				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24"
-					><path
-						fill="currentColor"
-						d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10s10-4.49 10-10S17.51 2 12 2M4 12c0-.9.16-1.76.43-2.57L6 11l2 2v2l2 2l1 1v1.93c-3.94-.49-7-3.86-7-7.93m14.33 4.87c-.65-.53-1.64-.87-2.33-.87v-1c0-1.1-.9-2-2-2h-4v-3c1.1 0 2-.9 2-2V7h1c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41c0 1.83-.63 3.52-1.67 4.87"
-					/></svg
-				>
-			</Button>
 
 			<FilterPicker
 				{filters}
@@ -737,69 +730,33 @@
 				onClear={() => handleClearFilters()}
 			/>
 
-			<Button variant="secondary" size="icon" onclick={refresh} class="mr-1" disabled={isFetching}>
-				{#if isFetching}
-					<Loader2 class="h-4 w-4 animate-spin" />
-				{:else}
-					<RefreshCw class="h-4 w-4" />
-				{/if}
+			<Button variant="ghost" size="sm" onclick={openRealTimeMap}>
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24">
+					<path fill="currentColor" d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10s10-4.49 10-10S17.51 2 12 2M4 12c0-.9.16-1.76.43-2.57L6 11l2 2v2l2 2l1 1v1.93c-3.94-.49-7-3.86-7-7.93m14.33 4.87c-.65-.53-1.64-.87-2.33-.87v-1c0-1.1-.9-2-2-2h-4v-3c1.1 0 2-.9 2-2V7h1c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41c0 1.83-.63 3.52-1.67 4.87" />
+				</svg>
+				Map
 			</Button>
 		</div>
 
 		{#if isLoading && !apiData}
-			<div class="mb-6 rounded-2xl border border-border bg-card p-6">
-				<div class="mb-8 grid grid-cols-2 gap-6 md:grid-cols-8">
-					<div class="relative overflow-hidden rounded-xl bg-muted/50 p-4">
-						<div class="mb-2 flex items-center justify-between">
-							<Skeleton class="h-3 w-16" />
-							<Skeleton class="h-4 w-4 rounded-full border border-blue-500" />
+			<div class="glass-card rounded-2xl p-6">
+				<div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+					{#each Array(6) as _}
+						<div class="glass-card rounded-2xl p-4">
+							<Skeleton class="mb-2 h-2.5 w-16" />
+							<Skeleton class="h-5 w-20" />
 						</div>
-						<Skeleton class="h-8 w-24" />
-					</div>
-
-					<div class="relative overflow-hidden rounded-xl bg-muted/50 p-4">
-						<div class="mb-2 flex items-center justify-between">
-							<Skeleton class="h-3 w-16" />
-							<Skeleton class="h-4 w-4 rounded-full border border-primary" />
-						</div>
-						<Skeleton class="h-8 w-16" />
-					</div>
-
-					<div class="p-4">
-						<div class="mb-2 flex items-center gap-2">
-							<Skeleton class="h-3 w-14" />
-							<Skeleton class="h-1.5 w-1.5 rounded-full" />
-						</div>
-						<Skeleton class="h-8 w-8" />
-					</div>
-
-					<div class="p-4">
-						<Skeleton class="mb-2 h-3 w-16" />
-						<Skeleton class="h-8 w-12" />
-					</div>
-
-					<div class="p-4">
-						<Skeleton class="mb-2 h-3 w-16" />
-						<Skeleton class="h-8 w-12" />
-					</div>
-
-					<div class="p-4">
-						<Skeleton class="mb-2 h-3 w-20" />
-						<Skeleton class="h-8 w-16" />
-					</div>
+					{/each}
 				</div>
-				<Skeleton class="h-[300px] w-full" />
+				<Skeleton class="h-[300px] w-full rounded-xl" />
 			</div>
 
-			<div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-				<div class="flex h-[400px] flex-col overflow-hidden rounded-2xl border border-border bg-card">
-					<div class="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-3">
-						<div class="flex items-center gap-2">
-							<Skeleton class="h-8 w-20 rounded-lg" />
-							<Skeleton class="h-8 w-20 rounded-lg" />
-							<Skeleton class="h-8 w-20 rounded-lg" />
-						</div>
-						<Skeleton class="h-7 w-7 rounded-md" />
+			<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+				<div class="glass-card flex h-[400px] flex-col overflow-hidden rounded-2xl">
+					<div class="flex items-center gap-1 border-b border-border px-4 py-2.5">
+						<Skeleton class="h-6 w-16 rounded-full" />
+						<Skeleton class="h-6 w-16 rounded-full" />
+						<Skeleton class="h-6 w-16 rounded-full" />
 					</div>
 					<div class="flex flex-1 items-center justify-center p-4">
 						<Skeleton class="h-48 w-48 rounded-full" />
@@ -809,23 +766,23 @@
 				<BarListCardSkeleton />
 			</div>
 
-			<div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+			<div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
 				<BarListCardSkeleton />
 				<BarListCardSkeleton />
 			</div>
 
-			<div class="mb-6">
+			<div>
 				<UserListSkeleton />
 			</div>
 		{:else if error && !apiData}
 			<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-				<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
-				<p>{error}</p>
-				<button onclick={refresh} class="mt-4 rounded-lg bg-secondary px-4 py-2 text-sm hover:bg-secondary/80"> Try again </button>
+				<Lightbulb class="mb-2 h-6 w-6 opacity-40" />
+				<p class="text-sm">{error}</p>
+				<button onclick={refresh} class="mt-3 rounded-full bg-secondary px-4 py-1.5 text-xs font-medium transition-colors hover:bg-accent"> Try again </button>
 			</div>
 		{:else}
 			{#if error}
-				<div class="flex items-center justify-between rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+				<div class="flex items-center justify-between rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
 					<span>{error}</span>
 					<button onclick={refresh} class="font-medium underline hover:text-destructive/80">Retry</button>
 				</div>
@@ -835,7 +792,7 @@
 				<DashboardChart timeSeries={convertedTimeSeries} stats={convertedStats} granularity={granularity.toLowerCase() as 'hourly' | 'daily' | 'weekly' | 'monthly'} {websiteCurrency} />
 			</div>
 
-			<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 				<TabbedCard
 					tabs={['Channel', 'Referrer', 'Campaign']}
 					activeTab={channelActiveTab}
@@ -855,8 +812,7 @@
 							<BarList items={topReferrers} revenueItems={convertedRevenueByReferrer} customerItems={customersByReferrer} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
-								<p>No referrers yet.</p>
+								<p class="text-sm">No referrers yet.</p>
 							</div>
 						{/if}
 					{:else if channelActiveTab === 2}
@@ -864,8 +820,7 @@
 							<BarList items={campaignData} revenueItems={convertedRevenueByCampaign} customerItems={customersByCampaign} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
-								<p>No campaign data yet.</p>
+								<p class="text-sm">No campaign data yet.</p>
 							</div>
 						{/if}
 					{/if}
@@ -890,8 +845,7 @@
 							<BarList items={topPages} revenueItems={convertedRevenueByPage} customerItems={customersByPage} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
-								<p>No pageviews yet.</p>
+								<p class="text-sm">No pageviews yet.</p>
 							</div>
 						{/if}
 					{:else if pageActiveTab === 2}
@@ -899,8 +853,7 @@
 							<BarList items={entryPages} revenueItems={convertedRevenueByEntryPage} customerItems={customersByEntryPage} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
-								<p>No entry pages yet.</p>
+								<p class="text-sm">No entry pages yet.</p>
 							</div>
 						{/if}
 					{:else if pageActiveTab === 3}
@@ -908,15 +861,14 @@
 							<BarList items={exitLinks} revenueItems={convertedRevenueByExitLink} customerItems={customersByExitLink} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
-								<p>No exit links tracked.</p>
+								<p class="text-sm">No exit links tracked.</p>
 							</div>
 						{/if}
 					{/if}
 				</TabbedCard>
 			</div>
 
-			<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 				<TabbedCard
 					tabs={['Country', 'Region', 'City']}
 					activeTab={mapActiveTab}
@@ -934,8 +886,7 @@
 							<BarList items={countryStats} revenueItems={convertedRevenueByCountry} customerItems={customersByCountry} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
-								<p>No country data yet.</p>
+								<p class="text-sm">No country data yet.</p>
 							</div>
 						{/if}
 					{:else if mapActiveTab === 1}
@@ -943,8 +894,7 @@
 							<BarList items={regionStats} revenueItems={convertedRevenueByRegion} customerItems={customersByRegion} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
-								<p>No region data yet.</p>
+								<p class="text-sm">No region data yet.</p>
 							</div>
 						{/if}
 					{:else if mapActiveTab === 2}
@@ -952,8 +902,7 @@
 							<BarList items={cityStats} revenueItems={convertedRevenueByCity} customerItems={customersByCity} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
-								<p>No city data yet.</p>
+								<p class="text-sm">No city data yet.</p>
 							</div>
 						{/if}
 					{/if}
@@ -976,8 +925,7 @@
 							<BarList items={browserStats} revenueItems={convertedRevenueByBrowser} customerItems={customersByBrowser} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
-								<p>No browser data yet.</p>
+								<p class="text-sm">No browser data yet.</p>
 							</div>
 						{/if}
 					{:else if browserActiveTab === 1}
@@ -985,8 +933,7 @@
 							<BarList items={osStats} revenueItems={convertedRevenueByOs} customerItems={customersByOs} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
-								<p>No OS data yet.</p>
+								<p class="text-sm">No OS data yet.</p>
 							</div>
 						{/if}
 					{:else if browserActiveTab === 2}
@@ -994,8 +941,7 @@
 							<BarList items={deviceTypeStats} revenueItems={convertedRevenueByDeviceType} customerItems={customersByDeviceType} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
-								<p>No device data yet.</p>
+								<p class="text-sm">No device data yet.</p>
 							</div>
 						{/if}
 					{:else if browserActiveTab === 3}
@@ -1003,19 +949,18 @@
 							<BarList items={deviceStats} revenueItems={convertedRevenueByScreen} customerItems={customersByScreen} {websiteCurrency} />
 						{:else}
 							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<Lightbulb class="mb-2 h-8 w-8 opacity-50" />
-								<p>No screen data yet.</p>
+								<p class="text-sm">No screen data yet.</p>
 							</div>
 						{/if}
 					{/if}
 				</TabbedCard>
 			</div>
 
-			<div class="mb-6">
+			<div>
 				{#snippet headerRight()}
 					<div class="relative w-full max-w-32 md:max-w-full">
-						<Search class="absolute top-1/2 left-3 h-3.5 -translate-y-1/2 text-muted-foreground " />
-						<Input type="text" bind:value={searchQuery} placeholder="Search..." class="pl-9" />
+						<Search class="absolute top-1/2 left-2.5 h-3 -translate-y-1/2 text-muted-foreground" />
+						<Input type="text" bind:value={searchQuery} placeholder="Search..." class="h-7 rounded-full pl-7 text-xs" />
 					</div>
 				{/snippet}
 				<TabbedCard

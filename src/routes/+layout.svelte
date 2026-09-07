@@ -21,4 +21,6 @@
 	<Header />
 {/if}
 
-{@render children()}
+<div class="pt-14">
+	{@render children()}
+</div>

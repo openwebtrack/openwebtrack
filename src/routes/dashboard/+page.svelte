@@ -5,7 +5,6 @@
 
 	import * as HoverCard from '$lib/components/ui/hover-card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 
 	let { data }: { data: PageData } = $props();
@@ -168,38 +167,38 @@
 </script>
 
 <div class="min-h-screen bg-background">
-	<main class="mx-auto mt-8 max-w-7xl px-4 sm:px-6 lg:px-8">
+	<main class="mx-auto max-w-6xl px-4 pb-36 pt-8 sm:px-6">
 		<div class="mb-6 flex items-center justify-between">
-			<Tabs.Root bind:value={filter} class="w-[400px]">
+			<Tabs.Root bind:value={filter}>
 				<Tabs.List>
 					<Tabs.Trigger value="all">
-						<Globe class="mr-2 h-4 w-4" />
+						<Globe class="mr-1.5 h-3.5 w-3.5" />
 						All
 					</Tabs.Trigger>
 					<Tabs.Trigger value="owned">
-						<Layout class="mr-2 h-4 w-4" />
+						<Layout class="mr-1.5 h-3.5 w-3.5" />
 						Owned
 					</Tabs.Trigger>
 					<Tabs.Trigger value="shared">
-						<Users class="mr-2 h-4 w-4" />
+						<Users class="mr-1.5 h-3.5 w-3.5" />
 						Shared
 					</Tabs.Trigger>
 				</Tabs.List>
 			</Tabs.Root>
 			{#if data.entitlement?.saasEnabled && !data.entitlement.canAddWebsite}
 				<Button href="/account?tab=billing" size="sm">
-					<Plus class="mr-2 h-4 w-4" />
+					<Plus class="mr-1 h-3.5 w-3.5" />
 					{data.entitlement.tierName ? 'Upgrade' : 'Subscribe'}
 				</Button>
 			{:else}
 				<Button href="/dashboard/new" size="sm">
-					<Plus class="mr-2 h-4 w-4" />
+					<Plus class="mr-1 h-3.5 w-3.5" />
 					Add website
 				</Button>
 			{/if}
 		</div>
 
-		<div class="grid grid-cols-1 gap-6 transition-opacity duration-200 md:grid-cols-2 lg:grid-cols-3 {isReady ? 'opacity-100' : 'opacity-0'}">
+		<div class="grid grid-cols-1 gap-3 transition-opacity duration-200 md:grid-cols-2 lg:grid-cols-3 {isReady ? 'opacity-100' : 'opacity-0'}">
 			{#each isReady ? filteredWebsites : [] as site (site.id)}
 				<div
 					role="button"
@@ -213,63 +212,62 @@
 						if (e.key === 'Enter' || e.key === ' ') handleCardClick(site.id);
 					}}
 					tabindex="0"
-					class="group relative cursor-pointer rounded-lg transition-opacity select-none {draggedId === site.id ? 'opacity-40' : 'opacity-100'} {dragOverId === site.id &&
+					class="group relative cursor-pointer rounded-2xl transition-opacity select-none {draggedId === site.id ? 'opacity-40' : 'opacity-100'} {dragOverId === site.id &&
 					draggedId !== site.id
 						? 'ring-2 ring-primary ring-offset-2 ring-offset-background'
 						: ''}"
 				>
 					<button
 						aria-label="Drag to reorder"
-						class="absolute top-2 right-2 z-20 cursor-grab rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground active:cursor-grabbing"
+						class="absolute top-2 right-2 z-20 cursor-grab rounded-full p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground active:cursor-grabbing"
 						onclick={(e) => e.stopPropagation()}
 						onmousedown={() => {
 							_canDrag = true;
 						}}
 					>
-						<GripVertical class="h-4 w-4" />
+						<GripVertical class="h-3.5 w-3.5" />
 					</button>
-					<Card.Root class="relative h-[158px] overflow-hidden transition-colors hover:bg-accent/50">
-						<Card.Content class="p-5">
-							<div class="mb-8 flex items-center gap-2">
-								<img src="https://icons.duckduckgo.com/ip3/{site.domain}.ico" alt="Icon" class="mr-1.5 size-5" />
-								<span class="text-sm font-bold">{site.domain}</span>
-								{#if !site.isOwner}
-									<HoverCard.Root>
-										<HoverCard.Trigger>
-											<span class="ml-1 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-												<Users class="h-3 w-3" />
-												Shared
-											</span>
-										</HoverCard.Trigger>
-										<HoverCard.Content side="right" align="center" class="max-w-fit">
-											<div class="text-sm">{(site.owner as any)?.name || 'Unknown'}</div>
-											<div class="text-xs text-muted-foreground">{(site.owner as any)?.email || 'Unknown'}</div>
-										</HoverCard.Content>
-									</HoverCard.Root>
-								{/if}
-							</div>
 
-							<div class="absolute right-0 bottom-10 left-0 h-12">
-								{#if site.sparkline && site.sparkline.length > 0}
-									{@const paths = generateSparkline(site.sparkline)}
-									<svg viewBox="0 0 100 20" class="h-full w-full overflow-visible" preserveAspectRatio="none">
-										<defs>
-											<linearGradient id="gradient-{site.id.replace(/[^a-zA-Z0-9]/g, '-')}" x1="0" y1="0" x2="0" y2="1">
-												<stop offset="0%" stop-color="var(--primary)" stop-opacity="0.2" />
-												<stop offset="100%" stop-color="var(--primary)" stop-opacity="0" />
-											</linearGradient>
-										</defs>
-										<path d={paths.area} fill="url(#gradient-{site.id.replace(/[^a-zA-Z0-9]/g, '-')})" />
-										<path d={paths.line} fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
-									</svg>
-								{/if}
-							</div>
+					<div class="glass-card relative h-[158px] overflow-hidden rounded-2xl p-5 transition-colors hover:bg-accent/30">
+						<div class="mb-8 flex items-center gap-2">
+							<img src="https://icons.duckduckgo.com/ip3/{site.domain}.ico" alt="Icon" class="size-5 rounded-sm" />
+							<span class="text-sm font-medium">{site.domain}</span>
+							{#if !site.isOwner}
+								<HoverCard.Root>
+									<HoverCard.Trigger>
+										<span class="ml-1 inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+											<Users class="h-2.5 w-2.5" />
+											Shared
+										</span>
+									</HoverCard.Trigger>
+									<HoverCard.Content side="right" align="center" class="max-w-fit rounded-xl border-border">
+										<div class="text-sm">{(site.owner as any)?.name || 'Unknown'}</div>
+										<div class="text-xs text-muted-foreground">{(site.owner as any)?.email || 'Unknown'}</div>
+									</HoverCard.Content>
+								</HoverCard.Root>
+							{/if}
+						</div>
 
-							<div class="relative z-10 -mt-2.5 flex items-end justify-between">
-								<span class="text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">{site.visitors24h} visitors</span>
-							</div>
-						</Card.Content>
-					</Card.Root>
+						<div class="absolute right-0 bottom-10 left-0 h-12">
+							{#if site.sparkline && site.sparkline.length > 0}
+								{@const paths = generateSparkline(site.sparkline)}
+								<svg viewBox="0 0 100 20" class="h-full w-full overflow-visible" preserveAspectRatio="none">
+									<defs>
+										<linearGradient id="gradient-{site.id.replace(/[^a-zA-Z0-9]/g, '-')}" x1="0" y1="0" x2="0" y2="1">
+											<stop offset="0%" stop-color="var(--primary)" stop-opacity="0.15" />
+											<stop offset="100%" stop-color="var(--primary)" stop-opacity="0" />
+										</linearGradient>
+									</defs>
+									<path d={paths.area} fill="url(#gradient-{site.id.replace(/[^a-zA-Z0-9]/g, '-')})" />
+									<path d={paths.line} fill="none" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+								</svg>
+							{/if}
+						</div>
+
+						<div class="relative z-10 -mt-2.5 flex items-end justify-between">
+							<span class="text-xs text-muted-foreground transition-colors group-hover:text-foreground">{site.visitors24h} visitors</span>
+						</div>
+					</div>
 				</div>
 			{/each}
 		</div>

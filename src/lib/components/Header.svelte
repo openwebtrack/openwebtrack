@@ -6,24 +6,20 @@
 	const session = authClient.useSession();
 </script>
 
-<header class="py-4 text-white">
-	<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-		<div class="flex items-center justify-between">
-			<a href="/dashboard" class="flex items-center gap-3">
-				<Logo class="h-8 w-8 text-primary" />
-				<span class="text-lg font-bold tracking-tight">OpenWebTrack</span>
-			</a>
+<header class="fixed top-0 right-0 left-0 z-50 h-14 border-b border-border bg-background/80 backdrop-blur-xl">
+	<div class="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6">
+		<a href="/dashboard" class="flex items-center gap-2.5">
+			<Logo class="size-7 text-primary" />
+			<span class="text-sm font-medium tracking-tight">OpenWebTrack</span>
+		</a>
 
-			{#if $session.data}
-				<div class="flex items-center gap-3">
-					<a class="flex items-center gap-2 transition-opacity hover:opacity-80" href="/account">
-						<img src={`https://api.dicebear.com/9.x/glass/svg?seed=owt-${$session.data.user.name}`} alt="Avatar" class="size-6 rounded-full" />
-						<span class="text-sm font-medium text-zinc-400">{$session.data.user.name}</span>
-					</a>
-				</div>
-			{:else}
-				<Button variant="ghost" href="/auth" class="text-sm text-zinc-400 hover:text-white">Sign In</Button>
-			{/if}
-		</div>
+		{#if $session.data}
+			<a class="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition-colors hover:bg-accent" href="/account">
+				<img src={`https://api.dicebear.com/9.x/glass/svg?seed=owt-${$session.data.user.name}`} alt="Avatar" class="size-7 rounded-full bg-secondary" />
+				<span class="text-xs font-medium text-muted-foreground">{$session.data.user.name}</span>
+			</a>
+		{:else}
+			<Button variant="ghost" size="sm" href="/auth">Sign in</Button>
+		{/if}
 	</div>
 </header>

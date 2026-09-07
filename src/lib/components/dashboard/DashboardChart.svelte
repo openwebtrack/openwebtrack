@@ -4,8 +4,6 @@
 	import { Tooltip } from 'chart.js';
 	import Chart from 'chart.js/auto';
 
-	// Register custom positioner to make tooltip follow mouse cursor
-	// @ts-ignore - Tooltip.positioners type doesn't include custom positioners
 	Tooltip.positioners.followMouse = function (elements: any, eventPosition: { x: number; y: number }) {
 		return {
 			x: eventPosition.x,
@@ -82,7 +80,7 @@
 		const hours = Math.floor(minutes / 60);
 		if (hours > 0) {
 			const mins = minutes % 60;
-			return `${hours}m ${mins}s`;
+			return `${hours}h ${mins}m`;
 		}
 		if (minutes > 0) {
 			const secs = seconds % 60;
@@ -97,20 +95,19 @@
 		const ctx = canvas.getContext('2d');
 		if (!ctx) return null;
 
-		// Resolve theme colors
 		const computedStyle = getComputedStyle(document.documentElement);
-		const primary = computedStyle.getPropertyValue('--primary').trim() || '#3b82f6';
-		const card = computedStyle.getPropertyValue('--card').trim() || '#fff';
-		const foreground = computedStyle.getPropertyValue('--foreground').trim() || '#000';
-		const mutedForeground = computedStyle.getPropertyValue('--muted-foreground').trim() || '#71717a';
-		const border = computedStyle.getPropertyValue('--border').trim() || '#e4e4e7';
+		const primary = computedStyle.getPropertyValue('--primary').trim() || '#296ff0';
+		const card = computedStyle.getPropertyValue('--card').trim() || '#212121';
+		const foreground = computedStyle.getPropertyValue('--foreground').trim() || '#ededed';
+		const mutedForeground = computedStyle.getPropertyValue('--muted-foreground').trim() || '#969696';
+		const border = computedStyle.getPropertyValue('--border').trim() || 'rgba(237,237,237,0.14)';
 
 		if (!timeSeries || timeSeries.length === 0) {
 			return null;
 		}
 
 		const gradientVisitors = ctx.createLinearGradient(0, 0, 0, 300);
-		gradientVisitors.addColorStop(0, `color-mix(in srgb, ${primary}, transparent 75%)`);
+		gradientVisitors.addColorStop(0, `color-mix(in srgb, ${primary}, transparent 80%)`);
 		gradientVisitors.addColorStop(1, `color-mix(in srgb, ${primary}, transparent 100%)`);
 
 		const labels = timeSeries.map((p) => formatLabel(p.date));
@@ -144,7 +141,7 @@
 
 				titleLines.forEach((title: string) => {
 					const titleDiv = document.createElement('div');
-					titleDiv.className = 'mb-2 font-medium';
+					titleDiv.className = 'mb-2 font-medium text-foreground';
 					titleDiv.textContent = title;
 					el.appendChild(titleDiv);
 				});
@@ -165,9 +162,8 @@
 					leftSide.className = 'flex items-center gap-2';
 
 					const dot = document.createElement('div');
-					dot.className = 'h-2 w-2 rounded-full';
+					dot.className = 'h-1.5 w-1.5 rounded-full';
 					dot.style.backgroundColor = colors.borderColor;
-					dot.style.boxShadow = `0 0 8px color-mix(in srgb, ${colors.borderColor}, transparent 20%)`;
 
 					const labelSpan = document.createElement('span');
 					labelSpan.textContent = label;
@@ -176,7 +172,7 @@
 					leftSide.appendChild(labelSpan);
 
 					const valueSpan = document.createElement('span');
-					valueSpan.className = 'font-medium text-foreground';
+					valueSpan.className = 'font-medium tabular-nums text-foreground';
 					valueSpan.textContent = value;
 
 					row.appendChild(leftSide);
@@ -184,7 +180,6 @@
 					bodyContainer.appendChild(row);
 				});
 
-				// Calculate and add Revenue per Visitor to tooltip
 				const visitorsIndex = bodyLines.findIndex((b: string[]) => b[0] && b[0].toLowerCase().includes('visitors'));
 				const revenueIndex = bodyLines.findIndex((b: string[]) => b[0] && b[0].toLowerCase().includes('revenue'));
 				const customersIndex = bodyLines.findIndex((b: string[]) => b[0] && b[0].toLowerCase().includes('customers'));
@@ -194,7 +189,6 @@
 					const visitorsValue = parseFloat(visitorsText.replace(/,/g, ''));
 
 					if (visitorsValue > 0) {
-						// Revenue section
 						if (revenueIndex !== -1) {
 							const revenueText = bodyLines[revenueIndex][0].split(': ')[1];
 							const revenueValue = parseFloat(revenueText.replace(/[^0-9.]/g, '')) * 100;
@@ -209,7 +203,7 @@
 							rpvLabel.textContent = 'Rev / Visitor';
 
 							const rpvValue = document.createElement('span');
-							rpvValue.className = 'font-medium text-foreground';
+							rpvValue.className = 'font-medium tabular-nums text-foreground';
 							rpvValue.textContent = `${currencySymbol}${rpvText}`;
 
 							rpvRow.appendChild(rpvLabel);
@@ -217,7 +211,6 @@
 							bodyContainer.appendChild(rpvRow);
 						}
 
-						// Conversion section
 						const conversionRow = document.createElement('div');
 						conversionRow.className = 'flex items-center justify-between gap-4 text-xs text-muted-foreground';
 						if (revenueIndex === -1) {
@@ -225,10 +218,10 @@
 						}
 
 						const conversionLabel = document.createElement('span');
-						conversionLabel.textContent = 'Conversion Rate';
+						conversionLabel.textContent = 'Conv. rate';
 
 						const conversionValue = document.createElement('span');
-						conversionValue.className = 'font-medium text-foreground';
+						conversionValue.className = 'font-medium tabular-nums text-foreground';
 
 						if (customersIndex !== -1) {
 							const customersText = bodyLines[customersIndex][0].split(': ')[1];
@@ -265,13 +258,13 @@
 						data: showVisitors ? visitorsData : [],
 						borderColor: primary,
 						backgroundColor: gradientVisitors,
-						borderWidth: 2,
+						borderWidth: 1.5,
 						tension: 0.4,
 						pointRadius: 0,
-						pointHoverRadius: 6,
+						pointHoverRadius: 4,
 						hoverBackgroundColor: primary,
 						hoverBorderColor: '#fff',
-						hoverBorderWidth: 2,
+						hoverBorderWidth: 1.5,
 						fill: true,
 						yAxisID: 'y'
 					},
@@ -289,10 +282,10 @@
 									label: 'Revenue',
 									type: 'bar' as const,
 									data: revenueData,
-									backgroundColor: '#60a5fa',
+									backgroundColor: 'rgba(96, 165, 250, 0.4)',
 									borderRadius: 2,
-									borderColor: '#60a5fa',
-									hoverBackgroundColor: '#60a5fa',
+									borderColor: 'rgba(96, 165, 250, 0.6)',
+									hoverBackgroundColor: 'rgba(96, 165, 250, 0.6)',
 									hoverBorderColor: '#fff',
 									barPercentage: 1,
 									categoryPercentage: 1,
@@ -345,8 +338,12 @@
 						},
 						ticks: {
 							color: mutedForeground,
+							font: { size: 11 },
 							maxTicksLimit: maxTicksLimit,
 							autoSkip: true
+						},
+						border: {
+							display: false
 						}
 					},
 					y: {
@@ -357,6 +354,7 @@
 						},
 						ticks: {
 							color: mutedForeground,
+							font: { size: 11 },
 							stepSize: 1
 						},
 						border: {
@@ -372,7 +370,8 @@
 										display: false
 									},
 									ticks: {
-										color: '#60a5fa',
+										color: 'rgba(96, 165, 250, 0.7)',
+										font: { size: 11 },
 										callback: ((value: string | number) => {
 											const isZero =
 												websiteCurrency === 'JPY' ||
@@ -450,74 +449,68 @@
 </script>
 
 <div class="rounded-2xl border border-border bg-card p-6">
-	<div class="mb-8 grid grid-cols-2 gap-6 md:grid-cols-8">
-		<button class="relative cursor-pointer overflow-hidden rounded-xl bg-muted/50 p-4 transition-all hover:bg-muted" onclick={() => (showRevenue = !showRevenue)}>
+	<!-- Stat Row – 5 cards in a row with info icons -->
+	<div class="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+		<button class="group cursor-pointer rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-accent/20" onclick={() => (showVisitors = !showVisitors)}>
 			<div class="mb-2 flex items-center justify-between">
-				<span class="text-xs font-medium text-muted-foreground">Revenue</span>
-				<div class={cn('size-4 rounded-full border border-blue-400', showRevenue && 'bg-blue-400')}></div>
+				<span class="text-xs text-muted-foreground">Visitors</span>
+				<svg class="h-3.5 w-3.5 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
 			</div>
-			<div class="text-left text-2xl font-bold tracking-tight">
-				{currencySymbol}{isZeroDecimal ? Math.round((stats.revenue || 0) / 100).toLocaleString() : ((stats.revenue || 0) / 100).toFixed(2)}
+			<div class="flex items-center gap-2">
+				<span class="text-2xl font-medium tabular-nums tracking-tight">{stats.visitors.toLocaleString()}</span>
+				<div class={cn('h-4 w-4 rounded-full border-2', showVisitors ? 'border-primary bg-primary' : 'border-muted-foreground/30')}></div>
 			</div>
 		</button>
 
-		<button class="relative cursor-pointer overflow-hidden rounded-xl bg-muted/50 p-4 transition-all hover:bg-muted" onclick={() => (showVisitors = !showVisitors)}>
+		<button class="group cursor-pointer rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-accent/20" onclick={() => (showRevenue = !showRevenue)}>
 			<div class="mb-2 flex items-center justify-between">
-				<span class="text-xs font-medium text-muted-foreground">Visitors</span>
-				<div class={cn('size-4 rounded-full border border-primary', showVisitors && 'bg-primary')}></div>
+				<span class="text-xs text-muted-foreground">Revenue</span>
+				<svg class="h-3.5 w-3.5 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
 			</div>
-			<div class="text-left text-2xl font-bold tracking-tight">{stats.visitors}</div>
+			<div class="flex items-center gap-2">
+				<span class="text-2xl font-medium tabular-nums tracking-tight">{currencySymbol}{isZeroDecimal ? Math.round((stats.revenue || 0) / 100).toLocaleString() : ((stats.revenue || 0) / 100).toFixed(2)}</span>
+				<div class={cn('h-4 w-4 rounded-full border-2', showRevenue ? 'border-[#60a5fa] bg-[#60a5fa]' : 'border-muted-foreground/30')}></div>
+			</div>
 		</button>
 
-		<div class="p-4">
-			<div class="mb-2 flex items-center gap-2">
-				<span class="text-xs font-medium text-muted-foreground">Online</span>
-				<div class="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
+		<div class="rounded-xl border border-border bg-card p-4">
+			<div class="mb-2 flex items-center justify-between">
+				<span class="text-xs text-muted-foreground">Online</span>
+				<div class="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"></div>
 			</div>
-			<div class="text-2xl font-bold tracking-tight">{stats.online}</div>
+			<span class="text-2xl font-medium tabular-nums tracking-tight">{stats.online}</span>
 		</div>
 
-		<div class="p-4">
-			<div class="mb-2">
-				<span class="text-xs font-medium text-muted-foreground">Rev / Visitor</span>
+		<div class="rounded-xl border border-border bg-card p-4">
+			<div class="mb-2 flex items-center justify-between">
+				<span class="text-xs text-muted-foreground">Rev / visitor</span>
+				<svg class="h-3.5 w-3.5 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
 			</div>
-			<div class="text-2xl font-bold">
+			<span class="text-2xl font-medium tabular-nums tracking-tight">
 				{currencySymbol}{isZeroDecimal ? Math.round((stats.revenuePerVisitor || 0) / 100).toLocaleString() : ((stats.revenuePerVisitor || 0) / 100).toFixed(2)}
-			</div>
+			</span>
 		</div>
 
-		<div class="p-4">
-			<div class="mb-2">
-				<span class="text-xs font-medium text-muted-foreground">Conv. Rate</span>
+		<div class="rounded-xl border border-border bg-card p-4">
+			<div class="mb-2 flex items-center justify-between">
+				<span class="text-xs text-muted-foreground">Avg. visit</span>
+				<svg class="h-3.5 w-3.5 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
 			</div>
-			<div class="text-2xl font-bold">{(stats.conversionRate || 0).toFixed(2)}%</div>
-		</div>
-
-		<div class="p-4">
-			<div class="mb-2">
-				<span class="text-xs font-medium text-muted-foreground">Sessions</span>
-			</div>
-			<div class="text-2xl font-bold">{stats.sessions}</div>
-		</div>
-
-		<div class="p-4">
-			<div class="mb-2">
-				<span class="text-xs font-medium text-muted-foreground">Session time</span>
-			</div>
-			<div class="text-2xl font-bold">{formatDuration(stats.avgSessionDuration)}</div>
+			<span class="text-2xl font-medium tabular-nums tracking-tight">{formatDuration(stats.avgSessionDuration)}</span>
 		</div>
 	</div>
 
+	<!-- Chart -->
 	<div class="relative h-[300px] w-full">
 		<canvas bind:this={canvas}></canvas>
 		<div
 			bind:this={tooltipEl}
-			class="pointer-events-none absolute z-50 min-w-[140px] rounded-lg border border-border bg-popover px-3 py-2 text-sm text-popover-foreground shadow-xl transition-opacity duration-200"
+			class="pointer-events-none absolute z-50 min-w-[140px] rounded-xl border border-border bg-popover px-3 py-2 text-sm text-popover-foreground shadow-floating transition-opacity duration-200"
 			style="opacity: 0; transform: translate(-50%, -100%) translateY(-8px);"
 		></div>
 		{#if !timeSeries || timeSeries.length === 0}
 			<div class="absolute inset-0 flex items-center justify-center text-muted-foreground">
-				<p>No data for selected period</p>
+				<p class="text-sm">No data for selected period</p>
 			</div>
 		{/if}
 	</div>

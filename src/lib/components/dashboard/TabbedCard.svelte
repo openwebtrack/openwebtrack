@@ -19,35 +19,39 @@
 
 <div class="flex h-[400px] max-h-[400px] min-h-[400px] flex-col overflow-hidden rounded-2xl border border-border bg-card {className}">
 	<Tabs.Root value={activeTab.toString()} onValueChange={(v) => onTabChange(parseInt(v))} class="flex h-full flex-col">
-		<div class="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-3">
-			<Tabs.List class="no-scrollbar flex items-center gap-2 overflow-x-auto">
-				{#each tabs as tab, index}
-					<Tabs.Trigger
-						value={index.toString()}
-						class="rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground data-[state=active]:bg-muted data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-border"
-					>
-						{tab}
-					</Tabs.Trigger>
-				{/each}
-			</Tabs.List>
+		<!-- Header strip – mini card pattern -->
+		<div class="flex items-center justify-between border-b border-border px-4 py-2.5">
 			<div class="flex items-center gap-2">
+				<Tabs.List class="flex items-center gap-1">
+					{#each tabs as tab, index}
+						<Tabs.Trigger
+							value={index.toString()}
+							class="rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap text-muted-foreground transition-all duration-150 hover:text-foreground data-[state=active]:bg-secondary data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+						>
+							{tab}
+						</Tabs.Trigger>
+					{/each}
+				</Tabs.List>
+			</div>
+			<div class="flex items-center gap-1">
 				{#if headerRight}
 					{@render headerRight()}
 				{/if}
 
 				{#if onDetails}
 					<button
-						class="group flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+						class="group flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
 						onclick={onDetails}
-						aria-label="View details"
 					>
-						<Scan class="h-3.5 w-3.5 opacity-70 transition-opacity group-hover:opacity-100" />
+						See all
+						<span class="transition-transform group-hover:translate-x-0.5">&rsaquo;</span>
 					</button>
 				{/if}
 			</div>
 		</div>
 
-		<div class="relative flex-1 overflow-y-auto p-4">
+		<!-- Inner content area – grey inset -->
+		<div class="relative flex-1 overflow-y-auto bg-muted/20 p-4">
 			{#if children}
 				{@render children()}
 			{/if}

@@ -6,35 +6,30 @@
 	const isPositive = $derived(change >= 0);
 </script>
 
-<div class="glass-card group relative overflow-hidden rounded-2xl p-6">
-	<!-- Ambient Background Glow -->
-	<div class="absolute -top-6 -right-6 h-24 w-24 rounded-full bg-primary/10 blur-2xl transition-all duration-500 group-hover:bg-primary/20"></div>
-
-	<div class="relative z-10 flex items-start justify-between">
+<div class="glass-card group relative overflow-hidden rounded-2xl p-4 transition-colors hover:bg-accent/30">
+	<div class="flex items-start justify-between">
 		<div>
-			<p class="text-sm font-medium text-zinc-400 transition-colors group-hover:text-zinc-300">{title}</p>
-			<h3 class="mt-2 text-3xl font-bold tracking-tight text-white">{value}</h3>
+			<p class="text-xs font-medium text-muted-foreground">{title}</p>
+			<h3 class="mt-1 text-2xl font-medium tracking-tight tabular-nums text-foreground">{value}</h3>
 		</div>
 		{#if Icon}
-			<div class="rounded-xl bg-white/5 p-3 text-zinc-400 ring-1 ring-white/10 transition-colors group-hover:text-white group-hover:ring-primary/30">
-				<Icon class="h-5 w-5" />
+			<div class="rounded-lg bg-muted p-2 text-muted-foreground transition-colors group-hover:text-foreground">
+				<Icon class="h-4 w-4" />
 			</div>
 		{/if}
 	</div>
 
-	<div class="relative z-10 mt-4 flex items-center">
-		{#if change !== 0}
-			<div
-				class={`flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${isPositive ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20' : 'bg-rose-500/10 text-rose-400 ring-rose-500/20'}`}
-			>
+	{#if change !== 0}
+		<div class="mt-3 flex items-center gap-2">
+			<div class={`flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
 				{#if isPositive}
-					<ArrowUp class="mr-1 h-3 w-3" />
+					<ArrowUp class="h-2.5 w-2.5" />
 				{:else}
-					<ArrowDown class="mr-1 h-3 w-3" />
+					<ArrowDown class="h-2.5 w-2.5" />
 				{/if}
 				{Math.abs(change)}%
 			</div>
-			<span class="ml-2 text-xs text-zinc-500">vs last period</span>
-		{/if}
-	</div>
+			<span class="text-[10px] text-muted-foreground">vs last period</span>
+		</div>
+	{/if}
 </div>
