@@ -6,7 +6,7 @@
 	const session = authClient.useSession();
 </script>
 
-<header class="fixed top-0 right-0 left-0 z-50 h-14 border-b border-border bg-background/80 backdrop-blur-xl">
+<header class="h-14 w-full">
 	<div class="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6">
 		<a href="/dashboard" class="flex items-center gap-2.5">
 			<Logo class="size-7 text-primary" />
@@ -14,7 +14,7 @@
 		</a>
 
 		{#if $session.data}
-			<a class="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition-colors hover:bg-accent" href="/account">
+			<a class="flex items-center gap-2 rounded-full py-1 pr-3 pl-1 transition-colors hover:bg-accent" href="/account">
 				<img src={`https://api.dicebear.com/9.x/glass/svg?seed=owt-${$session.data.user.name}`} alt="Avatar" class="size-7 rounded-full bg-secondary" />
 				<span class="text-xs font-medium text-muted-foreground">{$session.data.user.name}</span>
 			</a>

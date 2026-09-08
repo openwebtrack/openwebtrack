@@ -10,6 +10,9 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import DottedBackground from '$lib/components/DottedBackground.svelte';
+	import Logo from '$lib/components/Logo.svelte';
+	import { SAAS_MODE } from '$lib/config';
 
 	let authConfig = $state({ googleEnabled: false });
 	let isSignUp = $state(false);
@@ -75,9 +78,17 @@
 	});
 </script>
 
-<div class="flex min-h-screen items-center justify-center bg-background">
-	<div class="w-full max-w-md p-8">
-		<Card.Root class="border-border">
+<div class="relative flex min-h-dvh overflow-hidden items-center justify-center bg-background">
+	<DottedBackground pattern="blobs" seed={21} color="primary" />
+	<div class="relative w-full max-w-md p-8">
+		<a href="/dashboard" class="mb-6 flex items-center justify-center gap-2.5">
+			<Logo class="size-8 text-primary" />
+			<span class="text-base font-medium tracking-tight">OpenWebTrack</span>
+		</a>
+		<Card.Root
+			class="border-border/40 shadow-floating backdrop-blur-2xl"
+			style="background-color: color-mix(in srgb, var(--card) 35%, transparent);"
+		>
 			<Card.Header class="text-center">
 				<Card.Title class="text-2xl">{isSignUp ? 'Create Account' : 'Sign In'}</Card.Title>
 				<Card.Description>
@@ -138,6 +149,27 @@
 
 					Sign {isSignUp ? 'up' : 'in'} with Google</Button
 				>
+
+				{#if SAAS_MODE}
+					<p class="mt-4 text-center text-xs text-muted-foreground">
+						By continuing you agree to our
+						<a
+							href="https://openwebtrack.one/legal/terms"
+							target="_blank"
+							rel="noopener noreferrer"
+							class="underline underline-offset-4 hover:text-foreground"
+						>Terms</a
+						>
+						and
+						<a
+							href="https://openwebtrack.one/legal/privacy"
+							target="_blank"
+							rel="noopener noreferrer"
+							class="underline underline-offset-4 hover:text-foreground"
+						>Privacy Policy</a
+						>.
+					</p>
+				{/if}
 			</Card.Content>
 		</Card.Root>
 	</div>

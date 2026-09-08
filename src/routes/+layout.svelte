@@ -8,6 +8,7 @@
 	let { children, data }: { children: any; data: LayoutData } = $props();
 
 	const isWidget = $derived($page.url.pathname.startsWith('/widget/'));
+	const isAuth = $derived($page.url.pathname.startsWith('/auth'));
 </script>
 
 <svelte:head>
@@ -17,10 +18,10 @@
 	{/if}
 </svelte:head>
 
-{#if $page.url.pathname !== '/demo' && !isWidget}
+{#if $page.url.pathname !== '/demo' && !isWidget && !isAuth}
 	<Header />
 {/if}
 
-<div class="pt-14">
+<div>
 	{@render children()}
 </div>
