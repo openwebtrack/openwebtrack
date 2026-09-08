@@ -33,7 +33,6 @@ export const polarPlugins = [
 			webhooks({
 				secret: env.POLAR_WEBHOOK_SECRET || '',
 				onSubscriptionActive: async (payload) => {
-					console.log('[polar] subscription active', payload);
 					const { clearEntitlementCache } = await import('$lib/server/saas/entitlements');
 					clearEntitlementCache();
 				},

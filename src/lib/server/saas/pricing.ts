@@ -40,7 +40,6 @@ const TIER_DEFAULTS: Record<string, Omit<PricingTier, 'slug' | 'productId' | 'na
 			'10+ members per website',
 			'Everything in Starter',
 			'12 months data retention',
-			'API access & exports',
 			'Priority support'
 		]
 	}
