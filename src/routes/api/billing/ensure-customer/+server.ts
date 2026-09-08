@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { ensurePolarCustomer } from '$lib/server/saas/ensureCustomer';
+import { ensureStripeCustomer } from '$lib/server/saas/ensureCustomer';
 import { SAAS_MODE } from '$lib/config';
 
 export const POST: RequestHandler = async ({ locals }) => {
@@ -8,7 +8,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 	if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 });
 
 	try {
-		const result = await ensurePolarCustomer({
+		const result = await ensureStripeCustomer({
 			id: locals.user.id,
 			email: locals.user.email,
 			name: locals.user.name

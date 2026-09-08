@@ -1,5 +1,5 @@
 import { SAAS_MODE } from '$lib/config';
-import { PRICING_TIERS, POLAR_PRODUCT_MAP } from '$lib/server/saas/pricing';
+import { PRICING_TIERS, getTierByPlanName } from '$lib/server/saas/pricing';
 
 export type Entitlement = {
 	tierSlug: string | null;
@@ -39,7 +39,7 @@ const UNLIMITED_ENTITLEMENT: Entitlement = {
 
 const GRACE_DAYS = 5;
 
-// Simple in-memory cache to avoid hammering Polar on every track request
+// Simple in-memory cache to avoid hitting the DB on every track request
 const cache = new Map<string, { ent: Entitlement; expiresAt: number }>();
 const CACHE_TTL_MS = 10_000;
 
@@ -60,32 +60,48 @@ function entitlementForSlug(slug: string | null): Entitlement {
 	};
 }
 
-async function getLastSubscriptionEnd(userId: string): Promise<Date | null> {
-	try {
-		const { polarClient } = await import('$lib/server/saas/polar');
-		// List all subscriptions for this external customer (including inactive/cancelled)
-		const res = await polarClient.subscriptions.list({
-			externalCustomerId: userId
-		});
-		// SDK returns PageIterator, unwrap
-		const items: Array<{ endsAt?: string | Date | null; currentPeriodEnd?: string | Date | null; status?: string; modifiedAt?: string | Date | null }> =
-			(res as unknown as { result?: { items?: unknown[] }; items?: unknown[] }).result?.items as never ??
-			(res as unknown as { items?: unknown[] }).items as never ??
-			[];
-		if (!items.length) return null;
-		// Find most recent end date
-		let latest: Date | null = null;
-		for (const s of items) {
-			const raw = (s.endsAt ?? s.currentPeriodEnd ?? s.modifiedAt) as string | Date | null | undefined;
-			if (!raw) continue;
-			const d = raw instanceof Date ? raw : new Date(raw);
-			if (isNaN(d.getTime())) continue;
-			if (!latest || d > latest) latest = d;
-		}
-		return latest;
-	} catch {
-		return null;
+type SubscriptionRow = {
+	plan: string;
+	status: string;
+	referenceId: string;
+	periodEnd: Date | null;
+	endedAt: Date | null;
+	canceledAt: Date | null;
+	cancelAt: Date | null;
+	cancelAtPeriodEnd: boolean | null;
+};
+
+async function getSubscriptionsForUser(userId: string): Promise<SubscriptionRow[]> {
+	const db = (await import('$lib/server/db')).default;
+	const { subscription } = await import('$lib/server/db/auth.schema');
+	const { eq } = await import('drizzle-orm');
+	const rows = await db
+		.select({
+			plan: subscription.plan,
+			status: subscription.status,
+			referenceId: subscription.referenceId,
+			periodEnd: subscription.periodEnd,
+			endedAt: subscription.endedAt,
+			canceledAt: subscription.canceledAt,
+			cancelAt: subscription.cancelAt,
+			cancelAtPeriodEnd: subscription.cancelAtPeriodEnd
+		})
+		.from(subscription)
+		.where(eq(subscription.referenceId, userId));
+	return rows as SubscriptionRow[];
+}
+
+function getLastSubscriptionEnd(subs: SubscriptionRow[]): Date | null {
+	if (!subs.length) return null;
+	let latest: Date | null = null;
+	for (const s of subs) {
+		const raw = s.endedAt ?? s.periodEnd ?? s.cancelAt ?? s.canceledAt;
+		if (!raw) continue;
+		const d = raw instanceof Date ? raw : new Date(raw);
+		if (isNaN(d.getTime())) continue;
+		if (!latest || d > latest) latest = d;
 	}
+	return latest;
 }
 
 export async function getEntitlementForUser(userId: string): Promise<Entitlement> {
@@ -96,27 +112,26 @@ export async function getEntitlementForUser(userId: string): Promise<Entitlement
 
 	let ent: Entitlement = FREE_ENTITLEMENT;
 	try {
-		const { polarClient } = await import('$lib/server/saas/polar');
-		const state = await polarClient.customers.getStateExternal({ externalId: userId });
-		const active = (state as unknown as { activeSubscriptions?: Array<{ productId?: string; status: string }> }).activeSubscriptions ?? [];
-		const activeSub = active.find((s) => s.status === 'active');
-		if (activeSub?.productId) {
-			// Try map first, then direct tier lookup by productId
-			let slug = Object.entries(POLAR_PRODUCT_MAP).find(([, pid]) => pid === activeSub.productId)?.[0] ?? null;
-			if (!slug) {
-				const direct = PRICING_TIERS.find((t) => t.productId === activeSub.productId);
-				if (direct) slug = direct.slug;
-			}
-			ent = entitlementForSlug(slug);
-			// Fallback: active subscription exists but tier not configured -> grant starter limits instead of free
+		const subs = await getSubscriptionsForUser(userId);
+		const activeSub = subs.find((s) => s.status === 'active' || s.status === 'trialing');
+
+		if (activeSub) {
+			const tier = getTierByPlanName(activeSub.plan);
+			ent = entitlementForSlug(tier?.slug ?? null);
+			// Fallback: active subscription exists but tier not configured -> grant first tier limits instead of free
 			if (!ent.hasSubscription) {
-				console.warn('[entitlement] active subscription with unknown productId', activeSub.productId, 'available tiers', PRICING_TIERS.map((t) => t.productId));
+				console.warn(
+					'[entitlement] active subscription with unknown plan',
+					activeSub.plan,
+					'available tiers',
+					PRICING_TIERS.map((t) => t.slug)
+				);
 				const fallback = PRICING_TIERS[0];
 				if (fallback) ent = entitlementForSlug(fallback.slug);
 			}
 		} else {
 			// No active subscription - check if they ever had one
-			const lastEnd = await getLastSubscriptionEnd(userId);
+			const lastEnd = getLastSubscriptionEnd(subs);
 			if (!lastEnd) {
 				// Never subscribed -> free but dashboard NOT locked (so they can subscribe)
 				ent = { ...FREE_ENTITLEMENT, dashboardLocked: false, graceDaysRemaining: null, expiredAt: null };
@@ -133,7 +148,7 @@ export async function getEntitlementForUser(userId: string): Promise<Entitlement
 			}
 		}
 	} catch {
-		// 404 or network -> treat as never-subscribed free (dashboard open so they can subscribe)
+		// DB error -> treat as never-subscribed free (dashboard open so they can subscribe)
 		ent = { ...FREE_ENTITLEMENT, dashboardLocked: false, graceDaysRemaining: null, expiredAt: null };
 	}
 

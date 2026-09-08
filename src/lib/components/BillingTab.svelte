@@ -1,15 +1,19 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { CreditCard, ExternalLink, Loader2, AlertCircle, Check, RefreshCw } from 'lucide-svelte';
+	import { CreditCard, ExternalLink, Loader2, AlertCircle, Check, RefreshCw, X } from 'lucide-svelte';
+	import { replaceState } from '$app/navigation';
+	import { page } from '$app/state';
 	import authClient from '$lib/auth-client';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
-	import { fade } from 'svelte/transition';
+	import { fade, fly } from 'svelte/transition';
 
 	type Tier = {
 		slug: string;
-		productId: string;
+		priceId: string;
+		// legacy Polar field, kept for backwards-compat display
+		productId?: string;
 		name: string;
 		price: string;
 		featured?: boolean;
@@ -20,23 +24,20 @@
 	};
 	let { tiers = [] }: { tiers: Tier[] } = $props();
 
-	type CustomerState = {
-		activeSubscriptions?: Array<{
-			id: string;
-			status: string;
-			productId?: string;
-			product?: { name?: string };
-			currentPeriodEnd?: string;
-			cancelAtPeriodEnd?: boolean;
-			canceledAt?: string | null;
-		}>;
-		// fallback shape from /customer/state
-		[k: string]: unknown;
+	type Subscription = {
+		id: string;
+		plan: string;
+		status: string;
+		stripeSubscriptionId?: string | null;
+		periodEnd?: string | null;
+		cancelAtPeriodEnd?: boolean | null;
+		canceledAt?: string | null;
+		endedAt?: string | null;
 	};
 
 	let loading = $state(true);
 	let error = $state('');
-	let customerState = $state<CustomerState | null>(null);
+	let subscriptions = $state<Subscription[]>([]);
 	let entitlement = $state<{
 		dashboardLocked: boolean;
 		graceDaysRemaining: number | null;
@@ -45,17 +46,17 @@
 	let actionLoading = $state<string | null>(null);
 	let actionError = $state('');
 	let actionSuccess = $state('');
+	let showCheckoutToast = $state(false);
+	let toastTimeout: ReturnType<typeof setTimeout> | null = null;
 
-	const activeSub = $derived(customerState?.activeSubscriptions?.[0] ?? null);
+	const activeSub = $derived(
+		subscriptions.find((s) => s.status === 'active' || s.status === 'trialing') ?? null
+	);
 
-	const tierByProductId = (productId?: string) => tiers.find((t) => t.productId === productId) ?? null;
-
-	// better-auth polar does not expose productId mapping client-side, so match by slug/name if needed
+	// better-auth stripe stores the plan as the lower-cased tier slug
 	const isCurrentTier = (tier: Tier) => {
 		if (!activeSub) return false;
-		if ((activeSub as { productId?: string }).productId === tier.productId) return true;
-		const subProductName = (activeSub.product as { name?: string } | undefined)?.name?.toLowerCase();
-		return tier.name.toLowerCase() === subProductName || tier.slug.toLowerCase() === subProductName;
+		return activeSub.plan?.toLowerCase() === tier.slug.toLowerCase();
 	};
 
 	async function fetchState(showLoading = true) {
@@ -63,31 +64,24 @@
 		error = '';
 		try {
 			const anyClient = authClient as unknown as {
-				customer?: { state?: (opts?: unknown) => Promise<{ data: CustomerState | null; error?: unknown }> };
+				subscription?: {
+					list?: (
+						opts?: unknown
+					) => Promise<{ data: Subscription[] | null; error?: { message?: string } | null }>;
+				};
 			};
-			let rawError: unknown = null;
-			if (anyClient.customer?.state) {
-				const res = await anyClient.customer.state();
-				if (res.error) rawError = res.error;
-				else customerState = (res.data as CustomerState) ?? { activeSubscriptions: [] };
+			let list: Subscription[] | null = null;
+			if (anyClient.subscription?.list) {
+				const res = await anyClient.subscription.list();
+				if (res.error) throw new Error(res.error.message ?? 'Failed to load subscriptions');
+				list = res.data ?? [];
 			} else {
-				const res = await fetch('/api/auth/customer/state');
-				if (!res.ok) rawError = { message: await res.text() };
-				else customerState = (await res.json()) as CustomerState;
+				const res = await fetch('/api/auth/subscription/list');
+				if (!res.ok) throw new Error(await res.text());
+				const json = await res.json();
+				list = Array.isArray(json) ? json : (json?.data ?? []);
 			}
-			if (rawError) {
-				const msg = String((rawError as { message?: string })?.message ?? rawError);
-				const isNotFound = /ResourceNotFound|Subscriptions list failed|Not found/i.test(msg);
-				if (isNotFound) {
-					try {
-						await fetch('/api/billing/ensure-customer', { method: 'POST' });
-					} catch {}
-					customerState = { activeSubscriptions: [] };
-					// still fetch entitlement for grace
-				} else {
-					throw new Error(msg);
-				}
-			}
+			subscriptions = list ?? [];
 			// Fetch entitlement for grace/locked banner
 			try {
 				const r = await fetch('/api/billing/entitlement');
@@ -109,7 +103,28 @@
 		}
 	}
 
-	onMount(fetchState);
+	onMount(() => {
+		// Stripe redirects back here after checkout — show a toast instead of a success page
+		if (page.url.searchParams.get('checkout') === 'success') {
+			showCheckoutToast = true;
+			if (toastTimeout) clearTimeout(toastTimeout);
+			toastTimeout = setTimeout(() => (showCheckoutToast = false), 6000);
+			// Strip the param once the router is ready (replaceState throws if called too early)
+			let attempts = 0;
+			const stripParam = () => {
+				try {
+					const url = new URL(page.url);
+					url.searchParams.delete('checkout');
+					replaceState(url, {});
+				} catch {
+					if (attempts++ < 20) setTimeout(stripParam, 50);
+					else window.history.replaceState({}, '', new URL(page.url).pathname + '?tab=billing');
+				}
+			};
+			setTimeout(stripParam, 0);
+		}
+		fetchState();
+	});
 
 	async function handleCheckout(slug: string) {
 		actionLoading = `checkout-${slug}`;
@@ -117,19 +132,29 @@
 		actionSuccess = '';
 		try {
 			const anyClient = authClient as unknown as {
-				checkout?: (p: { slug: string }) => Promise<{ data?: { url: string }; error?: { message?: string } }>;
+				subscription?: {
+					upgrade?: (p: Record<string, unknown>) => Promise<{
+						data?: { url?: string; redirect?: boolean };
+						error?: { message?: string } | null;
+					}>;
+				};
 			};
-			// better-auth polar checkout is exposed at /api/auth/checkout via server plugin
-			// try client method first, fallback to fetch
-			if (anyClient.checkout) {
-				const res = await anyClient.checkout({ slug });
+			const successUrl = '/account?tab=billing&checkout=success';
+			const cancelUrl = '/account?tab=billing';
+			if (anyClient.subscription?.upgrade) {
+				const res = await anyClient.subscription.upgrade({
+					plan: slug.toLowerCase(),
+					successUrl,
+					cancelUrl
+				});
 				if (res.error) throw new Error(res.error.message);
 				if (res.data?.url) window.location.href = res.data.url;
+				else throw new Error('No checkout URL');
 			} else {
-				const res = await fetch('/api/auth/checkout', {
+				const res = await fetch('/api/auth/subscription/upgrade', {
 					method: 'POST',
 					headers: { 'content-type': 'application/json' },
-					body: JSON.stringify({ slug })
+					body: JSON.stringify({ plan: slug.toLowerCase(), successUrl, cancelUrl })
 				});
 				const json = await res.json();
 				if (!res.ok) throw new Error(json?.message ?? 'Checkout failed');
@@ -170,15 +195,27 @@
 		try {
 			const tryPortal = async () => {
 				const anyClient = authClient as unknown as {
-					customer?: { portal?: () => Promise<{ data?: { url: string }; error?: unknown }> };
+					subscription?: {
+						billingPortal?: (p: Record<string, unknown>) => Promise<{
+							data?: { url?: string };
+							error?: { message?: string } | null;
+						}>;
+					};
 				};
-				if (anyClient.customer?.portal) {
-					const res = await anyClient.customer.portal();
-					const url = (res.data as { url?: string } | undefined)?.url;
+				if (anyClient.subscription?.billingPortal) {
+					const res = await anyClient.subscription.billingPortal({
+						returnUrl: '/account?tab=billing'
+					});
+					if (res.error) throw new Error(res.error.message ?? 'Portal failed');
+					const url = res.data?.url;
 					if (url) return url;
-					if (res.error) throw new Error(String((res.error as { message?: string })?.message ?? 'Portal failed'));
+					throw new Error('Portal failed');
 				}
-				const res = await fetch('/api/auth/customer/portal', { method: 'POST' });
+				const res = await fetch('/api/auth/subscription/billing-portal', {
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ returnUrl: '/account?tab=billing' })
+				});
 				const json = await res.json();
 				if (!res.ok) throw new Error(json?.message ?? json?.error ?? 'Portal failed');
 				if (json.url) return json.url as string;
@@ -189,7 +226,7 @@
 				window.open(url, '_blank', 'noopener,noreferrer');
 			} catch (e) {
 				const msg = e instanceof Error ? e.message : String(e);
-				if (/ResourceNotFound|Not found|portal creation failed/i.test(msg)) {
+				if (/CUSTOMER_NOT_FOUND|Customer not found|not found/i.test(msg)) {
 					await fetch('/api/billing/ensure-customer', { method: 'POST' });
 					const url = await tryPortal();
 					window.open(url, '_blank', 'noopener,noreferrer');
@@ -217,13 +254,18 @@
 		return `${currency}${amount} ${suffix}`;
 	}
 
-	function formatDate(d?: string) {
+	function formatDate(d?: string | null) {
 		if (!d) return '-';
 		try {
 			return new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 		} catch {
 			return d;
 		}
+	}
+
+	function displayPlanName(plan: string) {
+		const tier = tiers.find((t) => t.slug.toLowerCase() === plan.toLowerCase());
+		return tier?.name ?? plan;
 	}
 </script>
 
@@ -280,8 +322,8 @@
 				</Card.Title>
 				<Card.Description>
 					{#if activeSub}
-						You are on <span class="font-medium text-foreground">{(activeSub.product as { name?: string })?.name ?? 'Active plan'}</span>
-						· Renews {formatDate(activeSub.currentPeriodEnd)}
+						You are on <span class="font-medium text-foreground">{displayPlanName(activeSub.plan)}</span>
+						· Renews {formatDate(activeSub.periodEnd)}
 						{#if activeSub.cancelAtPeriodEnd}
 							<span class="ml-2 rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600">Cancels at period end</span>
 						{/if}
@@ -360,7 +402,7 @@
 		<Card.Root class="border-dashed">
 			<Card.Header>
 				<Card.Title class="text-sm">Need to cancel or get an invoice?</Card.Title>
-				<Card.Description>All subscription management, invoices, and payment methods are handled securely in the Polar customer portal.</Card.Description>
+				<Card.Description>All subscription management, invoices, and payment methods are handled securely in the Stripe customer portal.</Card.Description>
 			</Card.Header>
 			<Card.Content>
 				<Button variant="outline" onclick={handlePortal} disabled={actionLoading === 'portal'} class="gap-2">
@@ -373,5 +415,21 @@
 				</Button>
 			</Card.Content>
 		</Card.Root>
+	{/if}
+	{#if showCheckoutToast}
+		<div class="fixed bottom-6 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2" in:fly={{ y: 16, duration: 250 }} out:fade={{ duration: 150 }}>
+			<div class="flex items-center gap-3 rounded-xl border border-green-500/30 bg-card px-4 py-3 shadow-lg">
+				<span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-green-500/15 text-green-600">
+					<Check size={16} />
+				</span>
+				<div class="min-w-0 flex-1 text-sm">
+					<p class="font-medium">Checkout complete</p>
+					<p class="text-muted-foreground">Your subscription will be active shortly.</p>
+				</div>
+				<button aria-label="Dismiss" onclick={() => (showCheckoutToast = false)} class="shrink-0 rounded-md p-1 text-muted-foreground hover:text-foreground">
+					<X size={14} />
+				</button>
+			</div>
+		</div>
 	{/if}
 </div>

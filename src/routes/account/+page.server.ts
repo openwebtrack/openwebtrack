@@ -32,7 +32,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		saasEnabled: true as const,
 		tiers: PRICING_TIERS.map((t) => ({
 			slug: t.slug,
-			productId: t.productId,
+			priceId: t.priceId,
 			name: t.name,
 			price: t.price,
 			featured: t.featured ?? false,

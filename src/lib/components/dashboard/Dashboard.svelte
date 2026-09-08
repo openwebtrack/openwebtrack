@@ -680,7 +680,7 @@
 						<ChevronDown class="h-3 w-3 text-muted-foreground" />
 					</Popover.Trigger>
 					<Popover.Content class="w-56 p-1.5" align="start">
-						<div class="mb-1 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Switch website</div>
+						<div class="mb-1 px-2 py-1 text-[10px] font-medium tracking-wider text-muted-foreground uppercase">Switch website</div>
 						<div class="max-h-64 overflow-y-auto">
 							{#each websites as site}
 								<button
@@ -732,7 +732,10 @@
 
 			<Button variant="ghost" size="sm" onclick={openRealTimeMap}>
 				<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24">
-					<path fill="currentColor" d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10s10-4.49 10-10S17.51 2 12 2M4 12c0-.9.16-1.76.43-2.57L6 11l2 2v2l2 2l1 1v1.93c-3.94-.49-7-3.86-7-7.93m14.33 4.87c-.65-.53-1.64-.87-2.33-.87v-1c0-1.1-.9-2-2-2h-4v-3c1.1 0 2-.9 2-2V7h1c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41c0 1.83-.63 3.52-1.67 4.87" />
+					<path
+						fill="currentColor"
+						d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10s10-4.49 10-10S17.51 2 12 2M4 12c0-.9.16-1.76.43-2.57L6 11l2 2v2l2 2l1 1v1.93c-3.94-.49-7-3.86-7-7.93m14.33 4.87c-.65-.53-1.64-.87-2.33-.87v-1c0-1.1-.9-2-2-2h-4v-3c1.1 0 2-.9 2-2V7h1c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41c0 1.83-.63 3.52-1.67 4.87"
+					/>
 				</svg>
 				Map
 			</Button>

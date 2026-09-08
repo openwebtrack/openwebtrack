@@ -2,7 +2,7 @@
 	"name": "openwebtrack",
 	"private": true,
 	"author": "Ge0rg3e",
-	"version": "0.1.7",
+	"version": "2.0.0",
 	"licence": "AGPL-3.0",
 	"type": "module",
 	"engines": {
@@ -50,9 +50,8 @@
 		"vite": "^8.2.1"
 	},
 	"dependencies": {
+		"@better-auth/stripe": "^1.7.3",
 		"@modelcontextprotocol/sdk": "1.26.0",
-		"@polar-sh/better-auth": "^1.1.0",
-		"@polar-sh/sdk": "^0.47.0",
 		"@react-email/components": "^1.0.12",
 		"@react-email/render": "^2.1.0",
 		"@types/nodemailer": "^8.0.1",
@@ -66,11 +65,8 @@
 		"nodemailer": "^8.0.11",
 		"postgres": "^3.4.9",
 		"resend": "^6.18.1",
+		"stripe": "^22.6.1",
 		"tailwind-merge": "^3.6.0",
 		"zod": "^4.4.3"
-	},
-	"peerDependenciesMeta": {
-		"@polar-sh/better-auth": { "optional": true },
-		"@polar-sh/sdk": { "optional": true }
 	}
 }

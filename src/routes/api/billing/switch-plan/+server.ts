@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 import { SAAS_MODE } from '$lib/config';
-import { getTierBySlug } from '$lib/server/saas/pricing';
+import { getTierBySlug, getTierByPlanName } from '$lib/server/saas/pricing';
 import { clearEntitlementCache } from '$lib/server/saas/entitlements';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
@@ -26,40 +26,54 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	try {
-		const { polarClient } = await import('$lib/server/saas/polar');
+		const db = (await import('$lib/server/db')).default;
+		const { subscription } = await import('$lib/server/db/auth.schema');
+		const { and, eq, inArray } = await import('drizzle-orm');
 
-		// Prefer customer state (reliable, includes subscription id + productId)
-		const state = await polarClient.customers.getStateExternal({ externalId: locals.user.id });
-		const activeSubs = (state as unknown as { activeSubscriptions?: Array<{ id: string; status: string; productId?: string }> }).activeSubscriptions ?? [];
-		const activeSub = activeSubs.find((s) => s.status === 'active') ?? activeSubs[0] ?? null;
+		const rows = await db
+			.select()
+			.from(subscription)
+			.where(
+				and(
+					eq(subscription.referenceId, locals.user.id),
+					inArray(subscription.status, ['active', 'trialing'])
+				)
+			)
+			.limit(1);
+		const activeSub = rows[0];
 
 		if (!activeSub) {
 			return json({ error: 'No active subscription to switch. Use checkout to subscribe.' }, { status: 400 });
 		}
 
-		if (activeSub.productId === tier.productId) {
+		const currentTier = getTierByPlanName(activeSub.plan);
+		if (currentTier?.slug === tier.slug) {
 			return json({ error: 'Already on this plan' }, { status: 400 });
 		}
 
-		// Update the existing subscription to the new product – this switches plan in place
-		// instead of creating a second subscription via checkout.
-		await polarClient.subscriptions.update({
-			id: activeSub.id,
-			subscriptionUpdate: { productId: tier.productId }
+		if (!activeSub.stripeSubscriptionId) {
+			return json({ error: 'Subscription missing Stripe ID, contact support' }, { status: 500 });
+		}
+
+		const { stripeClient } = await import('$lib/server/saas/stripe');
+		const stripeSub = await stripeClient.subscriptions.retrieve(activeSub.stripeSubscriptionId);
+		const item = stripeSub.items.data[0];
+		if (!item) {
+			return json({ error: 'No subscription items found' }, { status: 500 });
+		}
+
+		await stripeClient.subscriptions.update(activeSub.stripeSubscriptionId, {
+			items: [{ id: item.id, price: tier.priceId }],
+			proration_behavior: 'create_prorations'
 		});
 
 		clearEntitlementCache(locals.user.id);
-		// also clear all (customer state may be cached per user)
 		clearEntitlementCache();
 
-		return json({ success: true, subscriptionId: activeSub.id, productId: tier.productId });
+		return json({ success: true, subscriptionId: activeSub.id, priceId: tier.priceId });
 	} catch (e) {
 		console.error('[billing] switch-plan failed', e);
 		const msg = e instanceof Error ? e.message : 'Switch failed';
-		// Surface AlreadyActive or validation errors with 400 where appropriate
-		if (/AlreadyActive|already.*active/i.test(msg)) {
-			return json({ error: 'Already has active subscription for this product' }, { status: 400 });
-		}
 		return json({ error: msg }, { status: 500 });
 	}
 };

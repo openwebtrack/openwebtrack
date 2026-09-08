@@ -2,41 +2,56 @@ import { error } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { SAAS_MODE } from '$lib/config';
 
+async function hasActiveSubscriptionForUser(userId: string): Promise<boolean> {
+	const db = await (await import('$lib/server/db')).default;
+	const { subscription } = await import('$lib/server/db/auth.schema');
+	const { and, eq, inArray } = await import('drizzle-orm');
+	const rows = await db
+		.select({ status: subscription.status })
+		.from(subscription)
+		.where(
+			and(
+				eq(subscription.referenceId, userId),
+				inArray(subscription.status, ['active', 'trialing'])
+			)
+		)
+		.limit(1);
+	return rows.length > 0;
+}
+
+async function getActiveSubscriptionForUser(userId: string) {
+	const db = await (await import('$lib/server/db')).default;
+	const { subscription } = await import('$lib/server/db/auth.schema');
+	const { and, eq, inArray } = await import('drizzle-orm');
+	const rows = await db
+		.select()
+		.from(subscription)
+		.where(
+			and(
+				eq(subscription.referenceId, userId),
+				inArray(subscription.status, ['active', 'trialing'])
+			)
+		)
+		.limit(1);
+	return rows[0] ?? null;
+}
+
 export async function requireActiveSubscription(event: RequestEvent) {
 	if (!SAAS_MODE) return;
 
-	const headers = event.request.headers;
+	const user = event.locals.user;
+	if (!user) throw error(401, 'Unauthorized');
 
-	const sessionResp = await event.fetch(`${event.url.origin}/api/auth/get-session`, { headers });
-	if (!sessionResp.ok) throw error(401, 'Unauthorized');
-
-	const subsResp = await event.fetch(
-		`${event.url.origin}/api/auth/customer/state`,
-		{ headers }
-	);
-	if (!subsResp.ok) throw error(402, 'Active subscription required');
-
-	const state = await subsResp.json();
-	const hasActive = state?.activeSubscriptions?.some(
-		(sub: { status: string }) => sub.status === 'active'
-	);
-
-	if (!hasActive) throw error(402, 'Active subscription required');
+	if (!(await hasActiveSubscriptionForUser(user.id))) {
+		throw error(402, 'Active subscription required');
+	}
 }
 
 export async function getSubscription(event: RequestEvent) {
 	if (!SAAS_MODE) return null;
 
-	const headers = event.request.headers;
-	const sessionResp = await event.fetch(`${event.url.origin}/api/auth/get-session`, { headers });
-	if (!sessionResp.ok) return null;
+	const user = event.locals.user;
+	if (!user) return null;
 
-	const subsResp = await event.fetch(
-		`${event.url.origin}/api/auth/customer/state`,
-		{ headers }
-	);
-	if (!subsResp.ok) return null;
-
-	const state = await subsResp.json();
-	return state?.activeSubscriptions?.[0] ?? null;
+	return await getActiveSubscriptionForUser(user.id);
 }

@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { Plus, Users, Globe, Layout, GripVertical } from 'lucide-svelte';
+	import { Plus, Users, Globe, Layout, GripVertical, CreditCard } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
+	import { fade } from 'svelte/transition';
 
 	import * as HoverCard from '$lib/components/ui/hover-card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -166,8 +167,8 @@
 	};
 </script>
 
-<div class="min-h-screen bg-background">
-	<main class="mx-auto max-w-6xl px-4 pb-36 pt-8 sm:px-6">
+<div class="min-h-[calc(100vh-56px)] bg-background">
+	<main class="mx-auto max-w-6xl px-4 pt-8 pb-36 sm:px-6">
 		<div class="mb-6 flex items-center justify-between">
 			<Tabs.Root bind:value={filter}>
 				<Tabs.List>
@@ -198,6 +199,64 @@
 			{/if}
 		</div>
 
+		{#if isReady && filteredWebsites.length === 0}
+			{#if data.websites.length === 0}
+				<div class="mx-auto flex max-w-xl flex-col items-center px-6 py-14 text-center sm:py-20" in:fade={{ duration: 200 }}>
+					<div class="mb-5 flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+						{#if data.entitlement?.saasEnabled && !data.entitlement.canAddWebsite}
+							<CreditCard class="h-6 w-6" />
+						{:else}
+							<Globe class="h-6 w-6" />
+						{/if}
+					</div>
+					{#if data.entitlement?.saasEnabled && !data.entitlement.canAddWebsite}
+						<h2 class="text-xl font-medium tracking-tight">Subscribe to get started</h2>
+						<p class="mt-2 max-w-md text-sm text-muted-foreground">
+							Your account doesn't have an active subscription yet. Choose a plan to start adding
+							websites and collecting analytics.
+						</p>
+						<Button href="/account?tab=billing" class="mt-6">View plans</Button>
+					{:else}
+						{#if data.entitlement?.tierName}
+							<a href="/account?tab=billing" class="mb-3 rounded-full bg-green-500/15 px-2.5 py-0.5 text-xs font-medium text-green-600">{data.entitlement.tierName} plan</a>
+						{/if}
+						<h2 class="text-xl font-medium tracking-tight">Add your first website</h2>
+						<p class="mt-2 max-w-md text-sm text-muted-foreground">
+							Connect your site in under a minute — paste a tiny script and watch visitors show up
+							in real time.
+						</p>
+						<ol class="mt-8 grid w-full gap-2 text-left sm:grid-cols-3">
+							<li class="glass-card rounded-2xl p-4">
+								<span class="mb-2 flex size-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">1</span>
+								<p class="text-sm font-medium">Add your website</p>
+								<p class="mt-1 text-xs text-muted-foreground">Register your domain</p>
+							</li>
+							<li class="glass-card rounded-2xl p-4">
+								<span class="mb-2 flex size-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">2</span>
+								<p class="text-sm font-medium">Install the script</p>
+								<p class="mt-1 text-xs text-muted-foreground">Paste one snippet into your HTML</p>
+							</li>
+							<li class="glass-card rounded-2xl p-4">
+								<span class="mb-2 flex size-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">3</span>
+								<p class="text-sm font-medium">See live stats</p>
+								<p class="mt-1 text-xs text-muted-foreground">Watch visitors in real time</p>
+							</li>
+						</ol>
+						<Button href="/dashboard/new" class="mt-6">
+							<Plus class="mr-1 h-3.5 w-3.5" />
+							Add website
+						</Button>
+					{/if}
+				</div>
+			{:else}
+				<div class="flex flex-col items-center gap-3 py-16 text-center" in:fade={{ duration: 200 }}>
+					<p class="text-sm text-muted-foreground">
+						No {filter === 'owned' ? 'owned' : 'shared'} websites yet.
+					</p>
+					<Button variant="outline" size="sm" onclick={() => (filter = 'all')}>Show all websites</Button>
+				</div>
+			{/if}
+		{:else}
 		<div class="grid grid-cols-1 gap-3 transition-opacity duration-200 md:grid-cols-2 lg:grid-cols-3 {isReady ? 'opacity-100' : 'opacity-0'}">
 			{#each isReady ? filteredWebsites : [] as site (site.id)}
 				<div
@@ -271,5 +330,6 @@
 				</div>
 			{/each}
 		</div>
+		{/if}
 	</main>
 </div>

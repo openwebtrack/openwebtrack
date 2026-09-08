@@ -9,8 +9,8 @@ import { SAAS_MODE } from '$lib/config';
 if (!env.AUTH_SECRET) throw new Error('AUTH_SECRET environment variable is not set');
 if (!env.ORIGIN) throw new Error('ORIGIN environment variable is not set');
 
-const polarPlugins = SAAS_MODE
-	? (await import('$lib/server/saas/polar')).polarPlugins
+const stripePlugins = SAAS_MODE
+	? (await import('$lib/server/saas/stripe')).stripePlugins
 	: [];
 
 const auth = betterAuth({
@@ -19,7 +19,7 @@ const auth = betterAuth({
 	database: drizzleAdapter(db, { provider: 'pg' }),
 	emailAndPassword: {
 		enabled: true,
-		disableSignUp: env.DISABLE_REGISTER === 'true' || SAAS_MODE
+		disableSignUp: env.DISABLE_REGISTER === 'true'
 	},
 	socialProviders: {
 		google: {
@@ -28,7 +28,7 @@ const auth = betterAuth({
 			clientSecret: env?.AUTH_GOOGLE_CLIENT_SECRET || ''
 		}
 	},
-	plugins: [sveltekitCookies(getRequestEvent), ...polarPlugins]
+	plugins: [sveltekitCookies(getRequestEvent), ...stripePlugins]
 });
 
 export default auth;
