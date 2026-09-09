@@ -287,8 +287,8 @@
 			<Alert.Description
 				>You are on a free trial{entitlement?.graceDaysRemaining != null
 					? ` — ${Math.ceil(entitlement.graceDaysRemaining)} day${Math.ceil(entitlement.graceDaysRemaining) !== 1 ? 's' : ''} left`
-					: ''}{entitlement?.expiredAt ? ` (ends ${new Date(entitlement.expiredAt).toLocaleDateString()})` : ''}. Your card will be charged automatically when the trial ends. Cancel anytime
-				in the customer portal.</Alert.Description
+					: ''}{entitlement?.expiredAt ? ` (ends ${new Date(entitlement.expiredAt).toLocaleDateString()})` : ''}. Add a payment method in the customer portal below before it ends to keep
+				access. Cancel anytime in the customer portal.</Alert.Description
 			>
 		</Alert.Root>
 	{:else if entitlement && entitlement.graceDaysRemaining !== null && !activeSub}
@@ -351,7 +351,7 @@
 							<span class="ml-2 rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600">Cancels at period end</span>
 						{/if}
 					{:else}
-						No active subscription. Choose a plan below — every plan starts with a 7-day free trial (card required).
+						No active subscription. Choose a plan below — every plan starts with a free trial (no card required).
 					{/if}
 				</Card.Description>
 			</Card.Header>
@@ -413,7 +413,7 @@
 								{trialDays > 0 ? `Start ${trialDays}-day free trial` : `Subscribe to ${tier.name}`}
 							</Button>
 							{#if trialDays > 0}
-								<p class="mt-2 text-xs text-muted-foreground">Card required · charged after the {trialDays}-day trial. Cancel anytime.</p>
+								<p class="mt-2 text-xs text-muted-foreground">No card required · add a payment method before the trial ends to keep access.</p>
 							{/if}
 						{/if}
 					</Card.Content>

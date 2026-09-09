@@ -73,6 +73,11 @@ export const stripePlugins = [
 		subscription: {
 			enabled: true,
 			plans: PRICING_TIERS.map(buildPlanOptions),
+			// Cardless trials: only collect a payment method when payment is due immediately.
+			// Trial checkouts skip the card form; paid checkouts still require it.
+			getCheckoutSessionParams: async () => ({
+				params: { payment_method_collection: 'if_required' }
+			}),
 			onSubscriptionComplete: async () => {
 				await clearCache();
 			},

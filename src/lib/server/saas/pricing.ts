@@ -12,12 +12,12 @@ export type PricingTier = {
 	maxEventsPerMonth: number;
 	maxMembersPerWebsite: number;
 	features: string[];
-	/** Trial days granted on first checkout (Stripe `trial_period_days`, card collected upfront). 0 = no trial. */
+	/** Trial days granted on first checkout (Stripe `trial_period_days`, no card required). 0 = no trial. */
 	trialPeriodDays: number;
 };
 
 /**
- * Days of free trial (card required) granted once per user on first subscription.
+ * Days of free trial (no card required) granted once per user on first subscription.
  * Override with STRIPE_TRIAL_DAYS (0 disables trials).
  */
 export const TRIAL_DAYS: number = (() => {
@@ -43,7 +43,7 @@ const TIER_DEFINITIONS: Array<Omit<PricingTier, 'priceId' | 'trialPeriodDays'>> 
 		maxWebsites: 2,
 		maxEventsPerMonth: 50_000,
 		maxMembersPerWebsite: 2,
-		features: ['2 websites', '50,000 events / month', '2 members per website', 'Real-time analytics & dashboard', 'Funnels, UTM & geo insights', '6 months data retention', 'Community support']
+		features: ['2 websites', '50,000 events / month', '2 members per website', 'Real-time analytics & dashboard', 'Funnels, UTM & geo insights', '6 months data retention']
 	},
 	{
 		slug: 'growth',
