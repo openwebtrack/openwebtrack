@@ -44,7 +44,7 @@
 							{item.label}
 						</Button>
 					{/each}
-					<Button variant="ghost" href={'https://openwebtrack.github.io/docs'} target="_blank" class="w-full justify-start">
+					<Button variant="ghost" href={'https://openwebtrack.one/docs'} target="_blank" class="w-full justify-start">
 						<BookOpenText size={18} class="mr-3" />
 						Docs
 						<ExternalLink class="ml-auto text-muted-foreground" size={15} />

@@ -34,7 +34,7 @@
 		const chart2 = computedStyle.getPropertyValue('--chart-2').trim() || '#a855f7';
 		const chart3 = computedStyle.getPropertyValue('--chart-3').trim() || '#22c55e';
 		const chart4 = computedStyle.getPropertyValue('--chart-4').trim() || '#eab308';
-		const chart5 = computedStyle.getPropertyValue('--chart-5').trim() || '#f97316';
+		const chart5 = computedStyle.getPropertyValue('--chart-5').trim() || '#f87171';
 		const foreground = computedStyle.getPropertyValue('--foreground').trim() || '#000';
 		const mutedForeground = computedStyle.getPropertyValue('--muted-foreground').trim() || '#71717a';
 

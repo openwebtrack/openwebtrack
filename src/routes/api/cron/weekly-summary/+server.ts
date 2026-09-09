@@ -5,21 +5,45 @@ import { eq, and, gte, sql, desc } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { json } from '@sveltejs/kit';
+import { timingSafeEqual } from 'node:crypto';
 import db from '$lib/server/db';
 
-const CRON_SECRET = env.CRON_SECRET;
-const ORIGIN = env.ORIGIN;
+function secretsMatch(token: string, secret: string): boolean {
+	const a = Buffer.from(token);
+	const b = Buffer.from(secret);
+	return a.length === b.length && timingSafeEqual(a, b);
+}
+
+// Secrets are read per request so serverless env changes apply without a
+// rebuild. Accepts the self-hosted CRON_SECRET as well as the Vercel
+// dashboard secret (CRON_SECRET or VERCEL_CRON_SECRET alias). Vercel Cron
+// sends `Authorization: Bearer <secret>` automatically when the variable
+// is set on the Vercel project.
+function isAuthorizedCronRequest(request: Request): boolean {
+	const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
+	if (!token) {
+		console.log('[Weekly Summary] Missing Authorization header');
+		return false;
+	}
+	const configured = [env.CRON_SECRET, (env as Record<string, string | undefined>).VERCEL_CRON_SECRET].filter(
+		(s): s is string => typeof s === 'string' && s.length > 0
+	);
+	if (configured.length === 0) {
+		console.log('[Weekly Summary] No cron secret configured (set CRON_SECRET)');
+		return false;
+	}
+	return configured.some((secret) => secretsMatch(token, secret));
+}
 
 export const GET: RequestHandler = async ({ request }) => {
-	const authHeader = request.headers.get('Authorization');
-	const token = authHeader?.replace(/^Bearer\s+/i, '');
-
-	if (!CRON_SECRET || token !== CRON_SECRET) {
+	if (!isAuthorizedCronRequest(request)) {
 		console.log('[Weekly Summary] Invalid cron secret');
 		return json({ message: 'Invalid cron secret' }, { status: 401 });
 	}
 
 	if (!isEmailConfigured()) return json({ message: 'Email not configured' });
+
+	const ORIGIN = env.ORIGIN;
 
 	const allWebsites = await db.select().from(website).innerJoin(user, eq(website.userId, user.id));
 

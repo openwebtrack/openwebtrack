@@ -869,7 +869,7 @@
 
 	<!-- Bottom-right OpenWebTrack branding -->
 	<div class="absolute right-4 bottom-4 z-999">
-		<a href="https://openwebtrack.github.io/" target="_blank" class="flex items-center gap-2 md:gap-3">
+		<a href="https://openwebtrack.one" target="_blank" class="flex items-center gap-2 md:gap-3">
 			<Logo class="h-4 w-4 text-primary md:h-6 md:w-6" />
 			<span class="text-xs font-bold tracking-tight md:text-sm">OpenWebTrack</span>
 		</a>

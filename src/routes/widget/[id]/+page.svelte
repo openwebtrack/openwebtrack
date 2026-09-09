@@ -9,11 +9,11 @@
 	let visitors = $state<any[]>([]);
 	let loading = $state(true);
 
-	// Theme and visibility options from query params
+	// Theme and visibility options from query params (website theme defaults)
 	let showGraph = $derived(page.url.searchParams.get('graph') !== 'false');
 	let showCountries = $derived(page.url.searchParams.get('countries') !== 'false');
-	let primaryColor = $derived(page.url.searchParams.get('primary') || '#f97316'); // default orange-500
-	let bgColor = $derived(page.url.searchParams.get('bg') || '#09090b'); // default zinc-950
+	let primaryColor = $derived(page.url.searchParams.get('primary') || '#c2956a'); // website --primary
+	let bgColor = $derived(page.url.searchParams.get('bg') || '#212121'); // website --card
 
 	// Calculate counts
 	let now = $state(Date.now());
@@ -79,10 +79,10 @@
 
 <div
 	class="mx-auto flex h-full w-full max-w-xs flex-col overflow-hidden rounded-2xl border p-4 shadow-sm transition-colors duration-300"
-	style="background-color: {bgColor}; color: #ffffff; border-color: rgba(255,255,255,0.1);"
+	style="background-color: {bgColor}; color: #ededed; border-color: rgba(237,237,237,0.14);"
 >
 	<div class="mb-4">
-		<h2 class="text-[10px] font-bold tracking-wider text-zinc-400 uppercase">Users in last 30 minutes</h2>
+		<h2 class="text-[10px] font-bold tracking-wider text-[#969696] uppercase">Users in last 30 minutes</h2>
 		<div class="mt-1 flex items-center gap-2">
 			<span class="text-3xl font-bold">{last30MinVisitors.length}</span>
 			<span class="relative flex h-2 w-2">
@@ -103,12 +103,12 @@
 
 	{#if showCountries && countryStats.length > 0}
 		<div class="space-y-2">
-			<h3 class="text-[10px] font-bold tracking-wider text-zinc-400 uppercase">Country</h3>
+			<h3 class="text-[10px] font-bold tracking-wider text-[#969696] uppercase">Country</h3>
 			<div class="space-y-1.5">
 				{#each countryStats as { label, value }}
 					<div class="flex items-center justify-between text-xs">
 						<div class="flex items-center gap-2">
-							<span class="w-4 text-[10px] font-medium text-zinc-500">{label.slice(0, 2).toUpperCase()}</span>
+							<span class="w-4 text-[10px] font-medium text-[#969696]">{label.slice(0, 2).toUpperCase()}</span>
 							<span class="truncate font-medium">{label}</span>
 						</div>
 						<span class="font-bold">{value}</span>
@@ -118,12 +118,12 @@
 		</div>
 	{/if}
 
-	<div class="mt-auto pt-4 text-[10px] text-zinc-500">
+	<div class="mt-auto pt-4 text-[10px] text-[#969696]">
 		<div class="flex items-center justify-between">
 			<span class="font-medium">Powered by</span>
-			<a href="https://openwebtrack.github.io/" target="_blank" class="flex items-center gap-1.5 transition-opacity hover:opacity-80">
+			<a href="https://openwebtrack.one" target="_blank" class="flex items-center gap-1.5 transition-opacity hover:opacity-80">
 				<Logo class="h-4 w-4" />
-				<span class="font-bold tracking-tight text-white">OpenWebTrack</span>
+				<span class="font-bold tracking-tight text-[#ededed]">OpenWebTrack</span>
 			</a>
 		</div>
 	</div>

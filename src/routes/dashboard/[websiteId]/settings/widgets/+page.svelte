@@ -5,25 +5,27 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Copy, Check, ExternalLink, RotateCcw } from 'lucide-svelte';
-	import { browser } from '$app/environment';
+	import { SITE_URL } from '$lib/config.js';
 
 	let { data } = $props();
 	let websiteId = $derived(data.website.id);
 
 	let showGraph = $state(true);
 	let showCountries = $state(true);
-	let primaryColor = $state('#f97316');
-	let bgColor = $state('#09090b');
+	// Website theme defaults: warm tan primary + dark card background
+	// (matches https://openwebtrack.one tokens: --primary #c2956a, --card #212121)
+	let primaryColor = $state('#c2956a');
+	let bgColor = $state('#212121');
 
 	let copied = $state(false);
 
 	let widgetUrl = $derived.by(() => {
-		const baseUrl = browser ? `${window.location.origin}/widget/${websiteId}` : `/widget/${websiteId}`;
+		const baseUrl = `${SITE_URL}/widget/${websiteId}`;
 		const params = new URLSearchParams();
 		if (!showGraph) params.set('graph', 'false');
 		if (!showCountries) params.set('countries', 'false');
-		if (primaryColor !== '#f97316') params.set('primary', primaryColor);
-		if (bgColor !== '#09090b') params.set('bg', bgColor);
+		if (primaryColor !== '#c2956a') params.set('primary', primaryColor);
+		if (bgColor !== '#212121') params.set('bg', bgColor);
 		const qs = params.toString();
 		return qs ? `${baseUrl}?${qs}` : baseUrl;
 	});
@@ -46,8 +48,8 @@
 	function resetSettings() {
 		showGraph = true;
 		showCountries = true;
-		primaryColor = '#f97316';
-		bgColor = '#09090b';
+		primaryColor = '#c2956a';
+		bgColor = '#212121';
 	}
 </script>
 
@@ -89,7 +91,7 @@
 				<div class="space-y-2">
 					<Label>Embed Code</Label>
 					<div class="relative">
-						<pre class="overflow-x-auto rounded-lg bg-zinc-950 p-4 text-xs text-zinc-300"><code>{iframeCode}</code></pre>
+						<pre class="overflow-x-auto rounded-lg border bg-[#141414] p-4 text-xs text-foreground/80"><code>{iframeCode}</code></pre>
 						<Button size="icon" variant="ghost" class="absolute top-2 right-2" onclick={copyToClipboard}>
 							{#if copied}
 								<Check size={16} class="text-emerald-500" />

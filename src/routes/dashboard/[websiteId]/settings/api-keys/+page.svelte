@@ -10,6 +10,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
+	import { SITE_URL } from '$lib/config.js';
 
 	let { data }: { data: PageData } = $props();
 
@@ -113,7 +114,7 @@
 			minute: '2-digit'
 		});
 
-	const apiExample = $derived(`curl -X GET "${page.url.origin}/api/v1/${page.params.websiteId}/stats" \\
+	const apiExample = $derived(`curl -X GET "${SITE_URL}/api/v1/${page.params.websiteId}/stats" \\
   -H "Authorization: Bearer YOUR_API_KEY"`);
 </script>
 
@@ -191,12 +192,12 @@
 	</Card.Header>
 	<Card.Content>
 		<div class="space-y-4">
-			<div class="relative rounded-lg bg-black/90 p-4 font-mono text-xs text-white">
+			<div class="relative rounded-lg border bg-[#141414] p-4 font-mono text-xs text-foreground/80">
 				<pre class="overflow-x-auto whitespace-pre-wrap">{apiExample}</pre>
 				<Button
 					variant="ghost"
 					size="icon-sm"
-					class="absolute top-2 right-2 h-7 w-7 text-white/50 hover:bg-white/10 hover:text-white"
+					class="absolute top-2 right-2 h-7 w-7 text-muted-foreground hover:bg-white/10 hover:text-foreground"
 					onclick={() => {
 						navigator.clipboard.writeText(apiExample);
 					}}
@@ -210,7 +211,7 @@
 					<p class="text-sm font-medium">Looking for more details?</p>
 					<p class="text-xs text-muted-foreground">Check out our documentation for full API reference and examples.</p>
 				</div>
-				<Button variant="outline" size="sm" href="https://openwebtrack.github.io/docs/api/stats" target="_blank" class="gap-2">
+				<Button variant="outline" size="sm" href="https://openwebtrack.one/docs/api/stats" target="_blank" class="gap-2">
 					Read API Docs
 					<ExternalLink size={14} />
 				</Button>
