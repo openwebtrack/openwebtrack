@@ -10,7 +10,6 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
-	import { SITE_URL } from '$lib/config.js';
 
 	let { data }: { data: PageData } = $props();
 
@@ -114,7 +113,7 @@
 			minute: '2-digit'
 		});
 
-	const apiExample = $derived(`curl -X GET "${SITE_URL}/api/v1/${page.params.websiteId}/stats" \\
+	const apiExample = $derived(`curl -X GET "${page.url.origin}/api/v1/${page.params.websiteId}/stats" \\
   -H "Authorization: Bearer YOUR_API_KEY"`);
 </script>
 

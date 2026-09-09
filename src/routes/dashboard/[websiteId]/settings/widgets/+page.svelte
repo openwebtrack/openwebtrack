@@ -5,7 +5,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Copy, Check, ExternalLink, RotateCcw } from 'lucide-svelte';
-	import { SITE_URL } from '$lib/config.js';
+	import { browser } from '$app/environment';
 
 	let { data } = $props();
 	let websiteId = $derived(data.website.id);
@@ -20,7 +20,7 @@
 	let copied = $state(false);
 
 	let widgetUrl = $derived.by(() => {
-		const baseUrl = `${SITE_URL}/widget/${websiteId}`;
+		const baseUrl = browser ? `${window.location.origin}/widget/${websiteId}` : `/widget/${websiteId}`;
 		const params = new URLSearchParams();
 		if (!showGraph) params.set('graph', 'false');
 		if (!showCountries) params.set('countries', 'false');
