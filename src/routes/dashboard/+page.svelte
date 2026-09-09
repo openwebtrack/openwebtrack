@@ -222,7 +222,7 @@
 						{/if}
 						<h2 class="text-xl font-medium tracking-tight">Add your first website</h2>
 						<p class="mt-2 max-w-md text-sm text-muted-foreground">
-							Connect your site in under a minute — paste a tiny script and watch visitors show up
+							Connect your site in under a minute - paste a tiny script and watch visitors show up
 							in real time.
 						</p>
 						<ol class="mt-8 grid w-full gap-2 text-left sm:grid-cols-3">

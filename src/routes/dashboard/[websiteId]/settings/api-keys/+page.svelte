@@ -230,7 +230,7 @@
 			<Dialog.Title>{newlyCreatedKey ? 'API Key Created' : 'Create API Key'}</Dialog.Title>
 			<Dialog.Description>
 				{#if newlyCreatedKey}
-					Copy your API key now — it will not be shown again.
+					Copy your API key now - it will not be shown again.
 				{:else}
 					Give your API key a descriptive name so you can identify it later.
 				{/if}

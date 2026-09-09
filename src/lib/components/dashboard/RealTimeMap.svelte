@@ -580,7 +580,7 @@
 		document.body.style.overflow = 'hidden';
 		isMapLoaded = false;
 
-		// ✅ No API token needed — OpenFreeMap is fully free & open source
+		// ✅ No API token needed - OpenFreeMap is fully free & open source
 		map = new maplibregl.Map({
 			container: mapContainer,
 			style: 'https://tiles.openfreemap.org/styles/dark',
@@ -597,13 +597,21 @@
 			// Set globe projection
 			map.setProjection({ type: 'globe' });
 
-			// Space/atmosphere fog — uses MapLibre's sky spec
+			// Theme-matched map surfaces (new ink theme: bg #191919, card #212121)
+			if (map.getLayer('background')) {
+				map.setPaintProperty('background', 'background-color', '#191919');
+			}
+			if (map.getLayer('water')) {
+				map.setPaintProperty('water', 'fill-color', '#212121');
+			}
+
+			// Space/atmosphere fog - warm amber horizon to match --chart-1 primary
 			map.setSky({
-				'sky-color': '#0a0806',
+				'sky-color': '#191919',
 				'sky-horizon-blend': 0.5,
-				'horizon-color': '#1c160e',
+				'horizon-color': '#4a3a28',
 				'horizon-fog-blend': 0.1,
-				'fog-color': '#12100c',
+				'fog-color': '#191919',
 				'fog-ground-blend': 0.9
 			});
 
@@ -664,20 +672,20 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <!-- Fullscreen overlay -->
-<div class="fixed inset-0 z-50 h-screen w-screen overflow-hidden bg-[#12100c]" role="dialog" aria-modal="true" aria-label="Real-time visitor map" transition:fade={{ duration: 300 }}>
-	<!-- Map — full bleed -->
+<div class="fixed inset-0 z-50 h-screen w-screen overflow-hidden bg-[#191919]" role="dialog" aria-modal="true" aria-label="Real-time visitor map" transition:fade={{ duration: 300 }}>
+	<!-- Map - full bleed -->
 	<div bind:this={mapContainer} class="absolute inset-0 h-screen w-screen"></div>
 
 	{#if showLoading}
-		<div class="absolute inset-0 z-997 flex flex-col items-center justify-center gap-3 bg-[#12100c]/90 backdrop-blur-sm">
-			<div class="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white"></div>
-			<p class="text-sm font-medium text-white/90">{mapMode === 'history' ? 'Loading history map...' : 'Loading real-time map...'}</p>
+		<div class="absolute inset-0 z-997 flex flex-col items-center justify-center gap-3 bg-[#191919]/90 backdrop-blur-sm">
+			<div class="h-10 w-10 animate-spin rounded-full border-2 border-primary/20 border-t-primary"></div>
+			<p class="text-sm font-medium text-foreground">{mapMode === 'history' ? 'Loading history map...' : 'Loading real-time map...'}</p>
 		</div>
 	{/if}
 
 	<!-- Close button -->
 	<button
-		class="absolute top-4 right-4 z-999 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white/70 backdrop-blur-md transition-colors hover:bg-black/60 hover:text-white"
+		class="absolute top-4 right-4 z-999 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-secondary/80 text-muted-foreground backdrop-blur-md transition-colors hover:bg-accent hover:text-foreground"
 		aria-label="Close map"
 		onclick={onClose}
 	>
@@ -685,22 +693,22 @@
 	</button>
 
 	<!-- Top-left header pill -->
-	<div class="absolute top-4 left-4 z-999 flex items-center gap-3 rounded-xl border border-white/10 bg-black/50 px-3 py-2 backdrop-blur-md">
+	<div class="absolute top-4 left-4 z-999 flex items-center gap-3 rounded-2xl border border-border bg-card/85 px-3 py-2 shadow-resting backdrop-blur-md">
 		<span class="flex h-1.5 w-1.5 rounded-full bg-green-400 shadow-[0_0_6px_#4ade80]"></span>
 		<img src="https://icons.duckduckgo.com/ip3/{websiteDomain}.ico" alt={websiteDomain} class="h-4 w-4 rounded" onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')} />
-		<span class="text-sm font-semibold text-white">{websiteDomain}</span>
-		<div class="mx-1 h-3.5 w-px bg-white/20"></div>
+		<span class="text-sm font-medium text-foreground">{websiteDomain}</span>
+		<div class="mx-1 h-3.5 w-px bg-border"></div>
 		<Users class="h-3.5 w-3.5" style="color: var(--chart-1)" />
-		<span class="text-sm text-white/80">
-			<span class="font-bold text-white">{visibleCount}</span>
+		<span class="text-sm text-muted-foreground">
+			<span class="font-medium text-foreground">{visibleCount}</span>
 			{mapMode === 'history' ? ' visitors' : ' online'}
 		</span>
 	</div>
 
-	<div class="absolute top-16 left-4 z-999 flex items-center gap-1 rounded-xl border border-white/10 bg-black/50 p-1 backdrop-blur-md md:top-4 md:left-1/2 md:-translate-x-1/2">
+	<div class="absolute top-16 left-4 z-999 flex items-center gap-1 rounded-2xl border border-border bg-card/85 p-1 shadow-resting backdrop-blur-md md:top-4 md:left-1/2 md:-translate-x-1/2">
 		<button
 			class:mode-active={mapMode === 'realtime'}
-			class="mode-toggle flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white/65 transition-colors hover:text-white"
+			class="mode-toggle flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
 			onclick={() => (mapMode = 'realtime')}
 		>
 			<Radio class="h-3.5 w-3.5" />
@@ -708,7 +716,7 @@
 		</button>
 		<button
 			class:mode-active={mapMode === 'history'}
-			class="mode-toggle flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white/65 transition-colors hover:text-white"
+			class="mode-toggle flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
 			onclick={() => (mapMode = 'history')}
 		>
 			<History class="h-3.5 w-3.5" />
@@ -718,7 +726,7 @@
 
 	<!-- Toggle button for sidebar (mobile) -->
 	<button
-		class="sidebar-toggle absolute top-28 left-4 z-999 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white/70 backdrop-blur-md transition-colors hover:bg-black/80 hover:text-white md:hidden"
+		class="sidebar-toggle absolute top-28 left-4 z-999 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-secondary/80 text-muted-foreground backdrop-blur-md transition-colors hover:bg-accent hover:text-foreground md:hidden"
 		aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
 		onclick={() => (sidebarOpen = !sidebarOpen)}
 	>
@@ -731,19 +739,24 @@
 
 	<!-- Overlay for mobile when sidebar is open -->
 	{#if sidebarOpen}
-		<button class="sidebar-overlay fixed inset-0 z-998 bg-black/50 md:hidden" aria-label="Close sidebar" onclick={() => (sidebarOpen = false)} transition:fade={{ duration: 200 }}></button>
+		<button
+			class="sidebar-overlay fixed inset-0 z-998 bg-background/60 backdrop-blur-sm md:hidden"
+			aria-label="Close sidebar"
+			onclick={() => (sidebarOpen = false)}
+			transition:fade={{ duration: 200 }}
+		></button>
 	{/if}
 
 	<!-- Sidebar with stats and live feed -->
 	<div class="sidebar-container" class:sidebar-open={sidebarOpen}>
 		<!-- Top-left stats column -->
 		<div class="flex w-56 flex-col gap-2 pt-14">
-			<div class="rounded-xl border border-white/10 bg-black/50 px-3 py-2 backdrop-blur-md">
-				<div class="mb-1.5 text-[10px] font-medium tracking-wider text-white/40 uppercase">Referrers</div>
+			<div class="rounded-2xl border border-border bg-card/85 px-3 py-2 shadow-resting backdrop-blur-md">
+				<div class="mb-1.5 text-[10px] font-medium tracking-wider text-muted-foreground uppercase">Referrers</div>
 				<div class="flex flex-col gap-1">
 					{#if referrerCounts().length === 0}
 						<div class="flex items-center gap-2">
-							<span class="text-xs text-white/50">No referrer data</span>
+							<span class="text-xs text-muted-foreground">No referrer data</span>
 						</div>
 					{/if}
 
@@ -755,19 +768,19 @@
 								class="h-3 w-3 shrink-0 rounded-sm"
 								onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
 							/>
-							<span class="max-w-28 truncate text-xs text-white/70">{source}</span>
-							<span class="ml-auto text-xs font-semibold text-white">({count})</span>
+							<span class="max-w-28 truncate text-xs text-muted-foreground">{source}</span>
+							<span class="ml-auto text-xs font-medium text-foreground">({count})</span>
 						</div>
 					{/each}
 				</div>
 			</div>
 
-			<div class="rounded-xl border border-white/10 bg-black/50 px-3 py-2 backdrop-blur-md">
-				<div class="mb-1.5 text-[10px] font-medium tracking-wider text-white/40 uppercase">Countries</div>
+			<div class="rounded-2xl border border-border bg-card/85 px-3 py-2 shadow-resting backdrop-blur-md">
+				<div class="mb-1.5 text-[10px] font-medium tracking-wider text-muted-foreground uppercase">Countries</div>
 				<div class="flex flex-col gap-1">
 					{#if countryCounts().length === 0}
 						<div class="flex items-center gap-2">
-							<span class="text-xs text-white/50">No country data</span>
+							<span class="text-xs text-muted-foreground">No country data</span>
 						</div>
 					{/if}
 
@@ -776,33 +789,33 @@
 							{#if flag}
 								<img src={flag} alt={country} class="h-3 w-4 shrink-0 rounded-[2px]" />
 							{:else}
-								<Globe class="h-3 w-3 shrink-0 text-white/40" />
+								<Globe class="h-3 w-3 shrink-0 text-muted-foreground" />
 							{/if}
-							<span class="max-w-28 truncate text-xs text-white/70">{country}</span>
-							<span class="ml-auto text-xs font-semibold text-white">({count})</span>
+							<span class="max-w-28 truncate text-xs text-muted-foreground">{country}</span>
+							<span class="ml-auto text-xs font-medium text-foreground">({count})</span>
 						</div>
 					{/each}
 				</div>
 			</div>
 
-			<div class="rounded-xl border border-white/10 bg-black/50 px-3 py-2 backdrop-blur-md">
-				<div class="mb-1.5 text-[10px] font-medium tracking-wider text-white/40 uppercase">Devices</div>
+			<div class="rounded-2xl border border-border bg-card/85 px-3 py-2 shadow-resting backdrop-blur-md">
+				<div class="mb-1.5 text-[10px] font-medium tracking-wider text-muted-foreground uppercase">Devices</div>
 				<div class="flex flex-col gap-1">
 					{#if deviceCounts().length === 0}
 						<div class="flex items-center gap-2">
-							<span class="text-xs text-white/50">No device data</span>
+							<span class="text-xs text-muted-foreground">No device data</span>
 						</div>
 					{/if}
 
 					{#each deviceCounts() as [device, count]}
 						<div class="flex items-center gap-2">
 							{#if device?.toLowerCase().includes('mobile') || device?.toLowerCase().includes('phone')}
-								<Smartphone class="h-3 w-3 shrink-0 text-white/60" />
+								<Smartphone class="h-3 w-3 shrink-0 text-muted-foreground" />
 							{:else}
-								<Monitor class="h-3 w-3 shrink-0 text-white/60" />
+								<Monitor class="h-3 w-3 shrink-0 text-muted-foreground" />
 							{/if}
-							<span class="text-xs text-white/70">{device}</span>
-							<span class="ml-auto text-xs font-semibold text-white">({count})</span>
+							<span class="text-xs text-muted-foreground">{device}</span>
+							<span class="ml-auto text-xs font-medium text-foreground">({count})</span>
 						</div>
 					{/each}
 				</div>
@@ -811,8 +824,8 @@
 
 		<!-- Bottom-left live feed -->
 		<div class="mt-auto w-64 pb-4">
-			<div class="rounded-xl border border-white/10 bg-black/50 p-3 backdrop-blur-md">
-				<div class="mb-2 flex items-center gap-1.5 text-[10px] font-medium tracking-wider text-white/40 uppercase">
+			<div class="rounded-2xl border border-border bg-card/85 p-3 shadow-resting backdrop-blur-md">
+				<div class="mb-2 flex items-center gap-1.5 text-[10px] font-medium tracking-wider text-muted-foreground uppercase">
 					<MousePointerClick class="h-3 w-3" />
 					{mapMode === 'history' ? 'Activity history' : 'Live activity'}
 				</div>
@@ -825,7 +838,7 @@
 
 					{#if recentEvents.length === 0}
 						<div class="flex items-center gap-2">
-							<span class="text-xs text-white/50">{mapMode === 'history' ? 'No history for this range' : 'No recent activity'}</span>
+							<span class="text-xs text-muted-foreground">{mapMode === 'history' ? 'No history for this range' : 'No recent activity'}</span>
 						</div>
 					{/if}
 
@@ -837,9 +850,9 @@
 									{#if event.visitor.countryFlag}
 										<img src={event.visitor.countryFlag} alt={event.visitor.country} class="h-2.5 w-3.5 rounded-[2px]" />
 									{/if}
-									<span class="truncate text-xs font-medium text-white/80">{event.visitor.name}</span>
+									<span class="truncate text-xs font-medium text-foreground">{event.visitor.name}</span>
 								</div>
-								<div class="truncate text-[11px] text-white/40">
+								<div class="truncate text-[11px] text-muted-foreground">
 									{#if event.type === 'pageview'}
 										visited {event.name}
 									{:else}

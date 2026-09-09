@@ -65,7 +65,7 @@
 	const totalRevenue = $derived(data.reduce((s, d) => s + (d.revenue ?? 0), 0));
 	const totalCustomers = $derived(data.reduce((s, d) => s + (d.customers ?? 0), 0));
 
-	const convRate = (customers: number, visitors: number) => (visitors > 0 ? ((customers / visitors) * 100).toFixed(1) + '%' : '—');
+	const convRate = (customers: number, visitors: number) => (visitors > 0 ? ((customers / visitors) * 100).toFixed(1) + '%' : '-');
 </script>
 
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>

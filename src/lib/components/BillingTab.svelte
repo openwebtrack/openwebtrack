@@ -105,7 +105,7 @@
 	}
 
 	onMount(() => {
-		// Stripe redirects back here after checkout — show a toast instead of a success page
+		// Stripe redirects back here after checkout - show a toast instead of a success page
 		if (page.url.searchParams.get('checkout') === 'success') {
 			showCheckoutToast = true;
 			if (toastTimeout) clearTimeout(toastTimeout);
@@ -277,7 +277,7 @@
 			<Alert.Title>Dashboard locked</Alert.Title>
 			<Alert.Description
 				>Your subscription expired on {entitlement.expiredAt ? new Date(entitlement.expiredAt).toLocaleDateString() : 'recently'}. Grace period (5 days) has ended. Events are no longer
-				collected and dashboard is unavailable. Subscribe to a plan to restore access — your data is preserved.</Alert.Description
+				collected and dashboard is unavailable. Subscribe to a plan to restore access - your data is preserved.</Alert.Description
 			>
 		</Alert.Root>
 	{:else if isTrialing}
@@ -286,7 +286,7 @@
 			<Alert.Title>Trial active</Alert.Title>
 			<Alert.Description
 				>You are on a free trial{entitlement?.graceDaysRemaining != null
-					? ` — ${Math.ceil(entitlement.graceDaysRemaining)} day${Math.ceil(entitlement.graceDaysRemaining) !== 1 ? 's' : ''} left`
+					? ` - ${Math.ceil(entitlement.graceDaysRemaining)} day${Math.ceil(entitlement.graceDaysRemaining) !== 1 ? 's' : ''} left`
 					: ''}{entitlement?.expiredAt ? ` (ends ${new Date(entitlement.expiredAt).toLocaleDateString()})` : ''}. Add a payment method in the customer portal below before it ends to keep
 				access. Cancel anytime in the customer portal.</Alert.Description
 			>
@@ -294,7 +294,7 @@
 	{:else if entitlement && entitlement.graceDaysRemaining !== null && !activeSub}
 		<Alert.Root class="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300">
 			<AlertCircle size={16} />
-			<Alert.Title>Subscription expired — grace period</Alert.Title>
+			<Alert.Title>Subscription expired - grace period</Alert.Title>
 			<Alert.Description
 				>Events are no longer collected. You have {entitlement.graceDaysRemaining} day{entitlement.graceDaysRemaining !== 1 ? 's' : ''} left before dashboard access is locked. Subscribe again to
 				restore full access before {entitlement.expiredAt ? new Date(new Date(entitlement.expiredAt).getTime() + 5 * 24 * 60 * 60 * 1000).toLocaleDateString() : 'then'}.</Alert.Description
@@ -351,7 +351,7 @@
 							<span class="ml-2 rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600">Cancels at period end</span>
 						{/if}
 					{:else}
-						No active subscription. Choose a plan below — every plan starts with a free trial (no card required).
+						No active subscription. Choose a plan below - every plan starts with a free trial (no card required).
 					{/if}
 				</Card.Description>
 			</Card.Header>
@@ -362,7 +362,7 @@
 			</Card.Content>
 		</Card.Root>
 
-		<!-- Plans — every plan starts with a free trial (card required, once per user) -->
+		<!-- Plans - every plan starts with a free trial (card required, once per user) -->
 		<div class="grid gap-4 md:grid-cols-2">
 			{#each tiers as tier (tier.slug)}
 				{@const trialDays = tier.trialPeriodDays ?? 0}

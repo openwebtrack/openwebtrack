@@ -37,7 +37,7 @@ jobs:
               --format='{{ index .Config.Labels "org.opencontainers.image.version"}}')
 
             if [ "$OLD_VERSION" = "$NEW_VERSION" ]; then
-              echo "⛔ Version $NEW_VERSION already exists as :latest — did you forget to bump package.json?"
+              echo "⛔ Version $NEW_VERSION already exists as :latest - did you forget to bump package.json?"
               exit 1
             fi
 
@@ -46,10 +46,10 @@ jobs:
               docker tag "$IMAGE:latest" "$IMAGE:$OLD_VERSION"
               docker push "$IMAGE:$OLD_VERSION"
             else
-              echo "No version label found on old :latest — skipping retag"
+              echo "No version label found on old :latest - skipping retag"
             fi
           else
-            echo "No existing :latest found — first build"
+            echo "No existing :latest found - first build"
           fi
 
       - name: Set up Docker Buildx

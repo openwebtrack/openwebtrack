@@ -34,7 +34,7 @@ interface TrackerWindow extends Window {
 
 declare const __OWT_API_ENDPOINT__: string;
 
-// No cookies used — IDs are ephemeral, scoped to the browser session (sessionStorage).
+// No cookies used - IDs are ephemeral, scoped to the browser session (sessionStorage).
 const STORAGE_VISITOR = '_trk_uid';
 const STORAGE_SESSION = '_trk_ses';
 const STORAGE_PAGEVIEW = '_trk_pv';
@@ -154,7 +154,7 @@ const OS_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
 			sessionStorage.setItem(storageKey, id);
 			return id;
 		} catch {
-			// sessionStorage unavailable — return a one-off ID (not persisted)
+			// sessionStorage unavailable - return a one-off ID (not persisted)
 			return generateId();
 		}
 	};
@@ -349,7 +349,7 @@ const OS_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
 					.join('.');
 			if (rootDomain(linkHost) === rootDomain(myHost)) return;
 
-			// No cross-domain ID propagation in cookieless mode — track as exit link only
+			// No cross-domain ID propagation in cookieless mode - track as exit link only
 			const payload = createPayload();
 			if (payload) {
 				payload.type = 'exit_link';

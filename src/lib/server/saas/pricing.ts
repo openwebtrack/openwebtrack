@@ -79,7 +79,7 @@ function priceIdMapFromEnv(): Record<string, string> {
 				}
 			}
 		} catch {
-			// Not a map — may be the legacy array form handled below
+			// Not a map - may be the legacy array form handled below
 		}
 	}
 

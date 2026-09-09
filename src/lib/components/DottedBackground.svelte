@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * DottedBackground — same halftone-dot look as the login screenshot,
+	 * DottedBackground - same halftone-dot look as the login screenshot,
 	 * but with swappable procedural patterns (no image assets needed).
 	 *
 	 * Usage:
@@ -10,7 +10,7 @@
 	 *   <DottedBackground pattern="waves" />
 	 *
 	 * `seed` gives you a *different pattern* with the *same dotted style*
-	 * — just bump the number until you like the arrangement.
+	 * - just bump the number until you like the arrangement.
 	 */
 	import { onMount } from 'svelte';
 
@@ -111,7 +111,7 @@
 			if (d < 1.6) v += b.amp * Math.exp(-d * d * 2.2);
 		}
 		v += detail(x, y, s) * 0.35;
-		// Sparse speckle everywhere, dense inside blobs — like the reference
+		// Sparse speckle everywhere, dense inside blobs - like the reference
 		v += 0.06;
 		return v;
 	}
