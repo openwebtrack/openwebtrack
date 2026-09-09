@@ -15,6 +15,7 @@ node_modules
 build
 package
 **/.env
+.env
 install.sh
 .vscode
 /scripts

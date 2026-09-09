@@ -3,22 +3,26 @@ import { stripe } from '@better-auth/stripe';
 import { env } from '$env/dynamic/private';
 import { PRICING_TIERS, getPlanNameForTier } from '$lib/server/saas/pricing';
 
-if (!env.STRIPE_SECRET_KEY) {
-	throw new Error('STRIPE_SECRET_KEY is required when SAAS_MODE=true');
+// NOTE: everything here is initialized lazily so that importing this module
+// (e.g. during `vite build` route analysis or in self-hosted mode without
+// Stripe keys) never throws. Misconfiguration only fails when SAAS features
+// are actually used.
+function requiredEnv(name: 'STRIPE_SECRET_KEY' | 'STRIPE_WEBHOOK_SECRET'): string {
+	const value = env[name];
+	if (!value) throw new Error(`${name} is required when SAAS_MODE=true`);
+	return value;
 }
 
-if (!env.STRIPE_WEBHOOK_SECRET) {
-	throw new Error('STRIPE_WEBHOOK_SECRET is required when SAAS_MODE=true');
+let cachedClient: Stripe | undefined;
+export function getStripeClient(): Stripe {
+	if (!cachedClient) {
+		cachedClient = new Stripe(requiredEnv('STRIPE_SECRET_KEY'), {
+			// Pinned per https://better-auth.com/docs/plugins/stripe
+			apiVersion: '2026-08-26.dahlia'
+		});
+	}
+	return cachedClient;
 }
-
-if (PRICING_TIERS.length === 0) {
-	throw new Error('Missing Stripe Price IDs (set STRIPE_PRICE_STARTER and STRIPE_PRICE_GROWTH) when SAAS_MODE=true');
-}
-
-export const stripeClient = new Stripe(env.STRIPE_SECRET_KEY, {
-	// Pinned per https://better-auth.com/docs/plugins/stripe
-	apiVersion: '2026-08-26.dahlia'
-});
 
 async function clearCache() {
 	try {
@@ -65,36 +69,45 @@ function buildPlanOptions(tier: (typeof PRICING_TIERS)[number]): {
 	return base;
 }
 
-export const stripePlugins = [
-	stripe({
-		stripeClient,
-		stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
-		createCustomerOnSignUp: true,
-		subscription: {
-			enabled: true,
-			plans: PRICING_TIERS.map(buildPlanOptions),
-			// Cardless trials: only collect a payment method when payment is due immediately.
-			// Trial checkouts skip the card form; paid checkouts still require it.
-			getCheckoutSessionParams: async () => ({
-				params: { payment_method_collection: 'if_required' }
-			}),
-			onSubscriptionComplete: async () => {
-				await clearCache();
-			},
-			onSubscriptionCreated: async () => {
-				await clearCache();
-			},
-			onSubscriptionUpdate: async () => {
-				await clearCache();
-			},
-			onSubscriptionCancel: async () => {
-				console.log('[stripe] subscription canceled');
-				await clearCache();
-			},
-			onSubscriptionDeleted: async () => {
-				console.log('[stripe] subscription deleted');
-				await clearCache();
-			}
+let cachedPlugins: ReturnType<typeof stripe>[] | undefined;
+export function getStripePlugins(): ReturnType<typeof stripe>[] {
+	if (!cachedPlugins) {
+		if (PRICING_TIERS.length === 0) {
+			throw new Error('Missing Stripe Price IDs (set STRIPE_PRICE_STARTER and STRIPE_PRICE_GROWTH) when SAAS_MODE=true');
 		}
-	})
-];
+		cachedPlugins = [
+			stripe({
+				stripeClient: getStripeClient(),
+				stripeWebhookSecret: requiredEnv('STRIPE_WEBHOOK_SECRET'),
+				createCustomerOnSignUp: true,
+				subscription: {
+					enabled: true,
+					plans: PRICING_TIERS.map(buildPlanOptions),
+					// Cardless trials: only collect a payment method when payment is due immediately.
+					// Trial checkouts skip the card form; paid checkouts still require it.
+					getCheckoutSessionParams: async () => ({
+						params: { payment_method_collection: 'if_required' }
+					}),
+					onSubscriptionComplete: async () => {
+						await clearCache();
+					},
+					onSubscriptionCreated: async () => {
+						await clearCache();
+					},
+					onSubscriptionUpdate: async () => {
+						await clearCache();
+					},
+					onSubscriptionCancel: async () => {
+						console.log('[stripe] subscription canceled');
+						await clearCache();
+					},
+					onSubscriptionDeleted: async () => {
+						console.log('[stripe] subscription deleted');
+						await clearCache();
+					}
+				}
+			})
+		];
+	}
+	return cachedPlugins;
+}

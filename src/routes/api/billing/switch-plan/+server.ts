@@ -50,7 +50,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			return json({ error: 'Subscription missing Stripe ID, contact support' }, { status: 500 });
 		}
 
-		const { stripeClient } = await import('$lib/server/saas/stripe');
+		const { getStripeClient } = await import('$lib/server/saas/stripe');
+		const stripeClient = getStripeClient();
 		const stripeSub = await stripeClient.subscriptions.retrieve(activeSub.stripeSubscriptionId);
 		const item = stripeSub.items.data[0];
 		if (!item) {

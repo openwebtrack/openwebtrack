@@ -10,7 +10,7 @@ if (!env.AUTH_SECRET) throw new Error('AUTH_SECRET environment variable is not s
 if (!env.ORIGIN) throw new Error('ORIGIN environment variable is not set');
 
 const stripePlugins = SAAS_MODE
-	? (await import('$lib/server/saas/stripe')).stripePlugins
+	? (await import('$lib/server/saas/stripe')).getStripePlugins()
 	: [];
 
 const auth = betterAuth({

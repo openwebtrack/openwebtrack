@@ -1,4 +1,4 @@
-import { stripeClient } from '$lib/server/saas/stripe';
+import { getStripeClient } from '$lib/server/saas/stripe';
 
 export async function ensureStripeCustomer(user: {
 	id: string;
@@ -18,7 +18,7 @@ export async function ensureStripeCustomer(user: {
 	if (existingId) {
 		// Verify the customer still exists in Stripe; recreate if deleted
 		try {
-			await stripeClient.customers.retrieve(existingId);
+			await getStripeClient().customers.retrieve(existingId);
 			return { created: false };
 		} catch {
 			// fall through to create
@@ -27,10 +27,10 @@ export async function ensureStripeCustomer(user: {
 
 	// Try to reuse a Stripe customer with the same email to avoid duplicates
 	try {
-		const found = await stripeClient.customers.list({ email: user.email, limit: 1 });
+		const found = await getStripeClient().customers.list({ email: user.email, limit: 1 });
 		const match = found.data[0];
 		if (match) {
-			await stripeClient.customers.update(match.id, {
+			await getStripeClient().customers.update(match.id, {
 				email: user.email,
 				name: user.name ?? undefined,
 				metadata: { userId: user.id }
@@ -45,7 +45,7 @@ export async function ensureStripeCustomer(user: {
 		// ignore lookup errors, create fresh
 	}
 
-	const customer = await stripeClient.customers.create({
+	const customer = await getStripeClient().customers.create({
 		email: user.email,
 		name: user.name ?? undefined,
 		metadata: { userId: user.id }
