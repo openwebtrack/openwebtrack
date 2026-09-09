@@ -21,6 +21,7 @@
 		maxEventsPerMonth: number;
 		maxMembersPerWebsite: number;
 		features: string[];
+		trialPeriodDays?: number | null;
 	};
 	let { tiers = [] }: { tiers: Tier[] } = $props();
 
@@ -30,6 +31,7 @@
 		status: string;
 		stripeSubscriptionId?: string | null;
 		periodEnd?: string | null;
+		trialEnd?: string | null;
 		cancelAtPeriodEnd?: boolean | null;
 		canceledAt?: string | null;
 		endedAt?: string | null;
@@ -42,6 +44,7 @@
 		dashboardLocked: boolean;
 		graceDaysRemaining: number | null;
 		expiredAt: string | null;
+		trialing?: boolean | null;
 	} | null>(null);
 	let actionLoading = $state<string | null>(null);
 	let actionError = $state('');
@@ -49,9 +52,8 @@
 	let showCheckoutToast = $state(false);
 	let toastTimeout: ReturnType<typeof setTimeout> | null = null;
 
-	const activeSub = $derived(
-		subscriptions.find((s) => s.status === 'active' || s.status === 'trialing') ?? null
-	);
+	const activeSub = $derived(subscriptions.find((s) => s.status === 'active' || s.status === 'trialing') ?? null);
+	const isTrialing = $derived(activeSub?.status === 'trialing');
 
 	// better-auth stripe stores the plan as the lower-cased tier slug
 	const isCurrentTier = (tier: Tier) => {
@@ -65,9 +67,7 @@
 		try {
 			const anyClient = authClient as unknown as {
 				subscription?: {
-					list?: (
-						opts?: unknown
-					) => Promise<{ data: Subscription[] | null; error?: { message?: string } | null }>;
+					list?: (opts?: unknown) => Promise<{ data: Subscription[] | null; error?: { message?: string } | null }>;
 				};
 			};
 			let list: Subscription[] | null = null;
@@ -91,7 +91,8 @@
 						? {
 								dashboardLocked: j.entitlement.dashboardLocked ?? false,
 								graceDaysRemaining: j.entitlement.graceDaysRemaining,
-								expiredAt: j.entitlement.expiredAt
+								expiredAt: j.entitlement.expiredAt,
+								trialing: j.entitlement.trialing ?? false
 							}
 						: null;
 				}
@@ -274,13 +275,30 @@
 		<Alert.Root variant="destructive">
 			<AlertCircle size={16} />
 			<Alert.Title>Dashboard locked</Alert.Title>
-			<Alert.Description>Your subscription expired on {entitlement.expiredAt ? new Date(entitlement.expiredAt).toLocaleDateString() : 'recently'}. Grace period (5 days) has ended. Events are no longer collected and dashboard is unavailable. Subscribe to a plan to restore access — your data is preserved.</Alert.Description>
+			<Alert.Description
+				>Your subscription expired on {entitlement.expiredAt ? new Date(entitlement.expiredAt).toLocaleDateString() : 'recently'}. Grace period (5 days) has ended. Events are no longer
+				collected and dashboard is unavailable. Subscribe to a plan to restore access — your data is preserved.</Alert.Description
+			>
+		</Alert.Root>
+	{:else if isTrialing}
+		<Alert.Root class="border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-300">
+			<AlertCircle size={16} />
+			<Alert.Title>Trial active</Alert.Title>
+			<Alert.Description
+				>You are on a free trial{entitlement?.graceDaysRemaining != null
+					? ` — ${Math.ceil(entitlement.graceDaysRemaining)} day${Math.ceil(entitlement.graceDaysRemaining) !== 1 ? 's' : ''} left`
+					: ''}{entitlement?.expiredAt ? ` (ends ${new Date(entitlement.expiredAt).toLocaleDateString()})` : ''}. Your card will be charged automatically when the trial ends. Cancel anytime
+				in the customer portal.</Alert.Description
+			>
 		</Alert.Root>
 	{:else if entitlement && entitlement.graceDaysRemaining !== null && !activeSub}
 		<Alert.Root class="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300">
 			<AlertCircle size={16} />
 			<Alert.Title>Subscription expired — grace period</Alert.Title>
-			<Alert.Description>Events are no longer collected. You have {entitlement.graceDaysRemaining} day{entitlement.graceDaysRemaining !== 1 ? 's' : ''} left before dashboard access is locked. Subscribe again to restore full access before {entitlement.expiredAt ? new Date(new Date(entitlement.expiredAt).getTime() + 5 * 24 * 60 * 60 * 1000).toLocaleDateString() : 'then'}.</Alert.Description>
+			<Alert.Description
+				>Events are no longer collected. You have {entitlement.graceDaysRemaining} day{entitlement.graceDaysRemaining !== 1 ? 's' : ''} left before dashboard access is locked. Subscribe again to
+				restore full access before {entitlement.expiredAt ? new Date(new Date(entitlement.expiredAt).getTime() + 5 * 24 * 60 * 60 * 1000).toLocaleDateString() : 'then'}.</Alert.Description
+			>
 		</Alert.Root>
 	{/if}
 	{#if loading}
@@ -323,12 +341,17 @@
 				<Card.Description>
 					{#if activeSub}
 						You are on <span class="font-medium text-foreground">{displayPlanName(activeSub.plan)}</span>
-						· Renews {formatDate(activeSub.periodEnd)}
+						{#if isTrialing}
+							· Trial ends {formatDate(entitlement?.expiredAt ?? activeSub.trialEnd ?? activeSub.periodEnd)}
+							<span class="ml-2 rounded bg-green-500/15 px-2 py-0.5 text-xs font-medium text-green-600">Trial</span>
+						{:else}
+							· Renews {formatDate(activeSub.periodEnd)}
+						{/if}
 						{#if activeSub.cancelAtPeriodEnd}
 							<span class="ml-2 rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600">Cancels at period end</span>
 						{/if}
 					{:else}
-						No active subscription. Choose a plan below.
+						No active subscription. Choose a plan below — every plan starts with a 7-day free trial (card required).
 					{/if}
 				</Card.Description>
 			</Card.Header>
@@ -339,17 +362,20 @@
 			</Card.Content>
 		</Card.Root>
 
-		<!-- Plans -->
+		<!-- Plans — every plan starts with a free trial (card required, once per user) -->
 		<div class="grid gap-4 md:grid-cols-2">
 			{#each tiers as tier (tier.slug)}
+				{@const trialDays = tier.trialPeriodDays ?? 0}
 				<Card.Root class={tier.featured ? 'border-primary ring-1 ring-primary/20' : ''}>
 					<Card.Header>
 						<Card.Title class="flex items-center justify-between">
 							<span>{tier.name}</span>
 							{#if isCurrentTier(tier)}
-								<span class="rounded-full bg-green-500/15 px-2.5 py-0.5 text-xs font-medium text-green-600">Current</span>
+								<span class="rounded-full bg-green-500/15 px-2.5 py-0.5 text-xs font-medium text-green-600">{isTrialing ? 'Trial' : 'Current'}</span>
 							{:else if tier.featured}
 								<span class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">Popular</span>
+							{:else if trialDays > 0 && !activeSub}
+								<span class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">{trialDays}-day free trial</span>
 							{/if}
 						</Card.Title>
 						<Card.Description class="flex items-baseline gap-1 text-2xl font-bold text-foreground">
@@ -368,14 +394,11 @@
 						</ul>
 						{#if isCurrentTier(tier)}
 							<Button variant="secondary" disabled class="w-full gap-2">
-								<Check size={14} /> Active
+								<Check size={14} />
+								{isTrialing ? 'Trial active' : 'Active'}
 							</Button>
 						{:else if activeSub}
-							<Button
-								onclick={() => handleSwitch(tier.slug)}
-								disabled={actionLoading === `switch-${tier.slug}`}
-								class="w-full gap-2"
-							>
+							<Button onclick={() => handleSwitch(tier.slug)} disabled={actionLoading === `switch-${tier.slug}`} class="w-full gap-2">
 								{#if actionLoading === `switch-${tier.slug}`}
 									<Loader2 size={14} class="animate-spin" />
 								{/if}
@@ -383,16 +406,15 @@
 							</Button>
 							<p class="mt-2 text-xs text-muted-foreground">Your plan will be switched immediately. Proration is handled automatically.</p>
 						{:else}
-							<Button
-								onclick={() => handleCheckout(tier.slug)}
-								disabled={actionLoading === `checkout-${tier.slug}`}
-								class="w-full gap-2"
-							>
+							<Button onclick={() => handleCheckout(tier.slug)} disabled={actionLoading === `checkout-${tier.slug}`} class="w-full gap-2">
 								{#if actionLoading === `checkout-${tier.slug}`}
 									<Loader2 size={14} class="animate-spin" />
 								{/if}
-								Subscribe to {tier.name}
+								{trialDays > 0 ? `Start ${trialDays}-day free trial` : `Subscribe to ${tier.name}`}
 							</Button>
+							{#if trialDays > 0}
+								<p class="mt-2 text-xs text-muted-foreground">Card required · charged after the {trialDays}-day trial. Cancel anytime.</p>
+							{/if}
 						{/if}
 					</Card.Content>
 				</Card.Root>

@@ -12,9 +12,7 @@ if (!env.STRIPE_WEBHOOK_SECRET) {
 }
 
 if (PRICING_TIERS.length === 0) {
-	throw new Error(
-		'Missing Stripe Price IDs (set STRIPE_PRICE_STARTER and STRIPE_PRICE_GROWTH) when SAAS_MODE=true'
-	);
+	throw new Error('Missing Stripe Price IDs (set STRIPE_PRICE_STARTER and STRIPE_PRICE_GROWTH) when SAAS_MODE=true');
 }
 
 export const stripeClient = new Stripe(env.STRIPE_SECRET_KEY, {
@@ -31,6 +29,42 @@ async function clearCache() {
 	}
 }
 
+function buildPlanOptions(tier: (typeof PRICING_TIERS)[number]): {
+	name: string;
+	priceId: string;
+	limits: {
+		maxWebsites: number;
+		maxEventsPerMonth: number;
+		maxMembersPerWebsite: number;
+	};
+	freeTrial?: { days: number };
+} {
+	const base: {
+		name: string;
+		priceId: string;
+		limits: {
+			maxWebsites: number;
+			maxEventsPerMonth: number;
+			maxMembersPerWebsite: number;
+		};
+		freeTrial?: { days: number };
+	} = {
+		name: getPlanNameForTier(tier),
+		priceId: tier.priceId,
+		limits: {
+			maxWebsites: tier.maxWebsites,
+			maxEventsPerMonth: tier.maxEventsPerMonth,
+			maxMembersPerWebsite: tier.maxMembersPerWebsite
+		}
+	};
+
+	if (tier.trialPeriodDays && tier.trialPeriodDays > 0) {
+		base.freeTrial = { days: tier.trialPeriodDays };
+	}
+
+	return base;
+}
+
 export const stripePlugins = [
 	stripe({
 		stripeClient,
@@ -38,15 +72,7 @@ export const stripePlugins = [
 		createCustomerOnSignUp: true,
 		subscription: {
 			enabled: true,
-			plans: PRICING_TIERS.map((tier) => ({
-				name: getPlanNameForTier(tier),
-				priceId: tier.priceId,
-				limits: {
-					maxWebsites: tier.maxWebsites,
-					maxEventsPerMonth: tier.maxEventsPerMonth,
-					maxMembersPerWebsite: tier.maxMembersPerWebsite
-				}
-			})),
+			plans: PRICING_TIERS.map(buildPlanOptions),
 			onSubscriptionComplete: async () => {
 				await clearCache();
 			},

@@ -12,7 +12,20 @@ export type PricingTier = {
 	maxEventsPerMonth: number;
 	maxMembersPerWebsite: number;
 	features: string[];
+	/** Trial days granted on first checkout (Stripe `trial_period_days`, card collected upfront). 0 = no trial. */
+	trialPeriodDays: number;
 };
+
+/**
+ * Days of free trial (card required) granted once per user on first subscription.
+ * Override with STRIPE_TRIAL_DAYS (0 disables trials).
+ */
+export const TRIAL_DAYS: number = (() => {
+	const raw = (env as Record<string, string | undefined>).STRIPE_TRIAL_DAYS;
+	if (raw === undefined || raw === '') return 7;
+	const n = Number.parseInt(raw, 10);
+	return Number.isFinite(n) && n >= 0 ? n : 7;
+})();
 
 let cached: PricingTier[] | null = null;
 
@@ -21,7 +34,7 @@ let cached: PricingTier[] | null = null;
  * one per tier: STRIPE_PRICE_STARTER, STRIPE_PRICE_GROWTH, ...
  * (or STRIPE_PRODUCTS as a JSON map {"starter":"price_..."}).
  */
-const TIER_DEFINITIONS: Array<Omit<PricingTier, 'priceId'>> = [
+const TIER_DEFINITIONS: Array<Omit<PricingTier, 'priceId' | 'trialPeriodDays'>> = [
 	{
 		slug: 'starter',
 		name: 'Starter',
@@ -30,15 +43,7 @@ const TIER_DEFINITIONS: Array<Omit<PricingTier, 'priceId'>> = [
 		maxWebsites: 2,
 		maxEventsPerMonth: 50_000,
 		maxMembersPerWebsite: 2,
-		features: [
-			'2 websites',
-			'50,000 events / month',
-			'2 members per website',
-			'Real-time analytics & dashboard',
-			'Funnels, UTM & geo insights',
-			'6 months data retention',
-			'Community support'
-		]
+		features: ['2 websites', '50,000 events / month', '2 members per website', 'Real-time analytics & dashboard', 'Funnels, UTM & geo insights', '6 months data retention', 'Community support']
 	},
 	{
 		slug: 'growth',
@@ -48,14 +53,7 @@ const TIER_DEFINITIONS: Array<Omit<PricingTier, 'priceId'>> = [
 		maxWebsites: 6,
 		maxEventsPerMonth: 500_000,
 		maxMembersPerWebsite: 10,
-		features: [
-			'6 websites',
-			'500,000 events / month',
-			'10+ members per website',
-			'Everything in Starter',
-			'12 months data retention',
-			'Priority support'
-		]
+		features: ['6 websites', '500,000 events / month', '10+ members per website', 'Everything in Starter', '12 months data retention', 'Priority support']
 	}
 ];
 
@@ -98,8 +96,7 @@ function priceIdsFromLegacyArray(): Record<string, string> {
 		const map: Record<string, string> = {};
 		for (const t of parsed as Array<Record<string, unknown>>) {
 			const slug = t.slug as string | undefined;
-			const priceId =
-				(t.priceId as string | undefined) ?? (t.productId as string | undefined);
+			const priceId = (t.priceId as string | undefined) ?? (t.productId as string | undefined);
 			if (slug && priceId) map[slug] = priceId;
 		}
 		return map;
@@ -116,19 +113,15 @@ function buildTiers(): PricingTier[] {
 	return TIER_DEFINITIONS.map((def) => {
 		const priceId = merged[def.slug];
 		if (!priceId) {
-			throw new Error(
-				`Missing Stripe Price ID for tier "${def.slug}" (set STRIPE_PRICE_${def.slug.toUpperCase()}=price_...)`
-			);
+			throw new Error(`Missing Stripe Price ID for tier "${def.slug}" (set STRIPE_PRICE_${def.slug.toUpperCase()}=price_...)`);
 		}
-		return { ...def, priceId };
+		return { ...def, priceId, trialPeriodDays: TRIAL_DAYS };
 	});
 }
 
 export const PRICING_TIERS: PricingTier[] = SAAS_MODE ? (cached ??= buildTiers()) : [];
 
-export const STRIPE_PRICE_MAP: Record<string, string> = Object.fromEntries(
-	PRICING_TIERS.map((t) => [t.slug, t.priceId])
-);
+export const STRIPE_PRICE_MAP: Record<string, string> = Object.fromEntries(PRICING_TIERS.map((t) => [t.slug, t.priceId]));
 
 /** @deprecated Use STRIPE_PRICE_MAP */
 export const POLAR_PRODUCT_MAP: Record<string, string> = STRIPE_PRICE_MAP;

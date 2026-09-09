@@ -39,7 +39,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			maxWebsites: t.maxWebsites,
 			maxEventsPerMonth: t.maxEventsPerMonth,
 			maxMembersPerWebsite: t.maxMembersPerWebsite,
-			features: t.features
+			features: t.features,
+			trialPeriodDays: t.trialPeriodDays
 		})),
 		providers,
 		mcpServerUrl

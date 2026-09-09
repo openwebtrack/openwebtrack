@@ -11,6 +11,7 @@ export type Entitlement = {
 	dashboardLocked: boolean;
 	graceDaysRemaining: number | null;
 	expiredAt: Date | null;
+	trialing: boolean;
 };
 
 const FREE_ENTITLEMENT: Entitlement = {
@@ -22,7 +23,8 @@ const FREE_ENTITLEMENT: Entitlement = {
 	hasSubscription: false,
 	dashboardLocked: false,
 	graceDaysRemaining: null,
-	expiredAt: null
+	expiredAt: null,
+	trialing: false
 };
 
 const UNLIMITED_ENTITLEMENT: Entitlement = {
@@ -34,7 +36,8 @@ const UNLIMITED_ENTITLEMENT: Entitlement = {
 	hasSubscription: true,
 	dashboardLocked: false,
 	graceDaysRemaining: null,
-	expiredAt: null
+	expiredAt: null,
+	trialing: false
 };
 
 const GRACE_DAYS = 5;
@@ -43,7 +46,7 @@ const GRACE_DAYS = 5;
 const cache = new Map<string, { ent: Entitlement; expiresAt: number }>();
 const CACHE_TTL_MS = 10_000;
 
-function entitlementForSlug(slug: string | null): Entitlement {
+function entitlementForSlug(slug: string | null, trialing = false): Entitlement {
 	if (!slug) return FREE_ENTITLEMENT;
 	const tier = PRICING_TIERS.find((t) => t.slug === slug);
 	if (!tier) return FREE_ENTITLEMENT;
@@ -56,7 +59,8 @@ function entitlementForSlug(slug: string | null): Entitlement {
 		hasSubscription: true,
 		dashboardLocked: false,
 		graceDaysRemaining: null,
-		expiredAt: null
+		expiredAt: null,
+		trialing
 	};
 }
 
@@ -69,6 +73,8 @@ type SubscriptionRow = {
 	canceledAt: Date | null;
 	cancelAt: Date | null;
 	cancelAtPeriodEnd: boolean | null;
+	trialStart: Date | null;
+	trialEnd: Date | null;
 };
 
 async function getSubscriptionsForUser(userId: string): Promise<SubscriptionRow[]> {
@@ -84,7 +90,9 @@ async function getSubscriptionsForUser(userId: string): Promise<SubscriptionRow[
 			endedAt: subscription.endedAt,
 			canceledAt: subscription.canceledAt,
 			cancelAt: subscription.cancelAt,
-			cancelAtPeriodEnd: subscription.cancelAtPeriodEnd
+			cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+			trialStart: subscription.trialStart,
+			trialEnd: subscription.trialEnd
 		})
 		.from(subscription)
 		.where(eq(subscription.referenceId, userId));
@@ -117,7 +125,8 @@ export async function getEntitlementForUser(userId: string): Promise<Entitlement
 
 		if (activeSub) {
 			const tier = getTierByPlanName(activeSub.plan);
-			ent = entitlementForSlug(tier?.slug ?? null);
+			const trialing = activeSub.status === 'trialing';
+			ent = entitlementForSlug(tier?.slug ?? null, trialing);
 			// Fallback: active subscription exists but tier not configured -> grant first tier limits instead of free
 			if (!ent.hasSubscription) {
 				console.warn(
@@ -127,7 +136,14 @@ export async function getEntitlementForUser(userId: string): Promise<Entitlement
 					PRICING_TIERS.map((t) => t.slug)
 				);
 				const fallback = PRICING_TIERS[0];
-				if (fallback) ent = entitlementForSlug(fallback.slug);
+				if (fallback) ent = entitlementForSlug(fallback.slug, trialing);
+			} else if (trialing) {
+				// Trial grants full access; surface remaining trial days via graceDaysRemaining + expiredAt (trialEnd)
+				const trialEnd = activeSub.trialEnd ? new Date(activeSub.trialEnd) : null;
+				if (trialEnd && !isNaN(trialEnd.getTime())) {
+					const remaining = Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+					ent = { ...ent, graceDaysRemaining: remaining, expiredAt: trialEnd };
+				}
 			}
 		} else {
 			// No active subscription - check if they ever had one
@@ -137,12 +153,11 @@ export async function getEntitlementForUser(userId: string): Promise<Entitlement
 				ent = { ...FREE_ENTITLEMENT, dashboardLocked: false, graceDaysRemaining: null, expiredAt: null };
 			} else {
 				const daysSince = (Date.now() - lastEnd.getTime()) / (1000 * 60 * 60 * 24);
-				const remaining = Math.ceil(GRACE_DAYS - daysSince);
 				const locked = daysSince > GRACE_DAYS;
 				ent = {
 					...FREE_ENTITLEMENT,
 					dashboardLocked: locked,
-					graceDaysRemaining: locked ? 0 : Math.max(0, remaining),
+					graceDaysRemaining: locked ? 0 : Math.max(0, GRACE_DAYS - daysSince),
 					expiredAt: lastEnd
 				};
 			}

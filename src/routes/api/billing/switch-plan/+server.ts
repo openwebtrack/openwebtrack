@@ -33,12 +33,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const rows = await db
 			.select()
 			.from(subscription)
-			.where(
-				and(
-					eq(subscription.referenceId, locals.user.id),
-					inArray(subscription.status, ['active', 'trialing'])
-				)
-			)
+			.where(and(eq(subscription.referenceId, locals.user.id), inArray(subscription.status, ['active', 'trialing'])))
 			.limit(1);
 		const activeSub = rows[0];
 
