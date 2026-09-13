@@ -30,7 +30,8 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 			...site,
 			excludedIps: site.excludedIps || [],
 			excludedPaths: site.excludedPaths || [],
-			excludedCountries: site.excludedCountries || []
+			excludedCountries: site.excludedCountries || [],
+			extraDomains: site.extraDomains || []
 		}
 	};
 };

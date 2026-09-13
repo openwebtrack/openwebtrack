@@ -35,9 +35,9 @@ interface TrackerWindow extends Window {
 declare const __OWT_API_ENDPOINT__: string;
 
 // No cookies used - IDs are ephemeral, scoped to the browser session (sessionStorage).
-const STORAGE_VISITOR = '_trk_uid';
-const STORAGE_SESSION = '_trk_ses';
-const STORAGE_PAGEVIEW = '_trk_pv';
+const STORAGE_VISITOR = '_owt_uid';
+const STORAGE_SESSION = '_owt_ses';
+const STORAGE_PAGEVIEW = '_owt_pv';
 
 const BOT_PATTERNS = ['headlesschrome', 'phantomjs', 'selenium', 'webdriver', 'puppeteer', 'playwright', 'python', 'curl', 'wget', 'java/', 'go-http', 'node.js', 'axios', 'postman'];
 
@@ -82,7 +82,7 @@ const OS_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
 
 	const scriptEl = document.currentScript as HTMLScriptElement | null;
 	if (!scriptEl) {
-		w.owt = { trackEvent: () => {}, trackPayment: () => {} } as any;
+		w.owt = { trackEvent: () => {}, trackPayment: () => {}, getVisitorId: () => null, getSessionId: () => null, getAttribution: () => ({ visitorId: null, sessionId: null }) } as any;
 		return;
 	}
 
@@ -366,7 +366,28 @@ const OS_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
 
 	w.owt = {
 		trackEvent: (n: string, d?: Record<string, unknown>, c?: (s: number) => void) => dispatch(n, d, c),
-		trackPayment: (a: number, cr?: string, tId?: string, c?: (s: number) => void) => recordPayment(a, cr, tId, c)
+		trackPayment: (a: number, cr?: string, tId?: string, c?: (s: number) => void) => recordPayment(a, cr, tId, c),
+		getVisitorId: (): string | null => {
+			try {
+				return sessionStorage.getItem(STORAGE_VISITOR);
+			} catch {
+				return null;
+			}
+		},
+		getSessionId: (): string | null => {
+			try {
+				return sessionStorage.getItem(STORAGE_SESSION);
+			} catch {
+				return null;
+			}
+		},
+		getAttribution: (): { visitorId: string | null; sessionId: string | null } => {
+			try {
+				return { visitorId: sessionStorage.getItem(STORAGE_VISITOR), sessionId: sessionStorage.getItem(STORAGE_SESSION) };
+			} catch {
+				return { visitorId: null, sessionId: null };
+			}
+		}
 	} as any;
 
 	if (isAutomated()) active = false;

@@ -55,6 +55,7 @@ export const websiteUpdateSchema = z.object({
 	domain: domainSchema.optional(),
 	timezone: timezoneSchema.optional(),
 	currency: currencySchema.optional(),
+	extraDomains: z.array(domainSchema).max(10).optional(),
 	excludedIps: stringArraySchema.optional(),
 	excludedPaths: stringArraySchema.optional(),
 	excludedCountries: stringArraySchema.optional(),

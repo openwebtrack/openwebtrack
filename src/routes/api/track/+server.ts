@@ -386,6 +386,14 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 			.from(website)
 			.where(sql`LOWER(REPLACE(REPLACE(${website.domain}, 'https://', ''), 'http://', '')) = ${domainKey}`)
 			.limit(1);
+		if (!site) {
+			// Fall back to matching an additional (alias) domain of the website.
+			[site] = await db
+				.select()
+				.from(website)
+				.where(sql`${website.extraDomains} ? ${domainKey}`)
+				.limit(1);
+		}
 	}
 
 	if (!site) {
@@ -461,16 +469,22 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		}
 	}
 
-	const requestDomain = payload.domain
-		.toLowerCase()
-		.replace(/^www\./, '')
-		.split(':')[0];
-	const siteDomain = site.domain
-		.toLowerCase()
-		.replace(/^www\./, '')
-		.split(':')[0];
+	const normalizeRequestDomain = (d: string): string =>
+		d
+			.toLowerCase()
+			.replace(/^https?:\/\//, '')
+			.replace(/^www\./, '')
+			.split(':')[0]
+			.split('/')[0];
+
+	const requestDomain = normalizeRequestDomain(payload.domain);
+	const allowedDomains = [site.domain, ...((site.extraDomains as string[] | null) || [])];
+	const domainAllowed = allowedDomains.some((allowed) => {
+		const a = normalizeRequestDomain(allowed);
+		return requestDomain === a || requestDomain.endsWith('.' + a);
+	});
 	const isLocalhost = requestDomain === 'localhost' || requestDomain === '127.0.0.1' || requestDomain.endsWith('.localhost');
-	if (!isLocalhost && requestDomain !== siteDomain && !requestDomain.endsWith('.' + siteDomain)) {
+	if (!isLocalhost && !domainAllowed) {
 		return json({ error: 'Domain mismatch' }, { status: 403, headers: corsHeaders });
 	}
 

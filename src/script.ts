@@ -32,9 +32,9 @@ interface TrackerWindow extends Window {
 
 declare const __OWT_API_ENDPOINT__: string;
 
-const COOKIE_VISITOR = '_trk_uid';
-const COOKIE_SESSION = '_trk_ses';
-const STORAGE_PAGEVIEW = '_trk_pv';
+const COOKIE_VISITOR = '_owt_uid';
+const COOKIE_SESSION = '_owt_ses';
+const STORAGE_PAGEVIEW = '_owt_pv';
 const SESSION_DAYS = 1 / 48;
 const VISITOR_DAYS = 365;
 
@@ -81,7 +81,7 @@ const OS_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
 
 	const scriptEl = document.currentScript as HTMLScriptElement | null;
 	if (!scriptEl) {
-		w.owt = { trackEvent: () => {}, trackPayment: () => {} } as any;
+		w.owt = { trackEvent: () => {}, trackPayment: () => {}, getVisitorId: () => null, getSessionId: () => null, getAttribution: () => ({ visitorId: null, sessionId: null }) } as any;
 		return;
 	}
 
@@ -233,8 +233,8 @@ const OS_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
 				domain: hostDomain!,
 				href,
 				referrer: document.referrer || null,
-				visitorId: resolveId(COOKIE_VISITOR, '_trk_uid', VISITOR_DAYS),
-				sessionId: resolveId(COOKIE_SESSION, '_trk_ses', SESSION_DAYS),
+				visitorId: resolveId(COOKIE_VISITOR, '_owt_uid', VISITOR_DAYS),
+				sessionId: resolveId(COOKIE_SESSION, '_owt_ses', SESSION_DAYS),
 				viewport: { width: w.innerWidth, height: w.innerHeight },
 				screenWidth: screen?.width || 0,
 				screenHeight: screen?.height || 0,
@@ -267,7 +267,7 @@ const OS_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
 			keepalive: true
 		})
 			.then((res) => {
-				if (res.ok) setCookie(COOKIE_SESSION, resolveId(COOKIE_SESSION, '_trk_ses', SESSION_DAYS), SESSION_DAYS);
+				if (res.ok) setCookie(COOKIE_SESSION, resolveId(COOKIE_SESSION, '_owt_ses', SESSION_DAYS), SESSION_DAYS);
 				cb?.(res.status);
 			})
 			.catch(() => cb?.(500));
@@ -383,8 +383,8 @@ const OS_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
 
 			const isSameRootDomain = hostDomain && (linkHost === hostDomain || linkHost.endsWith('.' + hostDomain));
 			if (isSameRootDomain) {
-				u.searchParams.set('_trk_uid', resolveId(COOKIE_VISITOR, '_trk_uid', VISITOR_DAYS));
-				u.searchParams.set('_trk_ses', resolveId(COOKIE_SESSION, '_trk_ses', SESSION_DAYS));
+				u.searchParams.set('_owt_uid', resolveId(COOKIE_VISITOR, '_owt_uid', VISITOR_DAYS));
+				u.searchParams.set('_owt_ses', resolveId(COOKIE_SESSION, '_owt_ses', SESSION_DAYS));
 				a.href = u.toString();
 			} else {
 				const payload = createPayload();
@@ -404,7 +404,28 @@ const OS_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
 
 	w.owt = {
 		trackEvent: (n: string, d?: Record<string, unknown>, c?: (s: number) => void) => dispatch(n, d, c),
-		trackPayment: (a: number, cr?: string, tId?: string, c?: (s: number) => void) => recordPayment(a, cr, tId, c)
+		trackPayment: (a: number, cr?: string, tId?: string, c?: (s: number) => void) => recordPayment(a, cr, tId, c),
+		getVisitorId: (): string | null => {
+			try {
+				return getCookie(COOKIE_VISITOR);
+			} catch {
+				return null;
+			}
+		},
+		getSessionId: (): string | null => {
+			try {
+				return getCookie(COOKIE_SESSION);
+			} catch {
+				return null;
+			}
+		},
+		getAttribution: (): { visitorId: string | null; sessionId: string | null } => {
+			try {
+				return { visitorId: getCookie(COOKIE_VISITOR), sessionId: getCookie(COOKIE_SESSION) };
+			} catch {
+				return { visitorId: null, sessionId: null };
+			}
+		}
 	} as any;
 
 	if (isAutomated()) active = false;

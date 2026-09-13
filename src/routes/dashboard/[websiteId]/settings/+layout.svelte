@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Settings, Bell, Filter, Users, Database, KeyRound, BookOpenText, ExternalLink, Grid2x2Plus } from 'lucide-svelte';
+	import { Settings, Bell, Filter, Users, Database, KeyRound, BookOpenText, ExternalLink, Grid2x2Plus, CircleDollarSign } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { page } from '$app/state';
 
@@ -14,6 +14,7 @@
 		{ id: 'team', label: 'Team', icon: Users, href: `/dashboard/${website.id}/settings/team` },
 		{ id: 'widgets', label: 'Widgets', icon: Grid2x2Plus, href: `/dashboard/${website.id}/settings/widgets` },
 		{ id: 'api-keys', label: 'API Keys', icon: KeyRound, href: `/dashboard/${website.id}/settings/api-keys` },
+		{ id: 'revenue', label: 'Revenue', icon: CircleDollarSign, href: `/dashboard/${website.id}/settings/revenue` },
 		{ id: 'data', label: 'Data', icon: Database, href: `/dashboard/${website.id}/settings/data` }
 	];
 

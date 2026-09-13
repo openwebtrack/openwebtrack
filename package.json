@@ -58,6 +58,7 @@
 		"axios": "^1.19.0",
 		"chart.js": "^4.5.1",
 		"clsx": "^2.1.1",
+		"highlight.js": "^11.12.0",
 		"lucide-svelte": "^1.0.1",
 		"maileroo-sdk": "^1.0.1",
 		"maplibre-gl": "^5.24.0",

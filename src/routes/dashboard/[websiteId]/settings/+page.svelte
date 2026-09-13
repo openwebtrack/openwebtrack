@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Settings, Check, Copy, Trash2, Loader2, AlertTriangle } from 'lucide-svelte';
-	import { TIMEZONES, CURRENCIES } from '$lib/utils/constants';
+	import { Settings, Check, Copy, Trash2, Loader2, AlertTriangle, Plus, X } from 'lucide-svelte';
+	import { TIMEZONES } from '$lib/utils/constants';
 	import { browser } from '$app/environment';
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
@@ -20,10 +20,12 @@
 
 	let originalTimezone = $state(website.timezone);
 	let originalDomain = $state(website.domain);
-	let originalCurrency = $state(website.currency);
+	let originalExtraDomains = $state<string[]>([...(website.extraDomains || [])]);
 	let timezone = $state(website.timezone);
 	let domain = $state(website.domain);
-	let currency = $state(website.currency);
+	let extraDomains = $state<string[]>([...(website.extraDomains || [])]);
+	let newDomain = $state('');
+	let domainError = $state('');
 	let saveSuccess = $state(false);
 	let isSaving = $state(false);
 	let saveError = $state('');
@@ -37,18 +39,43 @@
 		`<script defer data-website-id="${website.id}" data-domain="${domain}" src="${browser ? window.location.origin : ''}/${cookieless ? 'script.cookieless.js' : 'script.js'}"><\/script>`
 	);
 
-	const hasChanges = $derived(domain !== originalDomain || timezone !== originalTimezone || currency !== originalCurrency);
+	const hasChanges = $derived(domain !== originalDomain || timezone !== originalTimezone || JSON.stringify(extraDomains) !== JSON.stringify(originalExtraDomains));
 
 	$effect(() => {
 		const w = website;
 		if (!w?.id) return;
 		originalTimezone = w.timezone;
 		originalDomain = w.domain;
-		originalCurrency = w.currency;
+		originalExtraDomains = [...(w.extraDomains || [])];
 		timezone = w.timezone;
 		domain = w.domain;
-		currency = w.currency;
+		extraDomains = [...(w.extraDomains || [])];
 	});
+
+	const normalizeDomainInput = (value: string): string =>
+		value
+			.toLowerCase()
+			.trim()
+			.replace(/^https?:\/\//, '')
+			.replace(/^www\./, '')
+			.split('/')[0]
+			.split(':')[0];
+
+	const addDomain = () => {
+		const norm = normalizeDomainInput(newDomain);
+		domainError = '';
+		if (!norm) return;
+		if (norm === normalizeDomainInput(domain) || extraDomains.includes(norm)) {
+			domainError = 'Domain already added';
+			return;
+		}
+		extraDomains = [...extraDomains, norm];
+		newDomain = '';
+	};
+
+	const removeDomain = (d: string) => {
+		extraDomains = extraDomains.filter((x) => x !== d);
+	};
 
 	const copyToClipboard = () => navigator.clipboard.writeText(scriptCode);
 
@@ -66,15 +93,15 @@
 			await axios.put(`/api/websites/${data.website.id}`, {
 				domain,
 				timezone,
-				currency
+				extraDomains
 			});
 			originalDomain = domain;
 			originalTimezone = timezone;
-			originalCurrency = currency;
+			originalExtraDomains = [...extraDomains];
 			saveSuccess = true;
 			setTimeout(() => (saveSuccess = false), 2000);
-		} catch (e) {
-			saveError = e instanceof Error ? e.message : 'Failed to update settings';
+		} catch (e: any) {
+			saveError = e.response?.data?.error || (e instanceof Error ? e.message : 'Failed to update settings');
 		} finally {
 			isSaving = false;
 		}
@@ -152,6 +179,40 @@
 		<div class="relative flex-1">
 			<Input bind:value={domain} placeholder="example.com" />
 		</div>
+		<div class="mt-5">
+			<Label class="mb-1 block">Additional domains</Label>
+			<p class="mb-2 text-xs text-muted-foreground">
+				Receive traffic from more domains in this same website, e.g. <code class="rounded bg-muted px-1">cloud.example.com</code>. The tracking snippet stays unchanged.
+			</p>
+			{#if extraDomains.length > 0}
+				<div class="mb-2 flex flex-wrap gap-2">
+					{#each extraDomains as d}
+						<span class="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs">
+							{d}
+							<button onclick={() => removeDomain(d)} class="text-muted-foreground hover:text-foreground" aria-label="Remove {d}">
+								<X size={12} />
+							</button>
+						</span>
+					{/each}
+				</div>
+			{/if}
+			<div class="flex gap-2">
+				<Input
+					bind:value={newDomain}
+					placeholder="cloud.example.com"
+					onkeydown={(e) => {
+						if (e.key === 'Enter') addDomain();
+					}}
+				/>
+				<Button variant="outline" onclick={addDomain} class="shrink-0">
+					<Plus size={14} class="mr-1" />
+					Add
+				</Button>
+			</div>
+			{#if domainError}
+				<p class="mt-2 text-xs text-destructive">{domainError}</p>
+			{/if}
+		</div>
 	</Card.Content>
 </Card.Root>
 
@@ -168,25 +229,6 @@
 			<Select.Content>
 				{#each TIMEZONES as tz}
 					<Select.Item value={tz} label={tz} />
-				{/each}
-			</Select.Content>
-		</Select.Root>
-	</Card.Content>
-</Card.Root>
-
-<Card.Root class="mt-6">
-	<Card.Header>
-		<Card.Title>Currency</Card.Title>
-		<Card.Description>Revenue will be converted to this currency in your dashboard.</Card.Description>
-	</Card.Header>
-	<Card.Content>
-		<Select.Root bind:value={currency} type="single">
-			<Select.Trigger class="w-full">
-				{currency}
-			</Select.Trigger>
-			<Select.Content>
-				{#each CURRENCIES as curr}
-					<Select.Item value={curr.code} label={`${curr.code} - ${curr.name}`} />
 				{/each}
 			</Select.Content>
 		</Select.Root>

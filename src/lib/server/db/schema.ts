@@ -14,6 +14,8 @@ export const website = pgTable(
 		excludedIps: jsonb('excluded_ips').$type<string[]>().default([]).notNull(),
 		excludedPaths: jsonb('excluded_paths').$type<string[]>().default([]).notNull(),
 		excludedCountries: jsonb('excluded_countries').$type<string[]>().default([]).notNull(),
+		/** Additional domains (besides the primary `domain`) that send traffic to this website. */
+		extraDomains: jsonb('extra_domains').$type<string[]>().default([]).notNull(),
 		notifications: jsonb('notifications')
 			.$type<{
 				trafficSpike: { enabled: boolean; threshold: number; windowSeconds: number };
@@ -220,6 +222,31 @@ export const apiKey = pgTable(
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
 	(table) => [index('apiKey_websiteId_idx').on(table.websiteId), index('apiKey_keyHash_idx').on(table.keyHash)]
+);
+
+/** Per-website Stripe revenue integration (DataFast-style attribution). */
+export const stripeIntegration = pgTable(
+	'stripe_integration',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		websiteId: uuid('website_id')
+			.notNull()
+			.unique()
+			.references(() => website.id, { onDelete: 'cascade' }),
+		encryptedSecretKey: text('encrypted_secret_key').notNull(),
+		secretKeyLast4: text('secret_key_last4').notNull().default('****'),
+		encryptedWebhookSecret: text('encrypted_webhook_secret'),
+		providerWebhookId: text('provider_webhook_id'),
+		status: text('status').notNull().default('active'),
+		stripeAccountId: text('stripe_account_id'),
+		lastVerifiedAt: timestamp('last_verified_at'),
+		lastSyncedAt: timestamp('last_synced_at'),
+		lastWebhookAt: timestamp('last_webhook_at'),
+		lastError: text('last_error'),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at').defaultNow().notNull()
+	},
+	(table) => [index('stripeIntegration_websiteId_idx').on(table.websiteId)]
 );
 
 /** Dedicated credentials for AI assistants using the MCP endpoint. */
