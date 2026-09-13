@@ -657,7 +657,7 @@
 			<div class="flex items-center gap-2">
 				<DateRangePicker value={dateRangeValue} onSelect={handleDateChange} />
 				<GranularityPicker value={granularity} onSelect={handleGranularityChange} />
-				<Button variant="secondary" size="icon-sm" onclick={refresh} disabled={isFetching}>
+				<Button variant="secondary" size="icon" onclick={refresh} disabled={isFetching}>
 					{#if isFetching}
 						<Loader2 class="h-3.5 w-3.5 animate-spin" />
 					{:else}
@@ -671,7 +671,7 @@
 		<div class="flex items-center gap-2">
 			{#if showWebsiteSwitcher && websites.length > 0}
 				<Popover.Root>
-					<Popover.Trigger class="group flex cursor-pointer items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent">
+					<Popover.Trigger class="group flex cursor-pointer items-center gap-1.5 rounded-full bg-secondary px-3 h-[36px] text-xs font-medium transition-colors hover:bg-accent">
 						<img src="https://icons.duckduckgo.com/ip3/{website.domain}.ico" alt={website.domain} class="size-3.5" />
 						<span class="transition-colors group-hover:text-foreground">{website.domain}</span>
 						{#if !isOwner}
@@ -730,7 +730,7 @@
 				onClear={() => handleClearFilters()}
 			/>
 
-			<Button variant="ghost" size="sm" onclick={openRealTimeMap}>
+			<Button variant="ghost" onclick={openRealTimeMap}>
 				<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24">
 					<path
 						fill="currentColor"

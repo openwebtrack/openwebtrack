@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Loader2, ExternalLink, FlaskConical, Banknote } from 'lucide-svelte';
+	import { Loader2, ExternalLink, FlaskConical, Banknote, TriangleAlert, Copy, Check } from 'lucide-svelte';
 	import { CURRENCIES } from '$lib/utils/constants';
 	import CodeBlock from '$lib/components/CodeBlock.svelte';
 	import type { PageData } from './$types';
@@ -57,6 +57,17 @@
 	let isSavingSecret = $state(false);
 	let secretError = $state('');
 	let secretSaved = $state(false);
+	let urlCopied = $state(false);
+
+	// Split the Stripe failure reason so dashboard URLs become clickable links.
+	let warningParts = $derived(webhookWarning.split(/(https?:\/\/[^\s]+)/g).map((text) => ({ text, isUrl: /^https?:\/\//.test(text) })));
+
+	const copyWebhookUrl = async () => {
+		if (!status?.webhookUrl) return;
+		await navigator.clipboard.writeText(status.webhookUrl);
+		urlCopied = true;
+		setTimeout(() => (urlCopied = false), 2000);
+	};
 
 	let wizardOpen = $state(false);
 	let restrictedKey = $state('');
@@ -355,16 +366,16 @@ Route::post('/api/create-checkout', function (Request $request) {
 					<span class="inline-flex items-center gap-1.5 text-xs font-medium text-green-500">
 						<span class="h-1.5 w-1.5 rounded-full bg-green-500"></span> Connected
 					</span>
-					<button
+					<Button
 						onclick={disconnect}
 						disabled={isDisconnecting}
-						class="flex shrink-0 items-center gap-1.5 rounded-full border border-destructive/40 px-4 py-1.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+						size="sm"
 					>
 						{#if isDisconnecting}<Loader2 size={14} class="animate-spin" />{:else}Disconnect{/if}
-					</button>
+					</Button>
 				</div>
 			{:else}
-				<button onclick={openWizard} class="shrink-0 rounded-full bg-[#635BFF] px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#4F46E5]"> Connect </button>
+				<Button onclick={openWizard} size="sm">Connect</Button>
 			{/if}
 		</div>
 
@@ -399,26 +410,62 @@ Route::post('/api/create-checkout', function (Request $request) {
 			<Alert.Root variant="destructive" class="mt-3"><Alert.Description>{loadError}</Alert.Description></Alert.Root>
 		{/if}
 		{#if status?.connected && !status.hasWebhookSecret}
-			<div class="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
-				<p class="font-medium text-amber-600 dark:text-amber-400">Webhook not connected</p>
-				<p class="mt-1 text-muted-foreground">
-					{#if webhookWarning}{webhookWarning}{:else}Automatic setup didn't finish, so new payments won't arrive in real time.{/if}
-					Add the endpoint manually in Stripe → Developers → Webhooks:
+			<div class="mt-3 rounded-2xl border border-amber-500/40 bg-amber-500/5 p-5">
+				<p class="flex items-center gap-2 text-sm font-semibold text-amber-600 dark:text-amber-400">
+					<TriangleAlert size={16} class="shrink-0" />
+					Webhook not connected
 				</p>
-				<p class="mt-2 font-mono text-xs break-all">{status.webhookUrl}</p>
-				<p class="mt-2 text-xs text-muted-foreground">
-					Events: {#each WEBHOOK_EVENTS as ev, i}<code class="rounded bg-muted px-1 py-0.5">{ev}</code>{#if i < WEBHOOK_EVENTS.length - 1},
-						{/if}{/each}. Then paste the endpoint's signing secret below:
+				<p class="mt-2 text-sm text-muted-foreground">
+					{#if webhookWarning}
+						{#each warningParts as part}
+							{#if part.isUrl}<a href={part.text} target="_blank" rel="noreferrer" class="break-all text-[#635BFF] underline hover:no-underline">{part.text}</a>{:else}{part.text}{/if}
+						{/each}
+					{:else}Automatic setup didn't finish, so new payments won't arrive in real time.{/if}
 				</p>
-				<div class="mt-2 flex flex-wrap items-center gap-2">
-					<Input type="password" bind:value={webhookSecret} placeholder="whsec_..." autocomplete="off" class="max-w-sm flex-1" />
-					<Button onclick={saveWebhookSecret} disabled={!webhookSecret.trim() || isSavingSecret} size="sm">
-						{#if isSavingSecret}<Loader2 size={14} class="animate-spin" />{/if}
-						Save secret
-					</Button>
-				</div>
-				{#if secretError}<p class="mt-2 text-xs text-destructive">{secretError}</p>{/if}
-				{#if secretSaved}<p class="mt-2 text-xs text-green-500">Saved — events are now signature-verified.</p>{/if}
+				<ol class="mt-4 list-decimal space-y-4 pl-5 text-sm">
+					<li>
+						<span class="text-muted-foreground">In Stripe → Developers → Webhooks, add this endpoint:</span>
+						<div class="mt-1.5 flex items-center gap-2 rounded-lg border bg-muted/50 p-2">
+							<code class="w-full flex-1 font-mono text-xs break-all">{status.webhookUrl}</code>
+							<Button variant="ghost" size="icon-sm" onclick={copyWebhookUrl} class="h-8 w-8 shrink-0">
+								{#if urlCopied}<Check size={14} class="text-green-500" />{:else}<Copy size={14} />{/if}
+							</Button>
+						</div>
+					</li>
+					<li>
+						<span class="text-muted-foreground">Enable these events:</span>
+						<div class="mt-1.5 flex flex-wrap gap-1.5">
+							{#each WEBHOOK_EVENTS as ev}
+								<code class="rounded-md bg-muted px-2 py-0.5 font-mono text-xs">{ev}</code>
+							{/each}
+						</div>
+					</li>
+					<li>
+						<span class="text-muted-foreground">Paste the endpoint's signing secret:</span>
+						<div class="mt-1.5 flex flex-wrap items-center gap-2">
+							<Input
+								type="password"
+								bind:value={webhookSecret}
+								placeholder="whsec_..."
+								autocomplete="off"
+								class="max-w-xs flex-1"
+								onkeydown={(e) => {
+									if (e.key === 'Enter') saveWebhookSecret();
+								}}
+							/>
+							<button
+								onclick={saveWebhookSecret}
+								disabled={!webhookSecret.trim() || isSavingSecret}
+								class="flex items-center gap-2 rounded-full bg-[#635BFF] px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#4F46E5] disabled:opacity-50"
+							>
+								{#if isSavingSecret}<Loader2 size={14} class="animate-spin" />{/if}
+								Save secret
+							</button>
+						</div>
+						{#if secretError}<p class="mt-2 text-xs text-destructive">{secretError}</p>{/if}
+						{#if secretSaved}<p class="mt-2 text-xs text-green-500">Saved — events are now signature-verified.</p>{/if}
+					</li>
+				</ol>
 			</div>
 		{/if}
 	</Card.Content>
@@ -500,13 +547,13 @@ Route::post('/api/create-checkout', function (Request $request) {
 
 		<Dialog.Footer class="gap-2">
 			<Button variant="ghost" onclick={() => (wizardOpen = false)} disabled={isConnecting}>Cancel</Button>
-			<button
+			<Button
 				onclick={connectStripe}
 				disabled={isConnecting || !restrictedKey.trim()}
-				class="flex items-center gap-2 rounded-full bg-[#635BFF] px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-[#4F46E5] disabled:opacity-50"
+				size="sm"
 			>
 				{#if isConnecting}<Loader2 size={14} class="animate-spin" />Connecting…{:else}Connect{/if}
-			</button>
+			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

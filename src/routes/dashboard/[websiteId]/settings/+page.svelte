@@ -13,6 +13,7 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import { Switch } from '$lib/components/ui/switch/index.js';
 
 	let { data }: { data: PageData } = $props();
 
@@ -26,6 +27,11 @@
 	let extraDomains = $state<string[]>([...(website.extraDomains || [])]);
 	let newDomain = $state('');
 	let domainError = $state('');
+	let originalTrafficSpike = $state(false);
+	let originalWeeklySummary = $state(false);
+	let trafficSpikeEnabled = $state(false);
+	let weeklySummaryEnabled = $state(false);
+	let loadedWebsiteId = $state<string | null>(null);
 	let saveSuccess = $state(false);
 	let isSaving = $state(false);
 	let saveError = $state('');
@@ -39,7 +45,13 @@
 		`<script defer data-website-id="${website.id}" data-domain="${domain}" src="${browser ? window.location.origin : ''}/${cookieless ? 'script.cookieless.js' : 'script.js'}"><\/script>`
 	);
 
-	const hasChanges = $derived(domain !== originalDomain || timezone !== originalTimezone || JSON.stringify(extraDomains) !== JSON.stringify(originalExtraDomains));
+	const hasChanges = $derived(
+		domain !== originalDomain ||
+			timezone !== originalTimezone ||
+			JSON.stringify(extraDomains) !== JSON.stringify(originalExtraDomains) ||
+			trafficSpikeEnabled !== originalTrafficSpike ||
+			weeklySummaryEnabled !== originalWeeklySummary
+	);
 
 	$effect(() => {
 		const w = website;
@@ -50,6 +62,19 @@
 		timezone = w.timezone;
 		domain = w.domain;
 		extraDomains = [...(w.extraDomains || [])];
+		// Sync toggles only when navigating between websites — never after a
+		// save, or the stale layout data would reset them.
+		if (loadedWebsiteId !== w.id) {
+			loadedWebsiteId = w.id;
+			const notifs = w.notifications as {
+				trafficSpike?: { enabled?: boolean; threshold?: number; windowSeconds?: number };
+				weeklySummary?: { enabled?: boolean };
+			} | null | undefined;
+			originalTrafficSpike = notifs?.trafficSpike?.enabled ?? false;
+			originalWeeklySummary = notifs?.weeklySummary?.enabled ?? false;
+			trafficSpikeEnabled = originalTrafficSpike;
+			weeklySummaryEnabled = originalWeeklySummary;
+		}
 	});
 
 	const normalizeDomainInput = (value: string): string =>
@@ -90,14 +115,30 @@
 		saveSuccess = false;
 
 		try {
+			const stored = data.website.notifications as {
+				trafficSpike?: { enabled?: boolean; threshold?: number; windowSeconds?: number };
+				weeklySummary?: { enabled?: boolean };
+			} | null | undefined;
 			await axios.put(`/api/websites/${data.website.id}`, {
 				domain,
 				timezone,
-				extraDomains
+				extraDomains,
+				notifications: {
+					trafficSpike: {
+						enabled: trafficSpikeEnabled,
+						threshold: stored?.trafficSpike?.threshold ?? 100,
+						windowSeconds: stored?.trafficSpike?.windowSeconds ?? 60
+					},
+					weeklySummary: {
+						enabled: weeklySummaryEnabled
+					}
+				}
 			});
 			originalDomain = domain;
 			originalTimezone = timezone;
 			originalExtraDomains = [...extraDomains];
+			originalTrafficSpike = trafficSpikeEnabled;
+			originalWeeklySummary = weeklySummaryEnabled;
 			saveSuccess = true;
 			setTimeout(() => (saveSuccess = false), 2000);
 		} catch (e: any) {
@@ -232,6 +273,29 @@
 				{/each}
 			</Select.Content>
 		</Select.Root>
+	</Card.Content>
+</Card.Root>
+
+<Card.Root class="mt-6">
+	<Card.Header>
+		<Card.Title>Notifications</Card.Title>
+		<Card.Description>Email alerts for your website.</Card.Description>
+	</Card.Header>
+	<Card.Content class="space-y-6">
+		<div class="flex items-center justify-between gap-4">
+			<div class="space-y-1">
+				<p class="font-medium">Traffic spike alerts</p>
+				<p class="text-sm text-muted-foreground">Receive an email when a sudden surge in visitors is detected</p>
+			</div>
+			<Switch checked={trafficSpikeEnabled} onCheckedChange={(checked: boolean) => (trafficSpikeEnabled = checked)} />
+		</div>
+		<div class="flex items-center justify-between gap-4">
+			<div class="space-y-1">
+				<p class="font-medium">Weekly summary</p>
+				<p class="text-sm text-muted-foreground">Receive a weekly analytics report every Monday at 9 AM</p>
+			</div>
+			<Switch checked={weeklySummaryEnabled} onCheckedChange={(checked: boolean) => (weeklySummaryEnabled = checked)} />
+		</div>
 	</Card.Content>
 </Card.Root>
 

@@ -75,7 +75,7 @@
 </script>
 
 <Select.Root value={selectedValue} onValueChange={handleValueChange} type="single">
-	<Select.Trigger class="h-[34px] border-border bg-secondary hover:border-muted-foreground">
+	<Select.Trigger class="h-9 rounded-full border-border bg-secondary hover:border-muted-foreground">
 		{selectedValue}
 	</Select.Trigger>
 	<Select.Content class="border-border bg-card">
