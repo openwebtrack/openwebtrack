@@ -50,6 +50,14 @@
 	let isLoading = $state(true);
 	let loadError = $state('');
 
+	const WEBHOOK_EVENTS = ['checkout.session.completed', 'checkout.session.async_payment_succeeded', 'payment_intent.succeeded', 'charge.succeeded', 'invoice.paid', 'invoice.payment_succeeded'];
+
+	let webhookWarning = $state('');
+	let webhookSecret = $state('');
+	let isSavingSecret = $state(false);
+	let secretError = $state('');
+	let secretSaved = $state(false);
+
 	let wizardOpen = $state(false);
 	let restrictedKey = $state('');
 	let isConnecting = $state(false);
@@ -112,8 +120,12 @@
 		}
 		isConnecting = true;
 		connectError = '';
+		webhookWarning = '';
 		try {
-			await axios.post(`/api/websites/${website.id}/revenue/stripe`, { secretKey: restrictedKey.trim() });
+			const res = await axios.post(`/api/websites/${website.id}/revenue/stripe`, { secretKey: restrictedKey.trim() });
+			if (res.data?.webhook?.status === 'failed' && res.data.webhook.error) {
+				webhookWarning = res.data.webhook.error;
+			}
 			wizardOpen = false;
 			restrictedKey = '';
 			await loadStatus();
@@ -147,11 +159,32 @@
 		}
 	};
 
+	const saveWebhookSecret = async () => {
+		if (!webhookSecret.trim()) return;
+		isSavingSecret = true;
+		secretError = '';
+		secretSaved = false;
+		try {
+			await axios.post(`/api/websites/${website.id}/revenue/stripe`, { webhookSecret: webhookSecret.trim() });
+			webhookSecret = '';
+			webhookWarning = '';
+			secretSaved = true;
+			await loadStatus();
+			setTimeout(() => (secretSaved = false), 3000);
+		} catch (e: any) {
+			secretError = e.response?.data?.error || 'Failed to save webhook secret';
+		} finally {
+			isSavingSecret = false;
+		}
+	};
+
 	const disconnect = async () => {
 		if (!confirm('Disconnect Stripe? No further payments will be attributed. Historical revenue stays.')) return;
 		isDisconnecting = true;
 		try {
 			await axios.delete(`/api/websites/${website.id}/revenue/stripe`);
+			webhookWarning = '';
+			webhookSecret = '';
 			await loadStatus();
 		} catch (e: any) {
 			loadError = e.response?.data?.error || 'Failed to disconnect';
@@ -365,13 +398,35 @@ Route::post('/api/create-checkout', function (Request $request) {
 		{#if loadError}
 			<Alert.Root variant="destructive" class="mt-3"><Alert.Description>{loadError}</Alert.Description></Alert.Root>
 		{/if}
+		{#if status?.connected && !status.hasWebhookSecret}
+			<div class="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
+				<p class="font-medium text-amber-600 dark:text-amber-400">Webhook not connected</p>
+				<p class="mt-1 text-muted-foreground">
+					{#if webhookWarning}{webhookWarning}{:else}Automatic setup didn't finish, so new payments won't arrive in real time.{/if}
+					Add the endpoint manually in Stripe → Developers → Webhooks:
+				</p>
+				<p class="mt-2 font-mono text-xs break-all">{status.webhookUrl}</p>
+				<p class="mt-2 text-xs text-muted-foreground">
+					Events: {#each WEBHOOK_EVENTS as ev, i}<code class="rounded bg-muted px-1 py-0.5">{ev}</code>{#if i < WEBHOOK_EVENTS.length - 1},
+						{/if}{/each}. Then paste the endpoint's signing secret below:
+				</p>
+				<div class="mt-2 flex flex-wrap items-center gap-2">
+					<Input type="password" bind:value={webhookSecret} placeholder="whsec_..." autocomplete="off" class="max-w-sm flex-1" />
+					<Button onclick={saveWebhookSecret} disabled={!webhookSecret.trim() || isSavingSecret} size="sm">
+						{#if isSavingSecret}<Loader2 size={14} class="animate-spin" />{/if}
+						Save secret
+					</Button>
+				</div>
+				{#if secretError}<p class="mt-2 text-xs text-destructive">{secretError}</p>{/if}
+				{#if secretSaved}<p class="mt-2 text-xs text-green-500">Saved — events are now signature-verified.</p>{/if}
+			</div>
+		{/if}
 	</Card.Content>
 </Card.Root>
 
 <Card.Root class="mt-6">
 	<Card.Header>
 		<Card.Title>Attribute checkout to a visit</Card.Title>
-		
 	</Card.Header>
 	<Card.Content>
 		<div class="mb-3 flex flex-wrap gap-2">
@@ -384,7 +439,6 @@ Route::post('/api/create-checkout', function (Request $request) {
 		<CodeBlock code={tabContent.code} language={tabContent.language} />
 		<p class="mt-3 flex items-start gap-2 text-xs text-muted-foreground">
 			<FlaskConical size={14} class="mt-0.5 shrink-0" />
-			
 		</p>
 	</Card.Content>
 </Card.Root>

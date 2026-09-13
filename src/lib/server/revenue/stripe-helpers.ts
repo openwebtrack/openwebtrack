@@ -77,6 +77,12 @@ export interface StripeWebhookEnsureResult {
  * The signing secret is only returned by Stripe on creation.
  */
 export async function ensureStripeWebhook(secretKey: string, url: string): Promise<StripeWebhookEnsureResult> {
+	const urlProblem = validatePublicWebhookUrl(url);
+	if (urlProblem) {
+		console.error(`[stripe] skipping webhook auto-create: ${urlProblem}`);
+		return { status: 'failed', endpointId: null, secret: null, error: urlProblem };
+	}
+
 	const stripe = new Stripe(secretKey, { apiVersion: '2026-08-26.dahlia' });
 
 	let existing: Stripe.WebhookEndpoint | null = null;
@@ -84,7 +90,9 @@ export async function ensureStripeWebhook(secretKey: string, url: string): Promi
 		const list = await stripe.webhookEndpoints.list({ limit: 100 });
 		existing = list.data.find((e) => e.url === url) ?? null;
 	} catch (e) {
-		return { status: 'failed', endpointId: null, secret: null, error: e instanceof Error ? e.message : 'Failed to list webhook endpoints' };
+		const message = e instanceof Error ? e.message : 'Failed to list webhook endpoints';
+		console.error(`[stripe] webhook auto-create failed (list): ${message}`);
+		return { status: 'failed', endpointId: null, secret: null, error: message };
 	}
 
 	if (existing) {
@@ -104,8 +112,26 @@ export async function ensureStripeWebhook(secretKey: string, url: string): Promi
 		});
 		return { status: 'created', endpointId: created.id, secret: created.secret ?? null };
 	} catch (e) {
-		return { status: 'failed', endpointId: null, secret: null, error: e instanceof Error ? e.message : 'Failed to create webhook endpoint' };
+		const message = e instanceof Error ? e.message : 'Failed to create webhook endpoint';
+		console.error(`[stripe] webhook auto-create failed (create): ${message}`);
+		return { status: 'failed', endpointId: null, secret: null, error: message };
 	}
+}
+
+/** Stripe only delivers to public HTTPS URLs — fail fast with an actionable message otherwise. */
+function validatePublicWebhookUrl(url: string): string | null {
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return `Webhook URL is not a valid absolute URL ("${url || 'empty'}"). Set ORIGIN to your public app URL, e.g. https://analytics.example.com.`;
+	}
+	const host = parsed.hostname.toLowerCase();
+	const isLocal = host === 'localhost' || host.endsWith('.localhost') || host === '127.0.0.1' || host === '::1' || /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./.test(host);
+	if (parsed.protocol !== 'https:' || isLocal) {
+		return `Stripe cannot reach "${url}". Webhooks need a public HTTPS address — set ORIGIN to your public URL (for local development use the Stripe CLI: stripe listen --forward-to <this-url>).`;
+	}
+	return null;
 }
 
 /** Best-effort removal of a previously auto-created endpoint. Never throws. */
