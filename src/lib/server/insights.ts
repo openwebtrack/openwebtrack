@@ -57,7 +57,11 @@ interface InsightsInput {
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const insightCache = new Map<string, { data: InsightData; expiresAt: number }>();
 
-const cacheKey = (websiteId: string, start: string, end: string) => `${websiteId}:${start}:${end}`;
+const cacheKey = (websiteId: string, start: string, end: string) => {
+	const dayStart = start.split('T')[0];
+	const dayEnd = end.split('T')[0];
+	return `${websiteId}:${dayStart}:${dayEnd}`;
+};
 
 const buildState = (input: InsightsInput) => {
 	const ts = input.timeSeries;
