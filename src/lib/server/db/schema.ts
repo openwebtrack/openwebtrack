@@ -31,6 +31,23 @@ export const website = pgTable(
 	(table) => [index('website_userId_idx').on(table.userId), index('website_domain_idx').on(table.domain)]
 );
 
+/** AI-generated insights for websites. */
+export const insights = pgTable(
+	'insights',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		websiteId: uuid('website_id')
+			.notNull()
+			.references(() => website.id, { onDelete: 'cascade' }),
+		startDate: text('start_date').notNull(),
+		endDate: text('end_date').notNull(),
+		data: jsonb('data').notNull(),
+		expiresAt: timestamp('expires_at').notNull(),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [index('insights_websiteId_idx').on(table.websiteId), index('insights_lookup_idx').on(table.websiteId, table.startDate, table.endDate)]
+);
+
 export const teamMember = pgTable(
 	'team_member',
 	{
@@ -266,24 +283,3 @@ export const mcpKey = pgTable(
 );
 
 export * from './auth.schema';
-
-/** Cache for AI-generated insights to avoid repeated Jev API calls. */
-export const insightsCache = pgTable(
-	'insights_cache',
-	{
-		id: uuid('id').primaryKey().defaultRandom(),
-		websiteId: uuid('website_id')
-			.notNull()
-			.references(() => website.id, { onDelete: 'cascade' }),
-		startDate: text('start_date').notNull(),
-		endDate: text('end_date').notNull(),
-		data: jsonb('data').notNull(),
-		expiresAt: timestamp('expires_at').notNull(),
-		createdAt: timestamp('created_at').defaultNow().notNull()
-	},
-	(table) => [
-		index('insightsCache_websiteId_idx').on(table.websiteId),
-		index('insightsCache_expiresAt_idx').on(table.expiresAt),
-		index('insightsCache_lookup_idx').on(table.websiteId, table.startDate, table.endDate)
-	]
-);

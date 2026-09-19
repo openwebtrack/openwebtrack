@@ -1,6 +1,6 @@
 import { TypeSafeClient, choice, noul, score } from '@typesafe-ai/sdk';
 import { env } from '$env/dynamic/private';
-import { insightsCache } from '$lib/server/db/schema';
+import { insights } from '$lib/server/db/schema';
 import { eq, and, gt } from 'drizzle-orm';
 import db from '$lib/server/db';
 
@@ -59,24 +59,22 @@ interface InsightsInput {
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
-const getCacheKey = (startDate: string, endDate: string) => ({
-	dayStart: startDate.split('T')[0],
-	dayEnd: endDate.split('T')[0]
-});
+const normalizeDate = (date: string) => date.split('T')[0];
 
 const getCached = async (websiteId: string, startDate: string, endDate: string): Promise<InsightData | null> => {
-	const { dayStart, dayEnd } = getCacheKey(startDate, endDate);
+	const dayStart = normalizeDate(startDate);
+	const dayEnd = normalizeDate(endDate);
 	const now = new Date();
 
 	const cached = await db
 		.select()
-		.from(insightsCache)
+		.from(insights)
 		.where(
 			and(
-				eq(insightsCache.websiteId, websiteId),
-				eq(insightsCache.startDate, dayStart),
-				eq(insightsCache.endDate, dayEnd),
-				gt(insightsCache.expiresAt, now)
+				eq(insights.websiteId, websiteId),
+				eq(insights.startDate, dayStart),
+				eq(insights.endDate, dayEnd),
+				gt(insights.expiresAt, now)
 			)
 		)
 		.limit(1);
@@ -88,22 +86,21 @@ const getCached = async (websiteId: string, startDate: string, endDate: string):
 };
 
 const setCache = async (websiteId: string, startDate: string, endDate: string, data: InsightData): Promise<void> => {
-	const { dayStart, dayEnd } = getCacheKey(startDate, endDate);
+	const dayStart = normalizeDate(startDate);
+	const dayEnd = normalizeDate(endDate);
 	const expiresAt = new Date(Date.now() + CACHE_TTL_MS);
 
-	// Delete old cache entry if exists
 	await db
-		.delete(insightsCache)
+		.delete(insights)
 		.where(
 			and(
-				eq(insightsCache.websiteId, websiteId),
-				eq(insightsCache.startDate, dayStart),
-				eq(insightsCache.endDate, dayEnd)
+				eq(insights.websiteId, websiteId),
+				eq(insights.startDate, dayStart),
+				eq(insights.endDate, dayEnd)
 			)
 		);
 
-	// Insert new cache entry
-	await db.insert(insightsCache).values({
+	await db.insert(insights).values({
 		websiteId,
 		startDate: dayStart,
 		endDate: dayEnd,
