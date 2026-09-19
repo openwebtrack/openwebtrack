@@ -266,3 +266,24 @@ export const mcpKey = pgTable(
 );
 
 export * from './auth.schema';
+
+/** Cache for AI-generated insights to avoid repeated Jev API calls. */
+export const insightsCache = pgTable(
+	'insights_cache',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		websiteId: uuid('website_id')
+			.notNull()
+			.references(() => website.id, { onDelete: 'cascade' }),
+		startDate: text('start_date').notNull(),
+		endDate: text('end_date').notNull(),
+		data: jsonb('data').notNull(),
+		expiresAt: timestamp('expires_at').notNull(),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(table) => [
+		index('insightsCache_websiteId_idx').on(table.websiteId),
+		index('insightsCache_expiresAt_idx').on(table.expiresAt),
+		index('insightsCache_lookup_idx').on(table.websiteId, table.startDate, table.endDate)
+	]
+);

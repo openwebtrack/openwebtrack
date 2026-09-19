@@ -1,5 +1,8 @@
 import { TypeSafeClient, choice, noul, score } from '@typesafe-ai/sdk';
 import { env } from '$env/dynamic/private';
+import { insightsCache } from '$lib/server/db/schema';
+import { eq, and, gt } from 'drizzle-orm';
+import db from '$lib/server/db';
 
 const TYPESAFE_API_KEY = env.TYPESAFE_API_KEY;
 export const insightsEnabled = !!TYPESAFE_API_KEY;
@@ -55,12 +58,58 @@ interface InsightsInput {
 }
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
-const insightCache = new Map<string, { data: InsightData; expiresAt: number }>();
 
-const cacheKey = (websiteId: string, start: string, end: string) => {
-	const dayStart = start.split('T')[0];
-	const dayEnd = end.split('T')[0];
-	return `${websiteId}:${dayStart}:${dayEnd}`;
+const getCacheKey = (startDate: string, endDate: string) => ({
+	dayStart: startDate.split('T')[0],
+	dayEnd: endDate.split('T')[0]
+});
+
+const getCached = async (websiteId: string, startDate: string, endDate: string): Promise<InsightData | null> => {
+	const { dayStart, dayEnd } = getCacheKey(startDate, endDate);
+	const now = new Date();
+
+	const cached = await db
+		.select()
+		.from(insightsCache)
+		.where(
+			and(
+				eq(insightsCache.websiteId, websiteId),
+				eq(insightsCache.startDate, dayStart),
+				eq(insightsCache.endDate, dayEnd),
+				gt(insightsCache.expiresAt, now)
+			)
+		)
+		.limit(1);
+
+	if (cached.length > 0) {
+		return cached[0].data as InsightData;
+	}
+	return null;
+};
+
+const setCache = async (websiteId: string, startDate: string, endDate: string, data: InsightData): Promise<void> => {
+	const { dayStart, dayEnd } = getCacheKey(startDate, endDate);
+	const expiresAt = new Date(Date.now() + CACHE_TTL_MS);
+
+	// Delete old cache entry if exists
+	await db
+		.delete(insightsCache)
+		.where(
+			and(
+				eq(insightsCache.websiteId, websiteId),
+				eq(insightsCache.startDate, dayStart),
+				eq(insightsCache.endDate, dayEnd)
+			)
+		);
+
+	// Insert new cache entry
+	await db.insert(insightsCache).values({
+		websiteId,
+		startDate: dayStart,
+		endDate: dayEnd,
+		data,
+		expiresAt
+	});
 };
 
 const buildState = (input: InsightsInput) => {
@@ -117,11 +166,8 @@ const buildState = (input: InsightsInput) => {
 export const generateInsights = async (websiteId: string, input: InsightsInput, startDate: string, endDate: string): Promise<InsightData | null> => {
 	if (!client) return null;
 
-	const key = cacheKey(websiteId, startDate, endDate);
-	const cached = insightCache.get(key);
-	if (cached && cached.expiresAt > Date.now()) {
-		return cached.data;
-	}
+	const cached = await getCached(websiteId, startDate, endDate);
+	if (cached) return cached;
 
 	const state = buildState(input);
 
@@ -201,7 +247,7 @@ export const generateInsights = async (websiteId: string, input: InsightsInput, 
 		opportunityConfidence: Number(answers.opportunity.confidence)
 	};
 
-	insightCache.set(key, { data: result, expiresAt: Date.now() + CACHE_TTL_MS });
+	await setCache(websiteId, startDate, endDate, result);
 
 	return result;
 };
