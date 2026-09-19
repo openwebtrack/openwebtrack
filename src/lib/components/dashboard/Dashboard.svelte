@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { Lightbulb, RefreshCw, Search, Loader2, Users, ChevronDown, Check, Settings } from 'lucide-svelte';
+	import { Lightbulb, RefreshCw, Search, Loader2, Users, ChevronDown, Check, Settings, TrendingUp, TrendingDown, Minus, Zap, Target, Sparkles, DollarSign, AlertTriangle, X } from 'lucide-svelte';
 	import { getBrowserIcon, getOsIcon, getDeviceIcon, getCountryFlag } from '$lib/utils/icons';
 	import { convertCurrencySync } from '$lib/utils/currency';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import VisitorDetailsDialog from '$lib/components/dashboard/VisitorDetailsDialog.svelte';
 	import MetricDetailsDialog from '$lib/components/dashboard/MetricDetailsDialog.svelte';
 	import BarListCardSkeleton from '$lib/components/dashboard/BarListCardSkeleton.svelte';
@@ -169,6 +170,20 @@
 		isOwner?: boolean;
 	}
 
+	interface InsightData {
+		trend: string;
+		trendConfidence: number;
+		topDriver: string;
+		topDriverConfidence: number;
+		quality: string;
+		qualityConfidence: number;
+		anomalyScore: number;
+		revenueTrend: string;
+		revenueTrendConfidence: number;
+		opportunity: string;
+		opportunityConfidence: number;
+	}
+
 	interface Props {
 		website: Website;
 		websites?: WebsiteItem[];
@@ -192,6 +207,8 @@
 		granularity?: string;
 		startDate?: string | null;
 		endDate?: string | null;
+		insights?: InsightData | null;
+		isInsightsLoading?: boolean;
 	}
 
 	let {
@@ -216,8 +233,51 @@
 		dateRangeValue = 'Last 7 days',
 		granularity = 'Daily',
 		startDate = null,
-		endDate = null
+		endDate = null,
+		insights = null,
+		isInsightsLoading = false
 	}: Props = $props();
+
+	const trendLabels: Record<string, string> = {
+		growing: 'Growing',
+		declining: 'Declining',
+		stable: 'Stable',
+		volatile: 'Volatile',
+		insufficient_data: 'Needs data'
+	};
+
+	const driverLabels: Record<string, string> = {
+		organic_search: 'Organic Search',
+		social_referral: 'Social',
+		paid_campaign: 'Paid Ads',
+		direct_traffic: 'Direct',
+		email: 'Email',
+		referral_other: 'Referral',
+		unknown: 'Unknown'
+	};
+
+	const qualityLabels: Record<string, string> = {
+		'0': 'Low',
+		'1': 'Moderate',
+		'2': 'High',
+		'3': 'Exceptional'
+	};
+
+	const revenueTrendLabels: Record<string, string> = {
+		outpacing_traffic: 'Outpacing traffic',
+		tracking_proportional: 'Proportional',
+		lagging_traffic: 'Lagging behind',
+		declining: 'Declining',
+		no_revenue_data: 'No data'
+	};
+
+	const opportunityLabels: Record<string, string> = {
+		high_traffic_low_conversion: 'Optimize conversion',
+		strong_channel_to_double_down: 'Double down on channel',
+		underperforming_referrer: 'Investigate referrer',
+		geographic_expansion: 'Expand regions',
+		underutilized_content: 'Expand content'
+	};
 
 	let showGlobe = $state(false);
 	let browserActiveTab = $state(0);
@@ -230,6 +290,7 @@
 	let highlightEventId = $state<number | null>(null);
 	let isFetching = $state(false);
 	let showMetricDetails = $state(false);
+	let showInsightsDetails = $state(false);
 	let currentMetricType = $state('');
 	let currentMetricTitle = $state('');
 
@@ -273,6 +334,10 @@
 		currentMetricType = type;
 		currentMetricTitle = title;
 		showMetricDetails = true;
+	};
+
+	const openInsightsDetails = () => {
+		showInsightsDetails = true;
 	};
 
 	let stats = $derived(apiData?.stats || { visitors: 0, pageviews: 0, sessions: 0, avgSessionDuration: 0, online: 0, revenue: 0, revenuePerVisitor: 0, conversionRate: 0, customers: 0 });
@@ -797,16 +862,17 @@
 
 			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 				<TabbedCard
-					tabs={['Channel', 'Referrer', 'Campaign']}
+					tabs={insights ? ['Channel', 'Referrer', 'Campaign', { label: 'Insights', badge: 'New' }] : ['Channel', 'Referrer', 'Campaign']}
 					activeTab={channelActiveTab}
 					onTabChange={(i) => (channelActiveTab = i)}
 					onDetails={() => {
 						if (channelActiveTab === 0) openMetricDetails('channels', 'Channels');
 						else if (channelActiveTab === 1) openMetricDetails('referrers', 'Referrers');
 						else if (channelActiveTab === 2) openMetricDetails('campaigns', 'Campaigns');
+						else if (channelActiveTab === 3 && insights) openInsightsDetails();
 					}}
 					count={stats.visitors}
-					class="h-[340px]"
+					class={cn('h-[340px]', channelActiveTab === 3 && 'h-[420px]')}
 				>
 					{#if channelActiveTab === 0}
 						<BarList items={channelData} revenueItems={channelRevenueItems} customerItems={customersByChannel} {websiteCurrency} />
@@ -826,6 +892,41 @@
 								<p class="text-sm">No campaign data yet.</p>
 							</div>
 						{/if}
+					{:else if channelActiveTab === 3 && insights}
+						<div class="flex flex-col gap-0.5">
+							{#each [
+								{ label: 'Trend', value: trendLabels[insights.trend] || insights.trend, confidence: insights.trendConfidence, icon: insights.trend === 'growing' ? 'trending_up' : insights.trend === 'declining' ? 'trending_down' : insights.trend === 'volatile' ? 'volatile' : 'stable', color: insights.trend === 'growing' ? 'text-green-500' : insights.trend === 'declining' ? 'text-red-500' : insights.trend === 'volatile' ? 'text-yellow-500' : 'text-muted-foreground' },
+								{ label: 'Traffic Source', value: driverLabels[insights.topDriver] || insights.topDriver, confidence: insights.topDriverConfidence, icon: 'target', color: 'text-blue-500' },
+								{ label: 'Quality', value: qualityLabels[insights.quality] || insights.quality, confidence: insights.qualityConfidence, icon: 'sparkles', color: 'text-purple-500' },
+								{ label: 'Revenue', value: revenueTrendLabels[insights.revenueTrend] || insights.revenueTrend, confidence: insights.revenueTrendConfidence, icon: 'dollar', color: 'text-emerald-500' },
+								{ label: 'Opportunity', value: opportunityLabels[insights.opportunity] || insights.opportunity, confidence: insights.opportunityConfidence, icon: 'target', color: 'text-amber-500' },
+								{ label: 'Anomaly', value: insights.anomalyScore > 0.6 ? 'Detected' : 'None', confidence: insights.anomalyScore, icon: insights.anomalyScore > 0.6 ? 'alert' : 'check', color: insights.anomalyScore > 0.6 ? 'text-red-500' : 'text-green-500' }
+							] as insight}
+								<div class="group relative flex h-8 items-center overflow-hidden rounded-lg transition-colors hover:bg-accent">
+									<div class="absolute inset-y-0 left-0 bg-primary/10 transition-all duration-300 ease-out group-hover:bg-primary/15" style="width: {insight.confidence * 100}%"></div>
+									<div class="relative z-10 flex w-full items-center justify-between px-3">
+										<div class="flex items-center gap-2 min-w-0">
+											<span class="truncate text-xs font-medium text-muted-foreground">{insight.label}</span>
+										</div>
+										<div class="flex items-center gap-2 shrink-0">
+											<span class="text-xs {insight.color}">{insight.value}</span>
+											<span class="text-[10px] tabular-nums text-muted-foreground">{Math.round(insight.confidence * 100)}%</span>
+										</div>
+									</div>
+								</div>
+							{/each}
+							<div class="mt-2 flex items-center justify-end">
+								<span class="text-[10px] text-muted-foreground/60">Powered by Jev</span>
+							</div>
+						</div>
+					{:else if channelActiveTab === 3 && isInsightsLoading}
+						<div class="flex h-64 items-center justify-center">
+							<Loader2 class="h-6 w-6 animate-spin text-muted-foreground" />
+						</div>
+					{:else}
+						<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+							<p class="text-sm">No insights available.</p>
+						</div>
 					{/if}
 				</TabbedCard>
 
@@ -1005,8 +1106,99 @@
 			title={currentMetricTitle}
 			demoData={isDemo ? generateDemoMetricData(currentMetricType) : null}
 			{websiteCurrency}
+			dateRange={dateRangeValue}
 			onClose={() => (showMetricDetails = false)}
 		/>
+	{/if}
+
+	{#if showInsightsDetails && insights}
+		<Dialog.Root open={true} onOpenChange={(v) => !v && (showInsightsDetails = false)}>
+			<Dialog.Content class="flex max-h-[85vh] max-w-lg flex-col overflow-hidden rounded-2xl border-0 bg-background p-0 shadow-lg" showCloseButton={false}>
+				<div class="flex items-start justify-between px-6 pt-6 pb-2">
+					<div>
+						<h2 class="text-xl font-semibold text-foreground">Insights</h2>
+						<p class="mt-1 text-sm text-muted-foreground">{dateRangeValue}</p>
+					</div>
+					<button onclick={() => (showInsightsDetails = false)} class="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+						<X class="h-4 w-4" />
+					</button>
+				</div>
+
+				<div class="px-6 pb-3">
+					<p class="text-sm text-muted-foreground">6 insights analyzed · Powered by Jev</p>
+				</div>
+
+				<div class="flex-1 overflow-y-auto px-6 pb-6">
+					<div class="flex flex-col">
+						<div class="py-3 border-b border-border">
+							<div class="flex items-center justify-between">
+								<div>
+									<span class="font-medium text-foreground">Traffic Trend</span>
+									<span class="ml-2 text-xs text-muted-foreground">· {Math.round(insights.trendConfidence * 100)}% confidence</span>
+								</div>
+								<span class="text-sm font-medium {insights.trend === 'growing' ? 'text-green-500' : insights.trend === 'declining' ? 'text-red-500' : insights.trend === 'volatile' ? 'text-yellow-500' : 'text-foreground'}">{trendLabels[insights.trend] || insights.trend}</span>
+							</div>
+							<p class="mt-1 text-xs text-muted-foreground">Analysis of visitor and pageview patterns over time.</p>
+						</div>
+
+						<div class="py-3 border-b border-border">
+							<div class="flex items-center justify-between">
+								<div>
+									<span class="font-medium text-foreground">Primary Traffic Source</span>
+									<span class="ml-2 text-xs text-muted-foreground">· {Math.round(insights.topDriverConfidence * 100)}% confidence</span>
+								</div>
+								<span class="text-sm font-medium text-foreground">{driverLabels[insights.topDriver] || insights.topDriver}</span>
+							</div>
+							<p class="mt-1 text-xs text-muted-foreground">The main channel driving visitors to your website.</p>
+						</div>
+
+						<div class="py-3 border-b border-border">
+							<div class="flex items-center justify-between">
+								<div>
+									<span class="font-medium text-foreground">Visitor Quality</span>
+									<span class="ml-2 text-xs text-muted-foreground">· {Math.round(insights.qualityConfidence * 100)}% confidence</span>
+								</div>
+								<span class="text-sm font-medium text-foreground">{qualityLabels[insights.quality] || insights.quality}</span>
+							</div>
+							<p class="mt-1 text-xs text-muted-foreground">Engagement level based on session duration and conversion signals.</p>
+						</div>
+
+						<div class="py-3 border-b border-border">
+							<div class="flex items-center justify-between">
+								<div>
+									<span class="font-medium text-foreground">Revenue Trend</span>
+									<span class="ml-2 text-xs text-muted-foreground">· {Math.round(insights.revenueTrendConfidence * 100)}% confidence</span>
+								</div>
+								<span class="text-sm font-medium text-foreground">{revenueTrendLabels[insights.revenueTrend] || insights.revenueTrend}</span>
+							</div>
+							<p class="mt-1 text-xs text-muted-foreground">How revenue is trending relative to traffic volume.</p>
+						</div>
+
+						<div class="py-3 border-b border-border">
+							<div class="flex items-center justify-between">
+								<div>
+									<span class="font-medium text-foreground">Growth Opportunity</span>
+									<span class="ml-2 text-xs text-muted-foreground">· {Math.round(insights.opportunityConfidence * 100)}% confidence</span>
+								</div>
+								<span class="text-sm font-medium text-foreground">{opportunityLabels[insights.opportunity] || insights.opportunity}</span>
+							</div>
+							<p class="mt-1 text-xs text-muted-foreground">The highest-impact area for improvement.</p>
+						</div>
+
+						<div class="py-3">
+							<div class="flex items-center justify-between">
+								<div>
+									<span class="font-medium text-foreground">Anomaly Detection</span>
+									<span class="ml-2 text-xs text-muted-foreground">· {Math.round(insights.anomalyScore * 100)}% score</span>
+								</div>
+								<span class="text-sm font-medium {insights.anomalyScore > 0.6 ? 'text-red-500' : 'text-green-500'}">{insights.anomalyScore > 0.6 ? 'Detected' : 'None'}</span>
+							</div>
+							<p class="mt-1 text-xs text-muted-foreground">Unusual patterns in traffic or referral sources.</p>
+						</div>
+					</div>
+				</div>
+			</Dialog.Content>
+		</Dialog.Root>
 	{/if}
 
 	{#if showGlobe}

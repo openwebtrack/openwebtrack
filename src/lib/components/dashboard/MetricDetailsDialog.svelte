@@ -1,15 +1,14 @@
 <script lang="ts">
-	import { Search, Loader2, TrendingUp, Users, DollarSign, BarChart2 } from 'lucide-svelte';
+	import { Search, Loader2, X } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import axios from 'axios';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
 	import { formatCurrency } from '$lib/utils/currency';
 
 	type MetricRow = { label: string; value: number; revenue: number; customers: number; icon?: string };
 
-	let { websiteId, metricType, title, onClose, demoData = null, websiteCurrency = 'USD' } = $props();
+	let { websiteId, metricType, title, onClose, demoData = null, websiteCurrency = 'USD', dateRange = 'Last 7 days' } = $props();
 
 	let searchQuery = $state('');
 	let data = $state<MetricRow[]>([]);
@@ -58,110 +57,107 @@
 		if (!value) onClose();
 	}
 
-	const hasRevenue = $derived(data.some((d) => d.revenue > 0));
-	const hasCustomers = $derived(data.some((d) => d.customers > 0));
-
-	const totalVisitors = $derived(data.reduce((s, d) => s + d.value, 0));
+	const totalValue = $derived(data.reduce((s, d) => s + d.value, 0));
 	const totalRevenue = $derived(data.reduce((s, d) => s + (d.revenue ?? 0), 0));
 	const totalCustomers = $derived(data.reduce((s, d) => s + (d.customers ?? 0), 0));
 
-	const convRate = (customers: number, visitors: number) => (visitors > 0 ? ((customers / visitors) * 100).toFixed(1) + '%' : '-');
+	const getPercentage = (value: number) => {
+		if (totalValue === 0) return '0%';
+		return Math.round((value / totalValue) * 100) + '%';
+	};
+
+	const descriptions: Record<string, string> = {
+		channels: 'Where your traffic comes from',
+		referrers: 'Who sends you traffic',
+		campaigns: 'Your campaign performance',
+		pages: 'Your most visited pages',
+		countries: 'Where your visitors are',
+		browsers: 'Browser distribution',
+		operatingSystems: 'Operating system breakdown',
+		devices: 'Device types',
+		screens: 'Screen resolutions'
+	};
 </script>
 
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>
-	<Dialog.Content class="flex max-h-[85vh] max-w-4xl flex-col overflow-hidden">
-		<Dialog.Close />
-
-		<Dialog.Header class="border-b border-border pb-4">
-			<div class="flex items-center justify-between gap-4">
-				<div class="relative w-full max-w-xs">
-					<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-					<Input type="text" placeholder="Search..." value={searchQuery} oninput={handleSearch} class="pl-10" />
-				</div>
+	<Dialog.Content class="flex max-h-[85vh] max-w-lg flex-col overflow-hidden rounded-2xl border-0 bg-background p-0 shadow-lg" showCloseButton={false}>
+		<div class="flex items-start justify-between px-6 pt-6 pb-2">
+			<div>
+				<h2 class="text-xl font-semibold text-foreground">{title}</h2>
+				<p class="mt-1 text-sm text-muted-foreground">{dateRange}</p>
 			</div>
-		</Dialog.Header>
+			<button onclick={() => handleOpenChange(false)} class="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+				<X class="h-4 w-4" />
+			</button>
+		</div>
 
-		<div class="-mx-6 flex-1 overflow-y-auto px-6 py-4">
+		<div class="px-6 pb-3">
+			<p class="text-sm text-muted-foreground">
+				{#if loading}
+					Loading...
+				{:else}
+					{data.length} {data.length === 1 ? 'item' : 'items'}
+					{#if totalRevenue > 0}
+						· {formatCurrency(totalRevenue, websiteCurrency)} total
+					{/if}
+					{#if totalCustomers > 0}
+						· {totalCustomers.toLocaleString()} {totalCustomers === 1 ? 'customer' : 'customers'}
+					{/if}
+				{/if}
+			</p>
+		</div>
+
+		<div class="border-t border-border px-6 py-3">
+			<div class="relative">
+				<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+				<Input type="text" placeholder="Search..." value={searchQuery} oninput={handleSearch} class="pl-10" />
+			</div>
+		</div>
+
+		<div class="flex-1 overflow-y-auto px-6 pb-6">
 			{#if loading}
-				<div class="flex h-64 flex-col items-center justify-center gap-3 text-muted-foreground">
-					<Loader2 class="h-6 w-6 animate-spin" />
-					<p>Loading data...</p>
+				<div class="flex h-48 flex-col items-center justify-center gap-3 text-muted-foreground">
+					<Loader2 class="h-5 w-5 animate-spin" />
+					<p class="text-sm">Loading...</p>
 				</div>
 			{:else if errorMsg}
-				<div class="flex h-64 flex-col items-center justify-center text-destructive">
-					<p>{errorMsg}</p>
-					<Button variant="secondary" onclick={fetchData} class="mt-4">Try again</Button>
+				<div class="flex h-48 flex-col items-center justify-center text-destructive">
+					<p class="text-sm">{errorMsg}</p>
 				</div>
 			{:else if data.length === 0}
-				<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-					<p>No results found.</p>
+				<div class="flex h-48 flex-col items-center justify-center text-muted-foreground">
+					<p class="text-sm">No results found.</p>
 				</div>
 			{:else}
-				<table class="w-full text-sm">
-					<thead>
-						<tr class="border-b border-border text-xs text-muted-foreground">
-							<th class="pb-2 text-left font-medium">{title}</th>
-							<th class="pb-2 text-right font-medium">
-								<span class="flex items-center justify-end gap-1"><Users class="h-3 w-3" /> Visitors</span>
-							</th>
-							<th class="pb-2 text-right font-medium">
-								<span class="flex items-center justify-end gap-1"><DollarSign class="h-3 w-3" /> Revenue</span>
-							</th>
-							<th class="pb-2 text-right font-medium">
-								<span class="flex items-center justify-end gap-1"><TrendingUp class="h-3 w-3" /> Conv. Rate</span>
-							</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-border">
-						{#each data as item}
-							<tr class="group transition-colors hover:bg-muted/30">
-								<td class="py-2.5 pr-4">
-									<div class="flex items-center gap-2 overflow-hidden">
-										{#if item.icon}
-											<img src={item.icon} alt="" class="h-4 w-4 shrink-0 rounded-sm object-contain" />
-										{/if}
-										<span class="truncate font-medium text-foreground" title={item.label}>{item.label}</span>
+				<div class="flex flex-col">
+					{#each data as item, i}
+						<div class="group flex items-start justify-between gap-4 py-3 {i < data.length - 1 ? 'border-b border-border' : ''}">
+							<div class="flex min-w-0 flex-1 items-start gap-3">
+								{#if item.icon}
+									<img src={item.icon} alt="" class="mt-0.5 h-4 w-4 shrink-0 rounded-sm object-contain" />
+								{/if}
+								<div class="min-w-0">
+									<div class="flex items-center gap-2">
+										<span class="font-medium text-foreground">{item.label}</span>
+										<span class="text-xs text-muted-foreground">·</span>
+										<span class="text-xs text-muted-foreground">{item.value.toLocaleString()} visitors</span>
 									</div>
-								</td>
-								<td class="py-2.5 pr-4 text-right text-muted-foreground tabular-nums">
-									{item.value.toLocaleString()}
-								</td>
-								<td class="py-2.5 pr-4 text-right tabular-nums">
-									<span class="text-{(item.revenue ?? 0) > 0 ? 'foreground' : 'muted-foreground'}">{formatCurrency(item.revenue ?? 0, websiteCurrency)}</span>
-								</td>
-								<td class="py-2.5 text-right tabular-nums">
-									{#if (item.customers ?? 0) > 0}
-										<span class="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400">
-											{convRate(item.customers, item.value)}
-										</span>
-									{:else}
-										<span class="text-muted-foreground">0.0%</span>
+									{#if item.revenue > 0}
+										<p class="mt-0.5 text-xs text-muted-foreground">{formatCurrency(item.revenue, websiteCurrency)} revenue</p>
 									{/if}
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-					{#if data.length > 1}
-						<tfoot>
-							<tr class="border-t-2 border-border text-xs text-muted-foreground">
-								<td class="pt-2.5 pr-4 font-medium">Total</td>
-								<td class="pt-2.5 pr-4 text-right font-medium text-foreground tabular-nums">{totalVisitors.toLocaleString()}</td>
-								<td class="pt-2.5 pr-4 text-right font-medium text-foreground tabular-nums">
-									{formatCurrency(totalRevenue, websiteCurrency)}
-								</td>
-								<td class="pt-2.5 text-right tabular-nums">
-									{#if totalCustomers > 0}
-										<span class="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400">
-											{convRate(totalCustomers, totalVisitors)}
-										</span>
-									{:else}
-										<span class="text-muted-foreground">0.0%</span>
-									{/if}
-								</td>
-							</tr>
-						</tfoot>
-					{/if}
-				</table>
+								</div>
+							</div>
+							<div class="flex items-center gap-3 shrink-0">
+								<span class="text-sm font-medium tabular-nums text-foreground">{getPercentage(item.value)}</span>
+								{#if item.customers > 0}
+									<span class="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
+										{((item.customers / item.value) * 100).toFixed(1)}% conv.
+									</span>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
 			{/if}
 		</div>
 	</Dialog.Content>

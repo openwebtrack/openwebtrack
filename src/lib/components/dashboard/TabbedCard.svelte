@@ -3,8 +3,13 @@
 	import { Scan } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
 
+	interface TabItem {
+		label: string;
+		badge?: string;
+	}
+
 	interface Props {
-		tabs?: string[];
+		tabs?: (string | TabItem)[];
 		activeTab?: number;
 		onTabChange?: (index: number) => void;
 		onDetails?: () => void;
@@ -28,7 +33,10 @@
 							value={index.toString()}
 							class="rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap text-muted-foreground transition-all duration-150 hover:text-foreground data-[state=active]:bg-secondary data-[state=active]:text-foreground data-[state=active]:shadow-sm"
 						>
-							{tab}
+							{typeof tab === 'string' ? tab : tab.label}
+							{#if typeof tab === 'object' && tab.badge}
+								<span class="ml-1 inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary">{tab.badge}</span>
+							{/if}
 						</Tabs.Trigger>
 					{/each}
 				</Tabs.List>

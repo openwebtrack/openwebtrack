@@ -55,6 +55,7 @@
 		"@react-email/components": "^1.0.12",
 		"@react-email/render": "^2.1.0",
 		"@types/nodemailer": "^8.0.1",
+		"@typesafe-ai/sdk": "^0.6.0",
 		"axios": "^1.19.0",
 		"chart.js": "^4.5.1",
 		"clsx": "^2.1.1",

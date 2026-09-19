@@ -385,7 +385,20 @@
 			customersByPage: [],
 			timeSeries,
 			visitors,
-			events
+			events,
+			insights: {
+				trend: 'growing',
+				trendConfidence: 0.87,
+				topDriver: 'organic_search',
+				topDriverConfidence: 0.72,
+				quality: '2',
+				qualityConfidence: 0.91,
+				anomalyScore: 0.12,
+				revenueTrend: 'tracking_proportional',
+				revenueTrendConfidence: 0.78,
+				opportunity: 'strong_channel_to_double_down',
+				opportunityConfidence: 0.65
+			}
 		};
 	};
 
@@ -447,7 +460,8 @@
 				customers: filteredVisitors.filter((v) => v.isCustomer).length
 			},
 			visitors: filteredVisitors,
-			events: filteredEvents
+			events: filteredEvents,
+			insights: mockData.insights
 		};
 	});
 
@@ -469,6 +483,7 @@
 	data={filteredData}
 	visitors={filteredData.visitors}
 	events={filteredData.events}
+	insights={filteredData.insights}
 	showWebsiteSwitcher={false}
 	isDemo={true}
 	{filters}

@@ -118,6 +118,20 @@
 		};
 	}
 
+	interface InsightData {
+		trend: string;
+		trendConfidence: number;
+		topDriver: string;
+		topDriverConfidence: number;
+		quality: string;
+		qualityConfidence: number;
+		anomalyScore: number;
+		revenueTrend: string;
+		revenueTrendConfidence: number;
+		opportunity: string;
+		opportunityConfidence: number;
+	}
+
 	let { data }: { data: PageData } = $props();
 	let currentWebsiteId = $state<string | null>(null);
 	let isLoading = $state(true);
@@ -125,6 +139,8 @@
 	let apiData = $state<ApiData | null>(null);
 	let visitors = $state<VisitorItem[]>([]);
 	let events = $state<EventItem[]>([]);
+	let insights = $state<InsightData | null>(null);
+	let isInsightsLoading = $state(false);
 	let isFetching = $state(false);
 	let startDate = $state<string | null>(null);
 	let endDate = $state<string | null>(null);
@@ -254,6 +270,22 @@
 		}
 	};
 
+	const fetchInsights = async () => {
+		if (isInsightsLoading) return;
+		isInsightsLoading = true;
+		try {
+			const params = new URLSearchParams();
+			if (startDate) params.set('startDate', startDate);
+			if (endDate) params.set('endDate', endDate);
+			const res = await axios.get(`/api/websites/${data.website.id}/insights?${params.toString()}`);
+			insights = res.data;
+		} catch {
+			insights = null;
+		} finally {
+			isInsightsLoading = false;
+		}
+	};
+
 	const fetchData = async () => {
 		if (isFetching) return;
 		isFetching = true;
@@ -321,6 +353,7 @@
 				...e,
 				formattedTime: formatTime(e.timestamp)
 			}));
+			fetchInsights();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load data';
 		} finally {
@@ -383,6 +416,7 @@
 			apiData = null;
 			visitors = [];
 			events = [];
+			insights = null;
 			fetchData();
 		}
 	});
@@ -410,6 +444,8 @@
 	{granularity}
 	{startDate}
 	{endDate}
+	{insights}
+	{isInsightsLoading}
 />
 
 <svelte:head>
