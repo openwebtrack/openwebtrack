@@ -412,6 +412,13 @@
 		currency: 'USD'
 	};
 
+	// Visual-only website selector entries for the demo (clicks don't navigate)
+	const demoWebsites = [
+		{ id: 'demo-website', domain: 'domain.com', currency: 'USD', isOwner: true },
+		{ id: 'demo-shop', domain: 'shop.domain.com', currency: 'USD', isOwner: true },
+		{ id: 'demo-blog', domain: 'blog.domain.com', currency: 'USD', isOwner: false }
+	];
+
 	let filters = $state<{ type: FilterType; value: string }[]>([]);
 
 	const regenerateData = () => {
@@ -480,11 +487,12 @@
 
 <Dashboard
 	{website}
+	websites={demoWebsites}
 	data={filteredData}
 	visitors={filteredData.visitors}
 	events={filteredData.events}
 	insights={filteredData.insights}
-	showWebsiteSwitcher={false}
+	showWebsiteSwitcher={true}
 	isDemo={true}
 	{filters}
 	{dateRangeValue}
