@@ -9,7 +9,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	const providers = {
-		emailAndPassword: true,
+		emailAndPassword: !SAAS_MODE,
+		magicLink: SAAS_MODE,
 		google: !!(env.AUTH_GOOGLE_CLIENT_ID && env.AUTH_GOOGLE_CLIENT_SECRET)
 	};
 

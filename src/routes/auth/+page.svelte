@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CircleAlert, LoaderCircle } from 'lucide-svelte';
+	import { CircleAlert, LoaderCircle, MailCheck } from 'lucide-svelte';
 	import authClient from '$lib/auth-client';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
@@ -21,6 +21,7 @@
 	let error = $state('');
 	let email = $state('');
 	let name = $state('');
+	let magicLinkSent = $state(false);
 
 	const getAuthConfig = async () => {
 		try {
@@ -37,6 +38,19 @@
 		loading = true;
 
 		try {
+			if (SAAS_MODE) {
+				const { error: magicLinkError } = await authClient.signIn.magicLink({
+					email,
+					callbackURL: '/dashboard'
+				});
+				if (magicLinkError) {
+					error = magicLinkError.message || 'Failed to send magic link';
+					return;
+				}
+				magicLinkSent = true;
+				return;
+			}
+
 			if (isSignUp) {
 				const { error: signUpError } = await authClient.signUp.email({ email, password, name });
 				if (signUpError) {
@@ -90,12 +104,22 @@
 			style="background-color: color-mix(in srgb, var(--card) 35%, transparent);"
 		>
 			<Card.Header class="text-center">
-				<Card.Title class="text-2xl">{isSignUp ? 'Create Account' : 'Sign In'}</Card.Title>
+				<Card.Title class="text-2xl">
+					{#if SAAS_MODE}
+						Sign In
+					{:else}
+						{isSignUp ? 'Create Account' : 'Sign In'}
+					{/if}
+				</Card.Title>
 				<Card.Description>
-					{isSignUp ? 'Already have an account?' : "Don't have an account?"}
-					<Button variant="link" class="px-1" onclick={() => (isSignUp = !isSignUp)}>
-						{isSignUp ? 'Sign in' : 'Sign up'}
-					</Button>
+					{#if SAAS_MODE}
+						We'll email you a magic link for passwordless sign in
+					{:else}
+						{isSignUp ? 'Already have an account?' : "Don't have an account?"}
+						<Button variant="link" class="px-1" onclick={() => (isSignUp = !isSignUp)}>
+							{isSignUp ? 'Sign in' : 'Sign up'}
+						</Button>
+					{/if}
 				</Card.Description>
 			</Card.Header>
 
@@ -107,31 +131,59 @@
 					</Alert.Root>
 				{/if}
 
-				<form onsubmit={handleSubmit} class="space-y-4">
-					{#if isSignUp}
-						<div class="space-y-2">
-							<Label for="name">Name</Label>
-							<Input type="text" id="name" bind:value={name} required placeholder="Your name" />
+				{#if SAAS_MODE && magicLinkSent}
+					<div class="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-5 text-center">
+						<div class="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-emerald-500/15">
+							<MailCheck class="size-5 text-emerald-500" />
 						</div>
-					{/if}
-
-					<div class="space-y-2">
-						<Label for="email">Email</Label>
-						<Input type="email" id="email" bind:value={email} required placeholder="you@example.com" />
+						<p class="text-sm font-medium">Check your inbox</p>
+						<p class="mt-1 text-sm text-muted-foreground">We sent a sign-in link to</p>
+						<p class="mt-0.5 break-all text-sm font-medium">{email}</p>
+						<p class="mt-1.5 text-xs text-muted-foreground">It expires in 5 minutes.</p>
 					</div>
-
-					<div class="space-y-2">
-						<Label for="password">Password</Label>
-						<Input type="password" id="password" bind:value={password} required placeholder="••••••••" />
-					</div>
-
-					<Button type="submit" disabled={loading} class="w-full">
-						{#if loading}
-							<LoaderCircle class="animate-spin" />
-						{/if}
-						{isSignUp ? 'Sign Up' : 'Sign In'}
+					<Button
+						variant="outline"
+						class="w-full"
+						disabled={loading}
+						onclick={() => {
+							magicLinkSent = false;
+						}}
+					>
+						Use a different email
 					</Button>
-				</form>
+				{:else}
+					<form onsubmit={handleSubmit} class="space-y-4">
+						{#if !SAAS_MODE && isSignUp}
+							<div class="space-y-2">
+								<Label for="name">Name</Label>
+								<Input type="text" id="name" bind:value={name} required placeholder="Your name" />
+							</div>
+						{/if}
+
+						<div class="space-y-2">
+							<Label for="email">Email</Label>
+							<Input type="email" id="email" bind:value={email} required placeholder="you@example.com" />
+						</div>
+
+						{#if !SAAS_MODE}
+							<div class="space-y-2">
+								<Label for="password">Password</Label>
+								<Input type="password" id="password" bind:value={password} required placeholder="••••••••" />
+							</div>
+						{/if}
+
+						<Button type="submit" disabled={loading} class="w-full">
+							{#if loading}
+								<LoaderCircle class="animate-spin" />
+							{/if}
+							{#if SAAS_MODE}
+								Send magic link
+							{:else}
+								{isSignUp ? 'Sign Up' : 'Sign In'}
+							{/if}
+						</Button>
+					</form>
+				{/if}
 
 				<Button variant="outline" class="mt-3 w-full" onclick={async () => await handleSocial('google')} disabled={!authConfig.googleEnabled || loading}>
 					{#if loading}
@@ -147,7 +199,7 @@
 						>
 					{/if}
 
-					Sign {isSignUp ? 'up' : 'in'} with Google</Button
+					Sign {SAAS_MODE ? 'in' : isSignUp ? 'up' : 'in'} with Google</Button
 				>
 
 				{#if SAAS_MODE}

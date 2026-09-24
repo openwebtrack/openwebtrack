@@ -21,7 +21,7 @@
 		(() => {
 			const t = page.url.searchParams.get('tab');
 			if (t === 'billing' && data.saasEnabled) return 'billing';
-			if (t === 'password') return 'password';
+			if (t === 'password' && (data.providers as any)?.emailAndPassword !== false) return 'password';
 			if (t === 'sessions') return 'sessions';
 			if (t === 'providers') return 'providers';
 			if (t === 'mcp') return 'mcp';
@@ -336,7 +336,9 @@ http_headers = {
 	const sidebarItems = [
 		{ id: 'profile', label: 'Profile', icon: User },
 		{ id: 'providers', label: 'Sign-in providers', icon: KeyRound },
-		{ id: 'password', label: 'Password', icon: Lock },
+		...((data.providers as any)?.emailAndPassword !== false
+			? [{ id: 'password', label: 'Password', icon: Lock }]
+			: []),
 		{ id: 'sessions', label: 'Sessions', icon: Shield },
 		{ id: 'mcp', label: 'MCP access', icon: Bot },
 		...(data.saasEnabled ? [{ id: 'billing', label: 'Billing', icon: CreditCard }] : []),
@@ -432,7 +434,7 @@ http_headers = {
 						</div>
 					</div>
 
-				{:else if activeTab === 'password'}
+				{:else if activeTab === 'password' && (data.providers as any)?.emailAndPassword !== false}
 					<div in:fade={{ duration: 200 }}>
 						<Card.Root>
 							<Card.Header>
@@ -490,15 +492,20 @@ http_headers = {
 								<Card.Description>Manage how you sign in to your account.</Card.Description>
 							</Card.Header>
 							<Card.Content class="space-y-4">
-								<!-- Email / Password -->
+								<!-- Email / Password or Magic link -->
 								<div class="flex items-center justify-between rounded-xl border border-border p-4">
 									<div class="flex items-center gap-3">
 										<div class="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
 											<KeyRound size={18} class="text-muted-foreground" />
 										</div>
 										<div>
-											<p class="text-sm font-medium">Email & password</p>
-											<p class="text-xs text-muted-foreground">Sign in with your email and password</p>
+											{#if (data.providers as any)?.magicLink}
+												<p class="text-sm font-medium">Magic link</p>
+												<p class="text-xs text-muted-foreground">Passwordless sign in via email link</p>
+											{:else}
+												<p class="text-sm font-medium">Email & password</p>
+												<p class="text-xs text-muted-foreground">Sign in with your email and password</p>
+											{/if}
 										</div>
 									</div>
 									<div class="flex items-center gap-2">
