@@ -713,16 +713,16 @@
 	};
 </script>
 
-<div class="relative min-h-screen bg-background pb-36 selection:bg-primary/30">
-	<main class="mx-auto max-w-6xl space-y-4 px-4 pt-6 sm:px-6">
-		<div class="flex items-center justify-between">
-			<div class="flex items-center gap-3">
-				<h1 class="text-xl font-medium tracking-tight text-foreground">Overview</h1>
+<div class="relative min-h-screen overflow-x-clip bg-background pb-36 selection:bg-primary/30">
+	<main class="mx-auto max-w-6xl min-w-0 space-y-4 px-4 pt-6 sm:px-6">
+		<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-3">
+			<div class="flex shrink-0 items-center gap-3">
+				<h1 class="text-lg font-medium tracking-tight text-foreground sm:text-xl">Overview</h1>
 			</div>
-			<div class="flex items-center gap-2">
+			<div class="flex min-w-0 flex-wrap items-center gap-2">
 				<DateRangePicker value={dateRangeValue} onSelect={handleDateChange} />
 				<GranularityPicker value={granularity} onSelect={handleGranularityChange} />
-				<Button variant="secondary" size="icon" onclick={refresh} disabled={isFetching}>
+				<Button variant="secondary" size="icon" onclick={refresh} disabled={isFetching} class="shrink-0">
 					{#if isFetching}
 						<Loader2 class="h-3.5 w-3.5 animate-spin" />
 					{:else}
@@ -733,12 +733,12 @@
 		</div>
 
 		<!-- Filter Bar -->
-		<div class="flex items-center gap-2">
+		<div class="flex flex-wrap items-center gap-2">
 			{#if showWebsiteSwitcher && websites.length > 0}
 				<Popover.Root>
-					<Popover.Trigger class="group flex cursor-pointer items-center gap-1.5 rounded-full bg-secondary px-3 h-[36px] text-xs font-medium transition-colors hover:bg-accent">
-						<img src="https://icons.duckduckgo.com/ip3/{website.domain}.ico" alt={website.domain} class="size-3.5" />
-						<span class="transition-colors group-hover:text-foreground">{website.domain}</span>
+					<Popover.Trigger class="group flex h-[36px] max-w-[220px] cursor-pointer items-center gap-1.5 rounded-full bg-secondary px-3 text-xs font-medium transition-colors hover:bg-accent sm:max-w-none">
+						<img src="https://icons.duckduckgo.com/ip3/{website.domain}.ico" alt={website.domain} class="size-3.5 shrink-0" />
+						<span class="max-w-[130px] truncate transition-colors group-hover:text-foreground sm:max-w-[220px]">{website.domain}</span>
 						{#if !isOwner}
 							<Users class="h-3 w-3 text-primary" />
 						{/if}
@@ -751,6 +751,8 @@
 								<button
 									class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent"
 									onclick={() => {
+										// Visual-only in demo mode: don't navigate away
+										if (isDemo) return;
 										if (site.id !== website.id) {
 											goto(`/dashboard/${site.id}`);
 										}
@@ -770,7 +772,7 @@
 								</button>
 							{/each}
 						</div>
-						{#if isOwner}
+						{#if isOwner && !isDemo}
 							<div class="mt-1 border-t border-border pt-1">
 								<button
 									class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent"
@@ -860,7 +862,7 @@
 				<DashboardChart timeSeries={convertedTimeSeries} stats={convertedStats} granularity={granularity.toLowerCase() as 'hourly' | 'daily' | 'weekly' | 'monthly'} {websiteCurrency} />
 			</div>
 
-			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+			<div class="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
 				<TabbedCard
 					tabs={insights ? ['Channel', 'Referrer', 'Campaign', { label: 'Insights', badge: 'New' }] : ['Channel', 'Referrer', 'Campaign']}
 					activeTab={channelActiveTab}
@@ -972,7 +974,7 @@
 				</TabbedCard>
 			</div>
 
-			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+			<div class="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
 				<TabbedCard
 					tabs={['Country', 'Region', 'City']}
 					activeTab={mapActiveTab}
@@ -1062,7 +1064,7 @@
 
 			<div>
 				{#snippet headerRight()}
-					<div class="relative w-full max-w-32 md:max-w-full">
+					<div class="relative min-w-20 grow basis-20 sm:w-full sm:max-w-32 sm:grow-0 sm:basis-auto md:max-w-full">
 						<Search class="absolute top-1/2 left-2.5 h-3 -translate-y-1/2 text-muted-foreground" />
 						<Input type="text" bind:value={searchQuery} placeholder="Search..." class="h-7 rounded-full pl-7 text-xs" />
 					</div>

@@ -168,32 +168,32 @@
 </script>
 
 <div class="min-h-[calc(100vh-56px)] bg-background">
-	<main class="mx-auto max-w-6xl px-4 pt-8 pb-36 sm:px-6">
-		<div class="mb-6 flex items-center justify-between">
-			<Tabs.Root bind:value={filter}>
-				<Tabs.List>
-					<Tabs.Trigger value="all">
-						<Globe class="mr-1.5 h-3.5 w-3.5" />
+	<main class="mx-auto max-w-6xl min-w-0 px-4 pt-6 pb-36 sm:px-6 sm:pt-8">
+		<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+			<Tabs.Root bind:value={filter} class="min-w-0 max-w-full">
+				<Tabs.List class="max-w-full overflow-x-auto">
+					<Tabs.Trigger value="all" class="shrink-0">
+						<Globe class="mr-1.5 h-3.5 w-3.5 shrink-0" />
 						All
 					</Tabs.Trigger>
-					<Tabs.Trigger value="owned">
-						<Layout class="mr-1.5 h-3.5 w-3.5" />
+					<Tabs.Trigger value="owned" class="shrink-0">
+						<Layout class="mr-1.5 h-3.5 w-3.5 shrink-0" />
 						Owned
 					</Tabs.Trigger>
-					<Tabs.Trigger value="shared">
-						<Users class="mr-1.5 h-3.5 w-3.5" />
+					<Tabs.Trigger value="shared" class="shrink-0">
+						<Users class="mr-1.5 h-3.5 w-3.5 shrink-0" />
 						Shared
 					</Tabs.Trigger>
 				</Tabs.List>
 			</Tabs.Root>
 			{#if data.entitlement?.saasEnabled && !data.entitlement.canAddWebsite}
-				<Button href="/account?tab=billing" size="sm">
-					<Plus class="mr-1 h-3.5 w-3.5" />
+				<Button href="/account?tab=billing" size="sm" class="shrink-0">
+					<Plus class="mr-1 h-3.5 w-3.5 shrink-0" />
 					{data.entitlement.tierName ? 'Upgrade' : 'Subscribe'}
 				</Button>
 			{:else}
-				<Button href="/dashboard/new" size="sm">
-					<Plus class="mr-1 h-3.5 w-3.5" />
+				<Button href="/dashboard/new" size="sm" class="shrink-0">
+					<Plus class="mr-1 h-3.5 w-3.5 shrink-0" />
 					Add website
 				</Button>
 			{/if}
@@ -288,9 +288,9 @@
 					</button>
 
 					<div class="glass-card relative h-[158px] overflow-hidden rounded-2xl p-5 transition-colors hover:bg-accent/30">
-						<div class="mb-8 flex items-center gap-2">
-							<img src="https://icons.duckduckgo.com/ip3/{site.domain}.ico" alt="Icon" class="size-5 rounded-sm" />
-							<span class="text-sm font-medium">{site.domain}</span>
+						<div class="mb-8 flex min-w-0 items-center gap-2">
+							<img src="https://icons.duckduckgo.com/ip3/{site.domain}.ico" alt="Icon" class="size-5 shrink-0 rounded-sm" />
+							<span class="truncate text-sm font-medium">{site.domain}</span>
 							{#if !site.isOwner}
 								<HoverCard.Root>
 									<HoverCard.Trigger>
@@ -307,10 +307,10 @@
 							{/if}
 						</div>
 
-						<div class="absolute right-0 bottom-10 left-0 h-12">
+						<div class="absolute right-0 bottom-10 left-0 h-12 overflow-hidden">
 							{#if site.sparkline && site.sparkline.length > 0}
 								{@const paths = generateSparkline(site.sparkline)}
-								<svg viewBox="0 0 100 20" class="h-full w-full overflow-visible" preserveAspectRatio="none">
+								<svg viewBox="0 0 100 20" class="h-full w-full" preserveAspectRatio="none">
 									<defs>
 										<linearGradient id="gradient-{site.id.replace(/[^a-zA-Z0-9]/g, '-')}" x1="0" y1="0" x2="0" y2="1">
 											<stop offset="0%" stop-color="var(--primary)" stop-opacity="0.15" />

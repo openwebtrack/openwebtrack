@@ -448,60 +448,60 @@
 	});
 </script>
 
-<div class="rounded-2xl border border-border bg-card p-6">
+<div class="min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-6">
 	<!-- Stat Row – 5 cards in a row with info icons -->
-	<div class="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
-		<button class="group cursor-pointer rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-accent/20" onclick={() => (showVisitors = !showVisitors)}>
-			<div class="mb-2 flex items-center justify-between">
-				<span class="text-xs text-muted-foreground">Visitors</span>
-				<svg class="h-3.5 w-3.5 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+	<div class="mb-6 grid grid-cols-2 gap-2.5 sm:mb-8 sm:grid-cols-3 sm:gap-4 md:grid-cols-5">
+		<button class="group min-w-0 cursor-pointer rounded-xl border border-border bg-card p-3 text-left transition-colors hover:bg-accent/20 sm:p-4" onclick={() => (showVisitors = !showVisitors)}>
+			<div class="mb-2 flex items-center justify-between gap-1">
+				<span class="truncate text-xs text-muted-foreground">Visitors</span>
+				<svg class="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
 			</div>
-			<div class="flex items-center gap-2">
-				<span class="text-2xl font-medium tabular-nums tracking-tight">{stats.visitors.toLocaleString()}</span>
-				<div class={cn('h-4 w-4 rounded-full border-2', showVisitors ? 'border-primary bg-primary' : 'border-muted-foreground/30')}></div>
-			</div>
-		</button>
-
-		<button class="group cursor-pointer rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-accent/20" onclick={() => (showRevenue = !showRevenue)}>
-			<div class="mb-2 flex items-center justify-between">
-				<span class="text-xs text-muted-foreground">Revenue</span>
-				<svg class="h-3.5 w-3.5 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-			</div>
-			<div class="flex items-center gap-2">
-				<span class="text-2xl font-medium tabular-nums tracking-tight">{currencySymbol}{isZeroDecimal ? Math.round((stats.revenue || 0) / 100).toLocaleString() : ((stats.revenue || 0) / 100).toFixed(2)}</span>
-				<div class={cn('h-4 w-4 rounded-full border-2', showRevenue ? 'border-[#60a5fa] bg-[#60a5fa]' : 'border-muted-foreground/30')}></div>
+			<div class="flex min-w-0 items-center gap-2">
+				<span class="truncate text-xl font-medium tabular-nums tracking-tight sm:text-2xl">{stats.visitors.toLocaleString()}</span>
+				<div class={cn('h-4 w-4 shrink-0 rounded-full border-2', showVisitors ? 'border-primary bg-primary' : 'border-muted-foreground/30')}></div>
 			</div>
 		</button>
 
-		<div class="rounded-xl border border-border bg-card p-4">
-			<div class="mb-2 flex items-center justify-between">
-				<span class="text-xs text-muted-foreground">Online</span>
-				<div class="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"></div>
+		<button class="group min-w-0 cursor-pointer rounded-xl border border-border bg-card p-3 text-left transition-colors hover:bg-accent/20 sm:p-4" onclick={() => (showRevenue = !showRevenue)}>
+			<div class="mb-2 flex items-center justify-between gap-1">
+				<span class="truncate text-xs text-muted-foreground">Revenue</span>
+				<svg class="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
 			</div>
-			<span class="text-2xl font-medium tabular-nums tracking-tight">{stats.online}</span>
+			<div class="flex min-w-0 items-center gap-2">
+				<span class="truncate text-xl font-medium tabular-nums tracking-tight sm:text-2xl">{currencySymbol}{isZeroDecimal ? Math.round((stats.revenue || 0) / 100).toLocaleString() : ((stats.revenue || 0) / 100).toFixed(2)}</span>
+				<div class={cn('h-4 w-4 shrink-0 rounded-full border-2', showRevenue ? 'border-[#60a5fa] bg-[#60a5fa]' : 'border-muted-foreground/30')}></div>
+			</div>
+		</button>
+
+		<div class="min-w-0 rounded-xl border border-border bg-card p-3 sm:p-4">
+			<div class="mb-2 flex items-center justify-between gap-1">
+				<span class="truncate text-xs text-muted-foreground">Online</span>
+				<div class="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-green-500"></div>
+			</div>
+			<span class="block truncate text-xl font-medium tabular-nums tracking-tight sm:text-2xl">{stats.online}</span>
 		</div>
 
-		<div class="rounded-xl border border-border bg-card p-4">
-			<div class="mb-2 flex items-center justify-between">
-				<span class="text-xs text-muted-foreground">Rev / visitor</span>
-				<svg class="h-3.5 w-3.5 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+		<div class="min-w-0 rounded-xl border border-border bg-card p-3 sm:p-4">
+			<div class="mb-2 flex items-center justify-between gap-1">
+				<span class="truncate text-xs text-muted-foreground">Rev / visitor</span>
+				<svg class="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
 			</div>
-			<span class="text-2xl font-medium tabular-nums tracking-tight">
+			<span class="block truncate text-xl font-medium tabular-nums tracking-tight sm:text-2xl">
 				{currencySymbol}{isZeroDecimal ? Math.round((stats.revenuePerVisitor || 0) / 100).toLocaleString() : ((stats.revenuePerVisitor || 0) / 100).toFixed(2)}
 			</span>
 		</div>
 
-		<div class="rounded-xl border border-border bg-card p-4">
-			<div class="mb-2 flex items-center justify-between">
-				<span class="text-xs text-muted-foreground">Avg. visit</span>
-				<svg class="h-3.5 w-3.5 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+		<div class="min-w-0 rounded-xl border border-border bg-card p-3 sm:p-4">
+			<div class="mb-2 flex items-center justify-between gap-1">
+				<span class="truncate text-xs text-muted-foreground">Avg. visit</span>
+				<svg class="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
 			</div>
-			<span class="text-2xl font-medium tabular-nums tracking-tight">{formatDuration(stats.avgSessionDuration)}</span>
+			<span class="block truncate text-xl font-medium tabular-nums tracking-tight sm:text-2xl">{formatDuration(stats.avgSessionDuration)}</span>
 		</div>
 	</div>
 
 	<!-- Chart -->
-	<div class="relative h-[300px] w-full">
+	<div class="relative h-[260px] w-full sm:h-[300px]">
 		<canvas bind:this={canvas}></canvas>
 		<div
 			bind:this={tooltipEl}
