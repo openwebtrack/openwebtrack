@@ -5,6 +5,7 @@ import type { RequestHandler } from './$types';
 import db from '$lib/server/db';
 import { mcpKey } from '$lib/server/db/schema';
 import { apiKeyCreateSchema, validateBody } from '$lib/server/validation';
+import { isValidUUID } from '$lib/server/utils';
 
 const requireUser = (userId: string | undefined) => {
 	if (!userId) throw error(401, 'Unauthorized');
@@ -38,7 +39,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 export const DELETE: RequestHandler = async ({ locals, url }) => {
 	const userId = requireUser(locals.user?.id);
 	const keyId = url.searchParams.get('keyId');
-	if (!keyId) return json({ error: 'Key ID is required' }, { status: 400 });
+	if (!isValidUUID(keyId)) return json({ error: 'Valid key ID is required' }, { status: 400 });
 	await db.delete(mcpKey).where(and(eq(mcpKey.id, keyId), eq(mcpKey.userId, userId)));
 	return new Response(null, { status: 204 });
 };

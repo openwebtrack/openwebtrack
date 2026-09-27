@@ -11,26 +11,37 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const endDate = url.searchParams.get('endDate');
 	const limitParam = Number(url.searchParams.get('limit') || (startDate || endDate ? '1000' : '100'));
 	const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 1000) : 100;
-	let siteTimezone = 'UTC';
 
 	if (!isValidUUID(params.id)) {
 		throw error(400, 'Invalid website ID');
 	}
 
-	if (!isWidget) {
-		if (!locals.user) {
-			throw error(401, 'Unauthorized');
-		}
-
-		const access = await checkWebsiteAccess(locals.user.id, params.id);
-
-		if (!access) {
-			throw error(404, 'Website not found');
-		}
-
-		siteTimezone = access.site.timezone;
+	if (isWidget) {
+		// Public embeddable widget: only expose anonymous, aggregate-friendly fields for the last 30 minutes.
+		const since = new Date(Date.now() - 30 * 60 * 1000);
+		const recent = await db
+			.select({
+				lastActivityAt: sql<string>`TO_CHAR(MAX(${analyticsSession.lastActivityAt}), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`.as('lastActivityAt'),
+				country: sql<string | null>`(array_agg(${analyticsSession.country} ORDER BY ${analyticsSession.lastActivityAt} DESC))[1]`
+			})
+			.from(analyticsSession)
+			.where(and(eq(analyticsSession.websiteId, params.id), gte(analyticsSession.lastActivityAt, since)))
+			.groupBy(analyticsSession.visitorId)
+			.limit(1000);
+		return json(recent);
 	}
 
+	if (!locals.user) {
+		throw error(401, 'Unauthorized');
+	}
+
+	const access = await checkWebsiteAccess(locals.user.id, params.id);
+
+	if (!access) {
+		throw error(404, 'Website not found');
+	}
+
+	const siteTimezone = access.site.timezone;
 	const { start, end } = parseDateRange(startDate, endDate, siteTimezone);
 	const whereClause =
 		startDate || endDate

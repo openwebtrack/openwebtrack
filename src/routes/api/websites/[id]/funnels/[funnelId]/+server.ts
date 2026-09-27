@@ -48,6 +48,14 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 	if (!Array.isArray(steps) || steps.length < 2) {
 		return json({ error: 'At least 2 steps are required' }, { status: 400 });
 	}
+	for (const step of steps) {
+		if (!step.name || !step.type || !step.value) {
+			return json({ error: 'Each step must have name, type, and value' }, { status: 400 });
+		}
+		if (step.type !== 'page_visit' && step.type !== 'goal') {
+			return json({ error: 'Step type must be page_visit or goal' }, { status: 400 });
+		}
+	}
 
 	const [updated] = await db
 		.update(funnel)
