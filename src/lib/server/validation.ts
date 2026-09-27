@@ -74,8 +74,8 @@ export const trackingPayloadSchema = z.object({
 	type: eventTypeSchema,
 	href: z.string().min(1, 'URL is required').max(MAX_STRING_LENGTHS.href),
 	referrer: z.string().max(MAX_STRING_LENGTHS.referrer).nullable().optional(),
-	visitorId: z.string().min(1, 'Visitor ID is required').max(MAX_STRING_LENGTHS.visitorId),
-	sessionId: z.string().min(1, 'Session ID is required').max(MAX_STRING_LENGTHS.sessionId),
+	visitorId: z.string().uuid('Invalid visitor ID'),
+	sessionId: z.string().uuid('Invalid session ID'),
 	viewport: z
 		.object({
 			width: z.number().int().min(0).max(10000),

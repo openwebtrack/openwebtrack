@@ -14,6 +14,13 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 
 	const response = await svelteKitHandler({ event, resolve, auth, building });
 
+	response.headers.set('X-Content-Type-Options', 'nosniff');
+	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	// Only the embeddable widget may be framed; everything else is protected against clickjacking.
+	if (!event.url.pathname.startsWith('/widget/')) {
+		response.headers.set('X-Frame-Options', 'DENY');
+	}
+
 	if (env.ENABLE_INDEXING !== 'true') {
 		response.headers.set('X-Robots-Tag', 'noindex, nofollow');
 	}

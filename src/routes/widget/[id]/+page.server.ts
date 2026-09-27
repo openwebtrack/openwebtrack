@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		throw error(400, 'Invalid website ID');
 	}
 
-	const [site] = await db.select().from(website).where(eq(website.id, params.id)).limit(1);
+	const [site] = await db.select({ id: website.id, domain: website.domain }).from(website).where(eq(website.id, params.id)).limit(1);
 
 	if (!site) {
 		throw error(404, 'Website not found');

@@ -92,4 +92,4 @@ export const generateVisitorName = (id: string) => {
 	return `${adj} ${animal}`;
 };
 
-export const generateAvatarUrl = (id: string) => `https://api.dicebear.com/9.x/adventurer/svg?seed=${id}`;
+export const generateAvatarUrl = (id: string) => `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(id)}`;

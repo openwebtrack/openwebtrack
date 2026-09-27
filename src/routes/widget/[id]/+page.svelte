@@ -12,8 +12,10 @@
 	// Theme and visibility options from query params (website theme defaults)
 	let showGraph = $derived(page.url.searchParams.get('graph') !== 'false');
 	let showCountries = $derived(page.url.searchParams.get('countries') !== 'false');
-	let primaryColor = $derived(page.url.searchParams.get('primary') || '#c2956a'); // website --primary
-	let bgColor = $derived(page.url.searchParams.get('bg') || '#212121'); // website --card
+	// Only accept hex colors: these values are interpolated into inline styles.
+	const safeColor = (value: string | null, fallback: string) => (value && /^#[0-9a-f]{3,8}$/i.test(value) ? value : fallback);
+	let primaryColor = $derived(safeColor(page.url.searchParams.get('primary'), '#c2956a')); // website --primary
+	let bgColor = $derived(safeColor(page.url.searchParams.get('bg'), '#212121')); // website --card
 
 	// Calculate counts
 	let now = $state(Date.now());

@@ -103,8 +103,12 @@ export const POST: RequestHandler = async ({ params, request }) => {
 		} else if (creds.webhookSecret && !signature) {
 			return json({ error: 'Missing stripe-signature header' }, { status: 400 });
 		} else {
-			// No webhook secret configured (testing mode): trust the parsed body.
-			event = JSON.parse(rawBody) as Stripe.Event;
+			// No webhook secret configured: never trust the body (anyone can POST here and forge revenue).
+			// Re-fetch the event from Stripe with the stored key so only genuine events are recorded.
+			const claimed = JSON.parse(rawBody) as { id?: unknown };
+			if (typeof claimed?.id !== 'string' || !claimed.id.startsWith('evt_')) throw new Error('Invalid Stripe event payload');
+			const stripe = new Stripe(creds.secretKey, { apiVersion: '2026-08-26.dahlia' });
+			event = await stripe.events.retrieve(claimed.id);
 			if (!event?.type || !event?.data) throw new Error('Invalid Stripe event payload');
 		}
 	} catch (e) {

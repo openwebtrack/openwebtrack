@@ -13,6 +13,7 @@ import { json } from '@sveltejs/kit';
 import { sql } from 'drizzle-orm';
 import db from '$lib/server/db';
 import axios from 'axios';
+import { isIP } from 'node:net';
 import { SAAS_MODE } from '$lib/config';
 
 const SPIKE_COOLDOWN_MS = 15 * 60 * 1000;
@@ -123,9 +124,19 @@ setInterval(() => {
 }, 300000);
 
 const getClientIP = (request: Request, socketIP?: string): string | null => {
+	// A public socket address means no trusted proxy sits in front of us, so forwarding
+	// headers are client-controlled and must be ignored (prevents IP spoofing).
+	if (socketIP && isIP(socketIP) && !isPrivateIP(socketIP)) {
+		return socketIP;
+	}
+
 	const xForwardedFor = request.headers.get('x-forwarded-for');
 	if (xForwardedFor) {
-		const ips = xForwardedFor.split(',').map((ip) => ip.trim());
+		// Walk right-to-left: entries appended by our own proxies are trustworthy, the left side is client-supplied.
+		const ips = xForwardedFor
+			.split(',')
+			.map((ip) => ip.trim())
+			.reverse();
 		for (const ip of ips) {
 			if (ip && !isPrivateIP(ip)) {
 				return ip;
@@ -156,17 +167,14 @@ const getClientIP = (request: Request, socketIP?: string): string | null => {
 		}
 	}
 
-	const socketAddr = socketIP;
-	if (socketAddr && !isPrivateIP(socketAddr)) {
-		return socketAddr;
-	}
-
 	return null;
 };
 
 const isPrivateIP = (ip: string): boolean => {
+	// Treat anything that is not a literal IP as unusable (also keeps header junk out of geo lookup URLs).
+	if (!isIP(ip)) return true;
 	if (ip === 'localhost' || ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') return true;
-	const privateRanges = [/^10\./, /^172\.(1[6-9]|2[0-9]|3[0-1])\./, /^192\.168\./, /^169\.254\./, /^fc00:/i, /^fe80:/i];
+	const privateRanges = [/^10\./, /^127\./, /^0\./, /^172\.(1[6-9]|2[0-9]|3[0-1])\./, /^192\.168\./, /^169\.254\./, /^f[cd][0-9a-f]{2}:/i, /^fe80:/i, /^::ffff:(10\.|127\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/i];
 	return privateRanges.some((range) => range.test(ip));
 };
 

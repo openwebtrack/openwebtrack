@@ -206,6 +206,10 @@
 		return isToday ? `Today at ${time}` : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at ' + time;
 	};
 
+	// Escape untrusted values (tracking payloads are attacker-controlled) before building HTML strings.
+	const esc = (value: unknown): string =>
+		String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
 	const getSourceDomain = (referrer: string | null) => {
 		if (!referrer) return { hostname: 'Direct', domain: websiteDomain };
 		try {
@@ -442,7 +446,7 @@
 				el.className = 'cluster-marker';
 				el.innerHTML = `
 					<div class="cluster-inner" style="width:${size}px;height:${size}px;">
-						${flag ? `<img src="${flag}" alt="${country}" class="cluster-flag" />` : ''}
+						${flag ? `<img src="${esc(flag)}" alt="${esc(country)}" class="cluster-flag" />` : ''}
 						<span class="cluster-count">+${count}</span>
 					</div>
 					<div class="cluster-pulse" style="width:${size}px;height:${size}px;"></div>
@@ -453,8 +457,8 @@
 					.map(
 						(v) => `
 					<div class="popup-visitor-row">
-						<img src="${v.avatar}" class="popup-avatar" />
-						<span>${v.name}</span>
+						<img src="${esc(v.avatar)}" class="popup-avatar" />
+						<span>${esc(v.name)}</span>
 					</div>
 				`
 					)
@@ -468,8 +472,8 @@
 				}).setHTML(`
 					<div class="popup-inner">
 						<div class="popup-header">
-							${flag ? `<img src="${flag}" class="popup-flag" />` : ''}
-							<span class="popup-name">${country}</span>
+							${flag ? `<img src="${esc(flag)}" class="popup-flag" />` : ''}
+							<span class="popup-name">${esc(country)}</span>
 							<span class="popup-count">(${count} ${mapMode === 'history' ? 'visitors' : 'online'})</span>
 						</div>
 						${visitorsListHtml}
@@ -528,7 +532,7 @@
 				el.className = 'visitor-marker';
 				el.innerHTML = `
 					<div class="marker-inner">
-						<img src="${visitor.avatar}" alt="${visitor.name}" />
+						<img src="${esc(visitor.avatar)}" alt="${esc(visitor.name)}" />
 					</div>
 					<div class="marker-pulse"></div>
 				`;
@@ -540,19 +544,19 @@
 				}).setHTML(`
 					<div class="popup-inner">
 						<div class="popup-header">
-							<img src="${visitor.avatar}" class="popup-avatar" />
-							<span class="popup-name">${visitor.name}</span>
+							<img src="${esc(visitor.avatar)}" class="popup-avatar" />
+							<span class="popup-name">${esc(visitor.name)}</span>
 						</div>
 						<div class="popup-row">
-							${visitor.countryFlag ? `<img src="${visitor.countryFlag}" class="popup-flag" />` : ''}
-							<span>${visitor.city ? visitor.city + ', ' : ''}${visitor.country}</span>
+							${visitor.countryFlag ? `<img src="${esc(visitor.countryFlag)}" class="popup-flag" />` : ''}
+							<span>${visitor.city ? esc(visitor.city) + ', ' : ''}${esc(visitor.country)}</span>
 						</div>
 						<div class="popup-row">
-							<span class="popup-label">Device:</span> <span>${visitor.device}</span>
+							<span class="popup-label">Device:</span> <span>${esc(visitor.device)}</span>
 						</div>
 						<div class="popup-row">
-							<img src="${visitor.sourceIcon}" class="popup-icon" onerror="this.style.display='none'" />
-							<span>${visitor.source}</span>
+							<img src="${esc(visitor.sourceIcon)}" class="popup-icon" onerror="this.style.display='none'" />
+							<span>${esc(visitor.source)}</span>
 						</div>
 					</div>
 				`);
