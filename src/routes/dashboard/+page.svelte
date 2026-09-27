@@ -137,25 +137,48 @@
 	const generateSparkline = (sparkline: { value: number }[]) => {
 		if (sparkline.length < 2) return { area: '', line: '' };
 		const maxVal = Math.max(...sparkline.map((d) => d.value), 1);
+		const baseline = 18.5;
 		const points = sparkline.map((d, i) => ({
 			x: (i / (sparkline.length - 1)) * 100,
-			y: 20 - (d.value / maxVal) * 18
+			y: baseline - (d.value / maxVal) * 16
 		}));
 
+		// Monotone cubic (Fritsch-Carlson) so the curve never overshoots below the baseline
 		const linePath = (points: { x: number; y: number }[]) => {
+			const n = points.length;
+			const slopes: number[] = [];
+			for (let i = 0; i < n - 1; i++) {
+				slopes.push((points[i + 1].y - points[i].y) / (points[i + 1].x - points[i].x));
+			}
+			const tangents = points.map((_, i) => {
+				if (i === 0) return slopes[0];
+				if (i === n - 1) return slopes[n - 2];
+				const a = slopes[i - 1];
+				const b = slopes[i];
+				return a * b <= 0 ? 0 : (a + b) / 2;
+			});
+			for (let i = 0; i < n - 1; i++) {
+				if (slopes[i] === 0) {
+					tangents[i] = 0;
+					tangents[i + 1] = 0;
+					continue;
+				}
+				const a = tangents[i] / slopes[i];
+				const b = tangents[i + 1] / slopes[i];
+				const h = a * a + b * b;
+				if (h > 9) {
+					const t = 3 / Math.sqrt(h);
+					tangents[i] = t * a * slopes[i];
+					tangents[i + 1] = t * b * slopes[i];
+				}
+			}
+
 			let d = `M${points[0].x},${points[0].y}`;
-			for (let i = 0; i < points.length - 1; i++) {
-				const p0 = points[Math.max(0, i - 1)];
+			for (let i = 0; i < n - 1; i++) {
 				const p1 = points[i];
 				const p2 = points[i + 1];
-				const p3 = points[Math.min(points.length - 1, i + 2)];
-
-				const cp1x = p1.x + (p2.x - p0.x) * 0.15;
-				const cp1y = p1.y + (p2.y - p0.y) * 0.15;
-				const cp2x = p2.x - (p3.x - p1.x) * 0.15;
-				const cp2y = p2.y - (p3.y - p1.y) * 0.15;
-
-				d += ` C${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y}`;
+				const dx = (p2.x - p1.x) / 3;
+				d += ` C${p1.x + dx},${p1.y + tangents[i] * dx} ${p2.x - dx},${p2.y - tangents[i + 1] * dx} ${p2.x},${p2.y}`;
 			}
 			return d;
 		};
