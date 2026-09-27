@@ -16,8 +16,13 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-	// Only the embeddable widget may be framed; everything else is protected against clickjacking.
-	if (!event.url.pathname.startsWith('/widget/')) {
+
+	// Only the embeddable widget and the demo (on openwebtrack.one) may be framed
+	const { pathname } = event.url;
+
+	if (pathname === '/demo' || pathname.startsWith('/demo/')) {
+		response.headers.set('Content-Security-Policy', "frame-ancestors 'self' https://openwebtrack.one");
+	} else if (!pathname.startsWith('/widget/')) {
 		response.headers.set('X-Frame-Options', 'DENY');
 	}
 
