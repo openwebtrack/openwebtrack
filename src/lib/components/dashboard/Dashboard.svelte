@@ -193,6 +193,7 @@
 		events: EventItem[];
 		isLoading?: boolean;
 		isDataLoading?: boolean;
+		isRefreshing?: boolean;
 		error?: string | null;
 		showWebsiteSwitcher?: boolean;
 		isDemo?: boolean;
@@ -220,6 +221,7 @@
 		events,
 		isLoading = false,
 		isDataLoading = false,
+		isRefreshing = false,
 		error = null,
 		showWebsiteSwitcher = true,
 		isDemo = false,
@@ -714,16 +716,27 @@
 </script>
 
 <div class="relative min-h-screen overflow-x-clip bg-background pb-36 selection:bg-primary/30">
+	{#if isRefreshing}
+		<div class="refresh-bar pointer-events-none fixed inset-x-0 top-0 z-50 h-0.5 overflow-hidden bg-primary/15" role="progressbar" aria-label="Loading data">
+			<div class="refresh-bar-fill h-full w-1/3 bg-primary"></div>
+		</div>
+	{/if}
 	<main class="mx-auto max-w-6xl min-w-0 space-y-4 px-4 pt-6 sm:px-6">
 		<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-3">
 			<div class="flex shrink-0 items-center gap-3">
 				<h1 class="text-lg font-medium tracking-tight text-foreground sm:text-xl">Overview</h1>
+				{#if isRefreshing && apiData}
+					<span class="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium text-muted-foreground" aria-live="polite">
+						<Loader2 class="h-3 w-3 animate-spin" />
+						Updating…
+					</span>
+				{/if}
 			</div>
 			<div class="flex min-w-0 flex-wrap items-center gap-2">
 				<DateRangePicker value={dateRangeValue} onSelect={handleDateChange} />
 				<GranularityPicker value={granularity} onSelect={handleGranularityChange} />
-				<Button variant="secondary" size="icon" onclick={refresh} disabled={isFetching} class="shrink-0">
-					{#if isFetching}
+				<Button variant="secondary" size="icon" onclick={refresh} disabled={isFetching || isRefreshing} class="shrink-0">
+					{#if isFetching || isRefreshing}
 						<Loader2 class="h-3.5 w-3.5 animate-spin" />
 					{:else}
 						<RefreshCw class="h-3.5 w-3.5" />
@@ -736,7 +749,9 @@
 		<div class="flex flex-wrap items-center gap-2">
 			{#if showWebsiteSwitcher && websites.length > 0}
 				<Popover.Root>
-					<Popover.Trigger class="group flex h-[36px] max-w-[220px] cursor-pointer items-center gap-1.5 rounded-full bg-secondary px-3 text-xs font-medium transition-colors hover:bg-accent sm:max-w-none">
+					<Popover.Trigger
+						class="group flex h-[36px] max-w-[220px] cursor-pointer items-center gap-1.5 rounded-full bg-secondary px-3 text-xs font-medium transition-colors hover:bg-accent sm:max-w-none"
+					>
 						<img src="https://icons.duckduckgo.com/ip3/{website.domain}.ico" alt={website.domain} class="size-3.5 shrink-0" />
 						<span class="max-w-[130px] truncate transition-colors group-hover:text-foreground sm:max-w-[220px]">{website.domain}</span>
 						{#if !isOwner}
@@ -851,239 +866,237 @@
 				<button onclick={refresh} class="mt-3 rounded-full bg-secondary px-4 py-1.5 text-xs font-medium transition-colors hover:bg-accent"> Try again </button>
 			</div>
 		{:else}
-			{#if error}
-				<div class="flex items-center justify-between rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
-					<span>{error}</span>
-					<button onclick={refresh} class="font-medium underline hover:text-destructive/80">Retry</button>
+			<div class={cn('space-y-4 transition-opacity duration-200', isRefreshing && 'pointer-events-none opacity-50')} aria-busy={isRefreshing}>
+				{#if error}
+					<div class="flex items-center justify-between rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
+						<span>Couldn't load updated data: {error}. Showing previous results.</span>
+						<button onclick={refresh} class="font-medium underline hover:text-destructive/80">Retry</button>
+					</div>
+				{/if}
+
+				<div>
+					<DashboardChart timeSeries={convertedTimeSeries} stats={convertedStats} granularity={granularity.toLowerCase() as 'hourly' | 'daily' | 'weekly' | 'monthly'} {websiteCurrency} />
 				</div>
-			{/if}
 
-			<div>
-				<DashboardChart timeSeries={convertedTimeSeries} stats={convertedStats} granularity={granularity.toLowerCase() as 'hourly' | 'daily' | 'weekly' | 'monthly'} {websiteCurrency} />
-			</div>
-
-			<div class="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
-				<TabbedCard
-					tabs={insights ? ['Channel', 'Referrer', 'Campaign', { label: 'Insights', badge: 'New' }] : ['Channel', 'Referrer', 'Campaign']}
-					activeTab={channelActiveTab}
-					onTabChange={(i) => (channelActiveTab = i)}
-					onDetails={() => {
-						if (channelActiveTab === 0) openMetricDetails('channels', 'Channels');
-						else if (channelActiveTab === 1) openMetricDetails('referrers', 'Referrers');
-						else if (channelActiveTab === 2) openMetricDetails('campaigns', 'Campaigns');
-						else if (channelActiveTab === 3 && insights) openInsightsDetails();
-					}}
-					count={stats.visitors}
-					class={cn('h-[340px]', channelActiveTab === 3 && 'h-[420px]')}
-				>
-					{#if channelActiveTab === 0}
-						<BarList items={channelData} revenueItems={channelRevenueItems} customerItems={customersByChannel} {websiteCurrency} />
-					{:else if channelActiveTab === 1}
-						{#if topReferrers.length > 0}
-							<BarList items={topReferrers} revenueItems={convertedRevenueByReferrer} customerItems={customersByReferrer} {websiteCurrency} />
-						{:else}
-							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<p class="text-sm">No referrers yet.</p>
-							</div>
-						{/if}
-					{:else if channelActiveTab === 2}
-						{#if campaignData.length > 0}
-							<BarList items={campaignData} revenueItems={convertedRevenueByCampaign} customerItems={customersByCampaign} {websiteCurrency} />
-						{:else}
-							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<p class="text-sm">No campaign data yet.</p>
-							</div>
-						{/if}
-					{:else if channelActiveTab === 3 && insights}
-						<div class="flex flex-col gap-0.5">
-							{#each [
-								{ label: 'Trend', value: trendLabels[insights.trend] || insights.trend, confidence: insights.trendConfidence, icon: insights.trend === 'growing' ? 'trending_up' : insights.trend === 'declining' ? 'trending_down' : insights.trend === 'volatile' ? 'volatile' : 'stable', color: insights.trend === 'growing' ? 'text-green-500' : insights.trend === 'declining' ? 'text-red-500' : insights.trend === 'volatile' ? 'text-yellow-500' : 'text-muted-foreground' },
-								{ label: 'Traffic Source', value: driverLabels[insights.topDriver] || insights.topDriver, confidence: insights.topDriverConfidence, icon: 'target', color: 'text-blue-500' },
-								{ label: 'Quality', value: qualityLabels[insights.quality] || insights.quality, confidence: insights.qualityConfidence, icon: 'sparkles', color: 'text-purple-500' },
-								{ label: 'Revenue', value: revenueTrendLabels[insights.revenueTrend] || insights.revenueTrend, confidence: insights.revenueTrendConfidence, icon: 'dollar', color: 'text-emerald-500' },
-								{ label: 'Opportunity', value: opportunityLabels[insights.opportunity] || insights.opportunity, confidence: insights.opportunityConfidence, icon: 'target', color: 'text-amber-500' },
-								{ label: 'Anomaly', value: insights.anomalyScore > 0.6 ? 'Detected' : 'None', confidence: insights.anomalyScore, icon: insights.anomalyScore > 0.6 ? 'alert' : 'check', color: insights.anomalyScore > 0.6 ? 'text-red-500' : 'text-green-500' }
-							] as insight}
-								<div class="group relative flex h-8 items-center overflow-hidden rounded-lg transition-colors hover:bg-accent">
-									<div class="absolute inset-y-0 left-0 bg-primary/10 transition-all duration-300 ease-out group-hover:bg-primary/15" style="width: {insight.confidence * 100}%"></div>
-									<div class="relative z-10 flex w-full items-center justify-between px-3">
-										<div class="flex items-center gap-2 min-w-0">
-											<span class="truncate text-xs font-medium text-muted-foreground">{insight.label}</span>
-										</div>
-										<div class="flex items-center gap-2 shrink-0">
-											<span class="text-xs {insight.color}">{insight.value}</span>
-											<span class="text-[10px] tabular-nums text-muted-foreground">{Math.round(insight.confidence * 100)}%</span>
+				<div class="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
+					<TabbedCard
+						tabs={insights ? ['Channel', 'Referrer', 'Campaign', { label: 'Insights', badge: 'New' }] : ['Channel', 'Referrer', 'Campaign']}
+						activeTab={channelActiveTab}
+						onTabChange={(i) => (channelActiveTab = i)}
+						onDetails={() => {
+							if (channelActiveTab === 0) openMetricDetails('channels', 'Channels');
+							else if (channelActiveTab === 1) openMetricDetails('referrers', 'Referrers');
+							else if (channelActiveTab === 2) openMetricDetails('campaigns', 'Campaigns');
+							else if (channelActiveTab === 3 && insights) openInsightsDetails();
+						}}
+						count={stats.visitors}
+						class={cn('h-[340px]', channelActiveTab === 3 && 'h-[420px]')}
+					>
+						{#if channelActiveTab === 0}
+							<BarList items={channelData} revenueItems={channelRevenueItems} customerItems={customersByChannel} {websiteCurrency} />
+						{:else if channelActiveTab === 1}
+							{#if topReferrers.length > 0}
+								<BarList items={topReferrers} revenueItems={convertedRevenueByReferrer} customerItems={customersByReferrer} {websiteCurrency} />
+							{:else}
+								<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+									<p class="text-sm">No referrers yet.</p>
+								</div>
+							{/if}
+						{:else if channelActiveTab === 2}
+							{#if campaignData.length > 0}
+								<BarList items={campaignData} revenueItems={convertedRevenueByCampaign} customerItems={customersByCampaign} {websiteCurrency} />
+							{:else}
+								<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+									<p class="text-sm">No campaign data yet.</p>
+								</div>
+							{/if}
+						{:else if channelActiveTab === 3 && insights}
+							<div class="flex flex-col gap-0.5">
+								{#each [{ label: 'Trend', value: trendLabels[insights.trend] || insights.trend, confidence: insights.trendConfidence, icon: insights.trend === 'growing' ? 'trending_up' : insights.trend === 'declining' ? 'trending_down' : insights.trend === 'volatile' ? 'volatile' : 'stable', color: insights.trend === 'growing' ? 'text-green-500' : insights.trend === 'declining' ? 'text-red-500' : insights.trend === 'volatile' ? 'text-yellow-500' : 'text-muted-foreground' }, { label: 'Traffic Source', value: driverLabels[insights.topDriver] || insights.topDriver, confidence: insights.topDriverConfidence, icon: 'target', color: 'text-blue-500' }, { label: 'Quality', value: qualityLabels[insights.quality] || insights.quality, confidence: insights.qualityConfidence, icon: 'sparkles', color: 'text-purple-500' }, { label: 'Revenue', value: revenueTrendLabels[insights.revenueTrend] || insights.revenueTrend, confidence: insights.revenueTrendConfidence, icon: 'dollar', color: 'text-emerald-500' }, { label: 'Opportunity', value: opportunityLabels[insights.opportunity] || insights.opportunity, confidence: insights.opportunityConfidence, icon: 'target', color: 'text-amber-500' }, { label: 'Anomaly', value: insights.anomalyScore > 0.6 ? 'Detected' : 'None', confidence: insights.anomalyScore, icon: insights.anomalyScore > 0.6 ? 'alert' : 'check', color: insights.anomalyScore > 0.6 ? 'text-red-500' : 'text-green-500' }] as insight}
+									<div class="group relative flex h-8 items-center overflow-hidden rounded-lg transition-colors hover:bg-accent">
+										<div
+											class="absolute inset-y-0 left-0 bg-primary/10 transition-all duration-300 ease-out group-hover:bg-primary/15"
+											style="width: {insight.confidence * 100}%"
+										></div>
+										<div class="relative z-10 flex w-full items-center justify-between px-3">
+											<div class="flex min-w-0 items-center gap-2">
+												<span class="truncate text-xs font-medium text-muted-foreground">{insight.label}</span>
+											</div>
+											<div class="flex shrink-0 items-center gap-2">
+												<span class="text-xs {insight.color}">{insight.value}</span>
+												<span class="text-[10px] text-muted-foreground tabular-nums">{Math.round(insight.confidence * 100)}%</span>
+											</div>
 										</div>
 									</div>
+								{/each}
+								<div class="mt-2 flex items-center justify-end">
+									<span class="text-[10px] text-muted-foreground/60">Powered by Jev</span>
 								</div>
-							{/each}
-							<div class="mt-2 flex items-center justify-end">
-								<span class="text-[10px] text-muted-foreground/60">Powered by Jev</span>
 							</div>
+						{:else if channelActiveTab === 3 && isInsightsLoading}
+							<div class="flex h-64 items-center justify-center">
+								<Loader2 class="h-6 w-6 animate-spin text-muted-foreground" />
+							</div>
+						{:else}
+							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+								<p class="text-sm">No insights available.</p>
+							</div>
+						{/if}
+					</TabbedCard>
+
+					<TabbedCard
+						tabs={['Hostname', 'Page', 'Entry page', 'Exit link']}
+						activeTab={pageActiveTab}
+						onTabChange={(i) => (pageActiveTab = i)}
+						onDetails={() => {
+							const types = ['hostnames', 'pages', 'entry_pages', 'exit_links'];
+							const titles = ['Hostnames', 'Pages', 'Entry Pages', 'Exit Links'];
+							openMetricDetails(types[pageActiveTab], titles[pageActiveTab]);
+						}}
+						count={stats.pageviews}
+						class="h-[339px]"
+					>
+						{#if pageActiveTab === 0}
+							<BarList items={hostnameData} revenueItems={convertedRevenueByHostname} customerItems={customersByHostname} {websiteCurrency} />
+						{:else if pageActiveTab === 1}
+							{#if topPages.length > 0}
+								<BarList items={topPages} revenueItems={convertedRevenueByPage} customerItems={customersByPage} {websiteCurrency} />
+							{:else}
+								<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+									<p class="text-sm">No pageviews yet.</p>
+								</div>
+							{/if}
+						{:else if pageActiveTab === 2}
+							{#if entryPages.length > 0}
+								<BarList items={entryPages} revenueItems={convertedRevenueByEntryPage} customerItems={customersByEntryPage} {websiteCurrency} />
+							{:else}
+								<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+									<p class="text-sm">No entry pages yet.</p>
+								</div>
+							{/if}
+						{:else if pageActiveTab === 3}
+							{#if exitLinks.length > 0}
+								<BarList items={exitLinks} revenueItems={convertedRevenueByExitLink} customerItems={customersByExitLink} {websiteCurrency} />
+							{:else}
+								<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+									<p class="text-sm">No exit links tracked.</p>
+								</div>
+							{/if}
+						{/if}
+					</TabbedCard>
+				</div>
+
+				<div class="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
+					<TabbedCard
+						tabs={['Country', 'Region', 'City']}
+						activeTab={mapActiveTab}
+						onTabChange={(i: number) => (mapActiveTab = i)}
+						onDetails={() => {
+							const types = ['countries', 'regions', 'cities'];
+							const titles = ['Countries', 'Regions', 'Cities'];
+							openMetricDetails(types[mapActiveTab], titles[mapActiveTab]);
+						}}
+						count={stats.visitors}
+						class="h-[339px]"
+					>
+						{#if mapActiveTab === 0}
+							{#if countryStats.length > 0}
+								<BarList items={countryStats} revenueItems={convertedRevenueByCountry} customerItems={customersByCountry} {websiteCurrency} />
+							{:else}
+								<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+									<p class="text-sm">No country data yet.</p>
+								</div>
+							{/if}
+						{:else if mapActiveTab === 1}
+							{#if regionStats.length > 0}
+								<BarList items={regionStats} revenueItems={convertedRevenueByRegion} customerItems={customersByRegion} {websiteCurrency} />
+							{:else}
+								<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+									<p class="text-sm">No region data yet.</p>
+								</div>
+							{/if}
+						{:else if mapActiveTab === 2}
+							{#if cityStats.length > 0}
+								<BarList items={cityStats} revenueItems={convertedRevenueByCity} customerItems={customersByCity} {websiteCurrency} />
+							{:else}
+								<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+									<p class="text-sm">No city data yet.</p>
+								</div>
+							{/if}
+						{/if}
+					</TabbedCard>
+
+					<TabbedCard
+						tabs={['Browser', 'OS', 'Device', 'Screen']}
+						activeTab={browserActiveTab}
+						onTabChange={(i: number) => (browserActiveTab = i)}
+						onDetails={() => {
+							const types = ['browsers', 'os', 'devices', 'screens'];
+							const titles = ['Browsers', 'Operating Systems', 'Device Types', 'Screen Resolutions'];
+							openMetricDetails(types[browserActiveTab], titles[browserActiveTab]);
+						}}
+						count={stats.visitors}
+						class="h-[339px]"
+					>
+						{#if browserActiveTab === 0}
+							{#if browserStats.length > 0}
+								<BarList items={browserStats} revenueItems={convertedRevenueByBrowser} customerItems={customersByBrowser} {websiteCurrency} />
+							{:else}
+								<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+									<p class="text-sm">No browser data yet.</p>
+								</div>
+							{/if}
+						{:else if browserActiveTab === 1}
+							{#if osStats.length > 0}
+								<BarList items={osStats} revenueItems={convertedRevenueByOs} customerItems={customersByOs} {websiteCurrency} />
+							{:else}
+								<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+									<p class="text-sm">No OS data yet.</p>
+								</div>
+							{/if}
+						{:else if browserActiveTab === 2}
+							{#if deviceTypeStats.length > 0}
+								<BarList items={deviceTypeStats} revenueItems={convertedRevenueByDeviceType} customerItems={customersByDeviceType} {websiteCurrency} />
+							{:else}
+								<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+									<p class="text-sm">No device data yet.</p>
+								</div>
+							{/if}
+						{:else if browserActiveTab === 3}
+							{#if deviceStats.length > 0}
+								<BarList items={deviceStats} revenueItems={convertedRevenueByScreen} customerItems={customersByScreen} {websiteCurrency} />
+							{:else}
+								<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
+									<p class="text-sm">No screen data yet.</p>
+								</div>
+							{/if}
+						{/if}
+					</TabbedCard>
+				</div>
+
+				<div>
+					{#snippet headerRight()}
+						<div class="relative min-w-20 grow basis-20 sm:w-full sm:max-w-32 sm:grow-0 sm:basis-auto md:max-w-full">
+							<Search class="absolute top-1/2 left-2.5 h-3 -translate-y-1/2 text-muted-foreground" />
+							<Input type="text" bind:value={searchQuery} placeholder="Search..." class="h-7 rounded-full pl-7 text-xs" />
 						</div>
-					{:else if channelActiveTab === 3 && isInsightsLoading}
-						<div class="flex h-64 items-center justify-center">
-							<Loader2 class="h-6 w-6 animate-spin text-muted-foreground" />
-						</div>
-					{:else}
-						<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-							<p class="text-sm">No insights available.</p>
-						</div>
-					{/if}
-				</TabbedCard>
-
-				<TabbedCard
-					tabs={['Hostname', 'Page', 'Entry page', 'Exit link']}
-					activeTab={pageActiveTab}
-					onTabChange={(i) => (pageActiveTab = i)}
-					onDetails={() => {
-						const types = ['hostnames', 'pages', 'entry_pages', 'exit_links'];
-						const titles = ['Hostnames', 'Pages', 'Entry Pages', 'Exit Links'];
-						openMetricDetails(types[pageActiveTab], titles[pageActiveTab]);
-					}}
-					count={stats.pageviews}
-					class="h-[339px]"
-				>
-					{#if pageActiveTab === 0}
-						<BarList items={hostnameData} revenueItems={convertedRevenueByHostname} customerItems={customersByHostname} {websiteCurrency} />
-					{:else if pageActiveTab === 1}
-						{#if topPages.length > 0}
-							<BarList items={topPages} revenueItems={convertedRevenueByPage} customerItems={customersByPage} {websiteCurrency} />
+					{/snippet}
+					<TabbedCard
+						tabs={['Visitors', 'Events', 'Funnels']}
+						activeTab={mainTabActive}
+						onTabChange={(i) => (mainTabActive = i)}
+						headerRight={mainTabActive !== 2 ? headerRight : undefined}
+						class={cn('min-h-[500px]', mainTabActive === 2 && 'min-h-screen! md:min-h-[500px]!')}
+					>
+						{#if mainTabActive === 0}
+							<UserList items={filteredVisitors} onVisitorClick={(visitor: VisitorItem) => (selectedVisitor = visitor)} />
+						{:else if mainTabActive === 1}
+							<EventList items={filteredEvents} onEventClick={openVisitorDetails} />
 						{:else}
-							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<p class="text-sm">No pageviews yet.</p>
-							</div>
+							<FunnelPanel websiteId={website.id} {startDate} {endDate} {dateRangeValue} {isOwner} {isDemo} />
 						{/if}
-					{:else if pageActiveTab === 2}
-						{#if entryPages.length > 0}
-							<BarList items={entryPages} revenueItems={convertedRevenueByEntryPage} customerItems={customersByEntryPage} {websiteCurrency} />
-						{:else}
-							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<p class="text-sm">No entry pages yet.</p>
-							</div>
-						{/if}
-					{:else if pageActiveTab === 3}
-						{#if exitLinks.length > 0}
-							<BarList items={exitLinks} revenueItems={convertedRevenueByExitLink} customerItems={customersByExitLink} {websiteCurrency} />
-						{:else}
-							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<p class="text-sm">No exit links tracked.</p>
-							</div>
-						{/if}
-					{/if}
-				</TabbedCard>
-			</div>
-
-			<div class="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
-				<TabbedCard
-					tabs={['Country', 'Region', 'City']}
-					activeTab={mapActiveTab}
-					onTabChange={(i: number) => (mapActiveTab = i)}
-					onDetails={() => {
-						const types = ['countries', 'regions', 'cities'];
-						const titles = ['Countries', 'Regions', 'Cities'];
-						openMetricDetails(types[mapActiveTab], titles[mapActiveTab]);
-					}}
-					count={stats.visitors}
-					class="h-[339px]"
-				>
-					{#if mapActiveTab === 0}
-						{#if countryStats.length > 0}
-							<BarList items={countryStats} revenueItems={convertedRevenueByCountry} customerItems={customersByCountry} {websiteCurrency} />
-						{:else}
-							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<p class="text-sm">No country data yet.</p>
-							</div>
-						{/if}
-					{:else if mapActiveTab === 1}
-						{#if regionStats.length > 0}
-							<BarList items={regionStats} revenueItems={convertedRevenueByRegion} customerItems={customersByRegion} {websiteCurrency} />
-						{:else}
-							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<p class="text-sm">No region data yet.</p>
-							</div>
-						{/if}
-					{:else if mapActiveTab === 2}
-						{#if cityStats.length > 0}
-							<BarList items={cityStats} revenueItems={convertedRevenueByCity} customerItems={customersByCity} {websiteCurrency} />
-						{:else}
-							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<p class="text-sm">No city data yet.</p>
-							</div>
-						{/if}
-					{/if}
-				</TabbedCard>
-
-				<TabbedCard
-					tabs={['Browser', 'OS', 'Device', 'Screen']}
-					activeTab={browserActiveTab}
-					onTabChange={(i: number) => (browserActiveTab = i)}
-					onDetails={() => {
-						const types = ['browsers', 'os', 'devices', 'screens'];
-						const titles = ['Browsers', 'Operating Systems', 'Device Types', 'Screen Resolutions'];
-						openMetricDetails(types[browserActiveTab], titles[browserActiveTab]);
-					}}
-					count={stats.visitors}
-					class="h-[339px]"
-				>
-					{#if browserActiveTab === 0}
-						{#if browserStats.length > 0}
-							<BarList items={browserStats} revenueItems={convertedRevenueByBrowser} customerItems={customersByBrowser} {websiteCurrency} />
-						{:else}
-							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<p class="text-sm">No browser data yet.</p>
-							</div>
-						{/if}
-					{:else if browserActiveTab === 1}
-						{#if osStats.length > 0}
-							<BarList items={osStats} revenueItems={convertedRevenueByOs} customerItems={customersByOs} {websiteCurrency} />
-						{:else}
-							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<p class="text-sm">No OS data yet.</p>
-							</div>
-						{/if}
-					{:else if browserActiveTab === 2}
-						{#if deviceTypeStats.length > 0}
-							<BarList items={deviceTypeStats} revenueItems={convertedRevenueByDeviceType} customerItems={customersByDeviceType} {websiteCurrency} />
-						{:else}
-							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<p class="text-sm">No device data yet.</p>
-							</div>
-						{/if}
-					{:else if browserActiveTab === 3}
-						{#if deviceStats.length > 0}
-							<BarList items={deviceStats} revenueItems={convertedRevenueByScreen} customerItems={customersByScreen} {websiteCurrency} />
-						{:else}
-							<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
-								<p class="text-sm">No screen data yet.</p>
-							</div>
-						{/if}
-					{/if}
-				</TabbedCard>
-			</div>
-
-			<div>
-				{#snippet headerRight()}
-					<div class="relative min-w-20 grow basis-20 sm:w-full sm:max-w-32 sm:grow-0 sm:basis-auto md:max-w-full">
-						<Search class="absolute top-1/2 left-2.5 h-3 -translate-y-1/2 text-muted-foreground" />
-						<Input type="text" bind:value={searchQuery} placeholder="Search..." class="h-7 rounded-full pl-7 text-xs" />
-					</div>
-				{/snippet}
-				<TabbedCard
-					tabs={['Visitors', 'Events', 'Funnels']}
-					activeTab={mainTabActive}
-					onTabChange={(i) => (mainTabActive = i)}
-					headerRight={mainTabActive !== 2 ? headerRight : undefined}
-					class={cn('min-h-[500px]', mainTabActive === 2 && 'min-h-screen! md:min-h-[500px]!')}
-				>
-					{#if mainTabActive === 0}
-						<UserList items={filteredVisitors} onVisitorClick={(visitor: VisitorItem) => (selectedVisitor = visitor)} />
-					{:else if mainTabActive === 1}
-						<EventList items={filteredEvents} onEventClick={openVisitorDetails} />
-					{:else}
-						<FunnelPanel websiteId={website.id} {startDate} {endDate} {dateRangeValue} {isOwner} {isDemo} />
-					{/if}
-				</TabbedCard>
+					</TabbedCard>
+				</div>
 			</div>
 		{/if}
 	</main>
@@ -1132,18 +1145,26 @@
 
 				<div class="flex-1 overflow-y-auto px-6 pb-6">
 					<div class="flex flex-col">
-						<div class="py-3 border-b border-border">
+						<div class="border-b border-border py-3">
 							<div class="flex items-center justify-between">
 								<div>
 									<span class="font-medium text-foreground">Traffic Trend</span>
 									<span class="ml-2 text-xs text-muted-foreground">· {Math.round(insights.trendConfidence * 100)}% confidence</span>
 								</div>
-								<span class="text-sm font-medium {insights.trend === 'growing' ? 'text-green-500' : insights.trend === 'declining' ? 'text-red-500' : insights.trend === 'volatile' ? 'text-yellow-500' : 'text-foreground'}">{trendLabels[insights.trend] || insights.trend}</span>
+								<span
+									class="text-sm font-medium {insights.trend === 'growing'
+										? 'text-green-500'
+										: insights.trend === 'declining'
+											? 'text-red-500'
+											: insights.trend === 'volatile'
+												? 'text-yellow-500'
+												: 'text-foreground'}">{trendLabels[insights.trend] || insights.trend}</span
+								>
 							</div>
 							<p class="mt-1 text-xs text-muted-foreground">Analysis of visitor and pageview patterns over time.</p>
 						</div>
 
-						<div class="py-3 border-b border-border">
+						<div class="border-b border-border py-3">
 							<div class="flex items-center justify-between">
 								<div>
 									<span class="font-medium text-foreground">Primary Traffic Source</span>
@@ -1154,7 +1175,7 @@
 							<p class="mt-1 text-xs text-muted-foreground">The main channel driving visitors to your website.</p>
 						</div>
 
-						<div class="py-3 border-b border-border">
+						<div class="border-b border-border py-3">
 							<div class="flex items-center justify-between">
 								<div>
 									<span class="font-medium text-foreground">Visitor Quality</span>
@@ -1165,7 +1186,7 @@
 							<p class="mt-1 text-xs text-muted-foreground">Engagement level based on session duration and conversion signals.</p>
 						</div>
 
-						<div class="py-3 border-b border-border">
+						<div class="border-b border-border py-3">
 							<div class="flex items-center justify-between">
 								<div>
 									<span class="font-medium text-foreground">Revenue Trend</span>
@@ -1176,7 +1197,7 @@
 							<p class="mt-1 text-xs text-muted-foreground">How revenue is trending relative to traffic volume.</p>
 						</div>
 
-						<div class="py-3 border-b border-border">
+						<div class="border-b border-border py-3">
 							<div class="flex items-center justify-between">
 								<div>
 									<span class="font-medium text-foreground">Growth Opportunity</span>
@@ -1207,3 +1228,18 @@
 		<RealTimeMap websiteId={website.id} {visitors} {events} websiteDomain={website.domain} onlineCount={stats.online} {isDataLoading} {startDate} {endDate} onClose={closeRealTimeMap} />
 	{/if}
 </div>
+
+<style>
+	.refresh-bar-fill {
+		animation: refresh-bar-slide 1.1s ease-in-out infinite;
+	}
+
+	@keyframes refresh-bar-slide {
+		0% {
+			transform: translateX(-100%);
+		}
+		100% {
+			transform: translateX(300%);
+		}
+	}
+</style>

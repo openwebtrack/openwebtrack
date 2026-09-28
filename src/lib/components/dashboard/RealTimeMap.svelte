@@ -313,7 +313,7 @@
 
 	let mapContainer: HTMLDivElement;
 	let map: maplibregl.Map | null = null;
-	let markerData: Array<{ element: HTMLElement; lng: number; lat: number; popup: maplibregl.Popup }> = [];
+	let markerData: Array<{ element: HTMLElement; lng: number; lat: number; popup: maplibregl.Popup; dx?: number; dy?: number }> = [];
 	let activePopup: maplibregl.Popup | null = null;
 	let isMapLoaded = $state(false);
 	let showLoading = $derived(!isMapLoaded || (mapMode === 'realtime' ? isDataLoading : isHistoryLoading));
@@ -388,7 +388,7 @@
 		const container = map.getContainer();
 		const containerRect = container.getBoundingClientRect();
 
-		for (const { element, lng, lat, popup } of markerData) {
+		for (const { element, lng, lat, popup, dx = 0, dy = 0 } of markerData) {
 			const opacity = getHemisphereVisibility(lng, lat);
 			if (opacity <= 0) {
 				element.style.display = 'none';
@@ -396,7 +396,8 @@
 				continue;
 			}
 
-			const point = map.project([lng, lat]);
+			const base = map.project([lng, lat]);
+			const point = { x: base.x + dx, y: base.y + dy };
 			const margin = 50;
 			if (point.x < -margin || point.x > containerRect.width + margin || point.y < -margin || point.y > containerRect.height + margin) {
 				element.style.display = 'none';
@@ -413,6 +414,29 @@
 	}
 
 	const ZOOM_THRESHOLD = 5;
+	// Visitors share their country's centroid, so they are fanned out in a
+	// sunflower spiral in screen pixels (constant spacing at any zoom).
+	const SPIRAL_SPACING = 22;
+	const MAX_MARKERS_PER_COUNTRY = 40;
+	const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+
+	function spiralOffset(index: number): { dx: number; dy: number } {
+		if (index === 0) return { dx: 0, dy: 0 };
+		const r = SPIRAL_SPACING * Math.sqrt(index + 0.5);
+		const theta = index * GOLDEN_ANGLE;
+		return { dx: Math.cos(theta) * r, dy: Math.sin(theta) * r };
+	}
+
+	function openPopupAt(popup: maplibregl.Popup, lng: number, lat: number, dx = 0, dy = 0) {
+		if (!map) return;
+		if (getHemisphereVisibility(lng, lat) <= 0) return;
+		if (activePopup && activePopup !== popup) {
+			activePopup.remove();
+		}
+		const base = map.project([lng, lat]);
+		popup.setLngLat(map.unproject([base.x + dx, base.y + dy])).addTo(map);
+		activePopup = popup;
+	}
 
 	function addVisitorMarkers() {
 		if (!map) return;
@@ -497,83 +521,119 @@
 			}
 		} else {
 			// Show individual visitor markers
-			const countryCount: Record<string, number> = {};
-			const countryIndex: Record<string, number> = {};
-
-			for (const visitor of effectiveVisitors) {
-				const country = visitor.country || 'Unknown';
-				countryCount[country] = (countryCount[country] || 0) + 1;
-			}
+			const countryGroups: Record<string, { visitors: VisitorItem[]; coords: [number, number] }> = {};
 
 			for (const visitor of effectiveVisitors) {
 				const coords = getCoords(visitor);
 				if (!coords) continue;
-
-				const [baseLng, baseLat] = coords;
 				const country = visitor.country || 'Unknown';
-				const totalInCountry = countryCount[country];
-				const indexInCountry = countryIndex[country] || 0;
-				countryIndex[country] = indexInCountry + 1;
-
-				let lng = baseLng;
-				let lat = baseLat;
-
-				if (totalInCountry > 1) {
-					const radius = 1.2 + Math.sqrt(totalInCountry) * 0.4;
-					const angle = (indexInCountry / totalInCountry) * Math.PI * 2;
-					lng += Math.cos(angle) * radius;
-					lat += Math.sin(angle) * radius * 0.6;
+				if (!countryGroups[country]) {
+					countryGroups[country] = { visitors: [], coords };
 				}
+				countryGroups[country].visitors.push(visitor);
+			}
 
-				lng = Math.max(-180, Math.min(180, lng));
-				lat = Math.max(-85, Math.min(85, lat));
+			for (const [country, { visitors: countryVisitors, coords }] of Object.entries(countryGroups)) {
+				const [lng, lat] = coords;
+				const overflow = countryVisitors.length > MAX_MARKERS_PER_COUNTRY;
+				const shown = overflow ? countryVisitors.slice(0, MAX_MARKERS_PER_COUNTRY - 1) : countryVisitors;
 
-				const el = document.createElement('div');
-				el.className = 'visitor-marker';
-				el.innerHTML = `
-					<div class="marker-inner">
-						<img src="${esc(visitor.avatar)}" alt="${esc(visitor.name)}" />
-					</div>
-					<div class="marker-pulse"></div>
-				`;
+				shown.forEach((visitor, i) => {
+					const { dx, dy } = spiralOffset(i);
 
-				const popup = new maplibregl.Popup({
-					offset: 16,
-					closeButton: false,
-					className: 'visitor-popup'
-				}).setHTML(`
-					<div class="popup-inner">
-						<div class="popup-header">
-							<img src="${esc(visitor.avatar)}" class="popup-avatar" />
-							<span class="popup-name">${esc(visitor.name)}</span>
+					const el = document.createElement('div');
+					el.className = 'visitor-marker';
+					el.innerHTML = `
+						<div class="marker-inner">
+							<img src="${esc(visitor.avatar)}" alt="${esc(visitor.name)}" />
 						</div>
-						<div class="popup-row">
-							${visitor.countryFlag ? `<img src="${esc(visitor.countryFlag)}" class="popup-flag" />` : ''}
-							<span>${visitor.city ? esc(visitor.city) + ', ' : ''}${esc(visitor.country)}</span>
-						</div>
-						<div class="popup-row">
-							<span class="popup-label">Device:</span> <span>${esc(visitor.device)}</span>
-						</div>
-						<div class="popup-row">
-							<img src="${esc(visitor.sourceIcon)}" class="popup-icon" onerror="this.style.display='none'" />
-							<span>${esc(visitor.source)}</span>
-						</div>
-					</div>
-				`);
+						<div class="marker-pulse"></div>
+					`;
 
-				el.addEventListener('click', (e) => {
-					e.stopPropagation();
-					const opacity = getHemisphereVisibility(lng, lat);
-					if (opacity <= 0) return;
-					if (activePopup && activePopup !== popup) {
-						activePopup.remove();
-					}
-					popup.setLngLat([lng, lat]).addTo(map!);
-					activePopup = popup;
+					const popup = new maplibregl.Popup({
+						offset: 16,
+						closeButton: false,
+						className: 'visitor-popup'
+					}).setHTML(`
+						<div class="popup-inner">
+							<div class="popup-header">
+								<img src="${esc(visitor.avatar)}" class="popup-avatar" />
+								<span class="popup-name">${esc(visitor.name)}</span>
+							</div>
+							<div class="popup-row">
+								${visitor.countryFlag ? `<img src="${esc(visitor.countryFlag)}" class="popup-flag" />` : ''}
+								<span>${visitor.city ? esc(visitor.city) + ', ' : ''}${esc(visitor.country)}</span>
+							</div>
+							<div class="popup-row">
+								<span class="popup-label">Device:</span> <span>${esc(visitor.device)}</span>
+							</div>
+							<div class="popup-row">
+								<img src="${esc(visitor.sourceIcon)}" class="popup-icon" onerror="this.style.display='none'" />
+								<span>${esc(visitor.source)}</span>
+							</div>
+						</div>
+					`);
+
+					el.addEventListener('click', (e) => {
+						e.stopPropagation();
+						openPopupAt(popup, lng, lat, dx, dy);
+					});
+
+					mapContainerEl.appendChild(el);
+					markerData.push({ element: el, lng, lat, popup, dx, dy });
 				});
 
-				mapContainerEl.appendChild(el);
-				markerData.push({ element: el, lng, lat, popup });
+				if (overflow) {
+					const rest = countryVisitors.slice(shown.length);
+					const { dx, dy } = spiralOffset(shown.length);
+					const flag = countryVisitors[0]?.countryFlag;
+
+					const el = document.createElement('div');
+					el.className = 'cluster-marker';
+					el.innerHTML = `
+						<div class="cluster-inner" style="width:36px;height:36px;">
+							${flag ? `<img src="${esc(flag)}" alt="${esc(country)}" class="cluster-flag" />` : ''}
+							<span class="cluster-count">+${rest.length}</span>
+						</div>
+					`;
+
+					const restListHtml = rest
+						.slice(0, 5)
+						.map(
+							(v) => `
+						<div class="popup-visitor-row">
+							<img src="${esc(v.avatar)}" class="popup-avatar" />
+							<span>${esc(v.name)}</span>
+						</div>
+					`
+						)
+						.join('');
+					const moreCount = rest.length > 5 ? `<div class="popup-more">+${rest.length - 5} more</div>` : '';
+
+					const popup = new maplibregl.Popup({
+						offset: 16,
+						closeButton: false,
+						className: 'visitor-popup'
+					}).setHTML(`
+						<div class="popup-inner">
+							<div class="popup-header">
+								${flag ? `<img src="${esc(flag)}" class="popup-flag" />` : ''}
+								<span class="popup-name">${esc(country)}</span>
+								<span class="popup-count">(${countryVisitors.length} ${mapMode === 'history' ? 'visitors' : 'online'})</span>
+							</div>
+							${restListHtml}
+							${moreCount}
+						</div>
+					`);
+
+					el.addEventListener('click', (e) => {
+						e.stopPropagation();
+						openPopupAt(popup, lng, lat, dx, dy);
+					});
+
+					mapContainerEl.appendChild(el);
+					markerData.push({ element: el, lng, lat, popup, dx, dy });
+				}
 			}
 		}
 

@@ -142,6 +142,10 @@
 	let insights = $state<InsightData | null>(null);
 	let isInsightsLoading = $state(false);
 	let isFetching = $state(false);
+	// True while a user-triggered reload (filters, date range, refresh) is in flight
+	let isRefreshing = $state(false);
+	let fetchSeq = 0;
+	let insightsSeq = 0;
 	let startDate = $state<string | null>(null);
 	let endDate = $state<string | null>(null);
 	let dateRangeValue = $state<string>('Last 7 days');
@@ -271,24 +275,29 @@
 	};
 
 	const fetchInsights = async () => {
-		if (isInsightsLoading) return;
+		const seq = ++insightsSeq;
 		isInsightsLoading = true;
 		try {
 			const params = new URLSearchParams();
 			if (startDate) params.set('startDate', startDate);
 			if (endDate) params.set('endDate', endDate);
 			const res = await axios.get(`/api/websites/${data.website.id}/insights?${params.toString()}`);
+			if (seq !== insightsSeq) return;
 			insights = res.data;
 		} catch {
-			insights = null;
+			if (seq === insightsSeq) insights = null;
 		} finally {
-			isInsightsLoading = false;
+			if (seq === insightsSeq) isInsightsLoading = false;
 		}
 	};
 
-	const fetchData = async () => {
-		if (isFetching) return;
+	// Latest request wins: a user-triggered fetch supersedes any in-flight one,
+	// so filter changes are never dropped behind a background poll.
+	const fetchData = async ({ background = false } = {}) => {
+		if (background && isFetching) return;
+		const seq = ++fetchSeq;
 		isFetching = true;
+		if (!background) isRefreshing = true;
 		const startTime = Date.now();
 		if (!apiData) {
 			isLoading = true;
@@ -312,6 +321,7 @@
 				axios.get(`/api/websites/${data.website.id}/visitors?t=${timestamp}`),
 				axios.get(`/api/websites/${data.website.id}/events?limit=50&t=${timestamp}`)
 			]);
+			if (seq !== fetchSeq) return;
 			const statsData = statsRes.data;
 			apiData = {
 				...statsData,
@@ -355,14 +365,20 @@
 			}));
 			fetchInsights();
 		} catch (e) {
+			if (seq !== fetchSeq) return;
 			error = e instanceof Error ? e.message : 'Failed to load data';
 		} finally {
-			const elapsed = Date.now() - startTime;
-			if (elapsed < 500) {
-				await new Promise((resolve) => setTimeout(resolve, 500 - elapsed));
+			if (seq === fetchSeq) {
+				const elapsed = Date.now() - startTime;
+				if (elapsed < 500) {
+					await new Promise((resolve) => setTimeout(resolve, 500 - elapsed));
+				}
+				if (seq === fetchSeq) {
+					isLoading = false;
+					isFetching = false;
+					isRefreshing = false;
+				}
 			}
-			isLoading = false;
-			isFetching = false;
 		}
 	};
 
@@ -406,7 +422,7 @@
 		initFromUrl();
 		fetchData();
 		fetchExchangeRates('USD');
-		const interval = setInterval(fetchData, 20000);
+		const interval = setInterval(() => fetchData({ background: true }), 20000);
 		return () => clearInterval(interval);
 	});
 
@@ -431,6 +447,7 @@
 	{events}
 	{isLoading}
 	isDataLoading={isLoading || isFetching}
+	{isRefreshing}
 	{error}
 	showWebsiteSwitcher={true}
 	onRefresh={handleRefresh}
