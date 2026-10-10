@@ -13,6 +13,7 @@
 	import DottedBackground from '$lib/components/DottedBackground.svelte';
 	import Logo from '$lib/components/Logo.svelte';
 	import { SAAS_MODE } from '$lib/config';
+	import { track } from '$lib/analytics';
 
 	let authConfig = $state({ googleEnabled: false });
 	let isSignUp = $state(false);
@@ -48,6 +49,7 @@
 					return;
 				}
 				magicLinkSent = true;
+				track('magic_link_sent');
 				return;
 			}
 
@@ -57,12 +59,14 @@
 					error = signUpError.message || 'An error occurred during sign up';
 					return;
 				}
+				track('signup', { method: 'email' });
 			} else {
 				const { error: signInError } = await authClient.signIn.email({ email, password });
 				if (signInError) {
 					error = signInError.message || 'An error occurred during sign in';
 					return;
 				}
+				track('login', { method: 'email' });
 			}
 			goto('/dashboard');
 		} catch (e: any) {
@@ -75,6 +79,7 @@
 	const handleSocial = async (provider: string) => {
 		error = '';
 		loading = true;
+		track('social_login_started', { provider });
 
 		const res = await authClient.signIn.social({ provider });
 		if (res.error) {

@@ -6,6 +6,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import axios from 'axios';
+	import { track } from '$lib/analytics';
 
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -50,6 +51,7 @@
 			try {
 				const response = await axios.post('/api/websites', { domain, timezone });
 				createdWebsite = response.data;
+				track('website_created');
 				step++;
 			} catch (e) {
 				const axiosErr = e as { response?: { data?: { error?: string; message?: string } }; message?: string };

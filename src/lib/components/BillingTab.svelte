@@ -4,6 +4,7 @@
 	import { replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import authClient from '$lib/auth-client';
+	import { track } from '$lib/analytics';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
@@ -108,6 +109,7 @@
 		// Stripe redirects back here after checkout - show a toast instead of a success page
 		if (page.url.searchParams.get('checkout') === 'success') {
 			showCheckoutToast = true;
+			track('subscription_started');
 			if (toastTimeout) clearTimeout(toastTimeout);
 			toastTimeout = setTimeout(() => (showCheckoutToast = false), 6000);
 			// Strip the param once the router is ready (replaceState throws if called too early)
@@ -142,6 +144,7 @@
 			};
 			const successUrl = '/account?tab=billing&checkout=success';
 			const cancelUrl = '/account?tab=billing';
+			track('checkout_started', { plan: slug.toLowerCase() });
 			if (anyClient.subscription?.upgrade) {
 				const res = await anyClient.subscription.upgrade({
 					plan: slug.toLowerCase(),
@@ -182,6 +185,7 @@
 			const json = await res.json();
 			if (!res.ok) throw new Error(json?.error ?? json?.message ?? 'Switch failed');
 			actionSuccess = `Switched to ${slug} successfully. Your plan is now updated.`;
+			track('plan_switched', { plan: slug.toLowerCase() });
 			await fetchState(false);
 		} catch (e) {
 			actionError = e instanceof Error ? e.message : 'Switch failed';

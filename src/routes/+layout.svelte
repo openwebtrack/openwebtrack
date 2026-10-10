@@ -4,11 +4,15 @@
 	import favicon from '$lib/assets/favicon.png';
 	import type { LayoutData } from './$types';
 	import { page } from '$app/stores';
+	import { loadTracker } from '$lib/analytics';
+	import { onMount } from 'svelte';
 
 	let { children, data }: { children: any; data: LayoutData } = $props();
 
 	const isWidget = $derived($page.url.pathname.startsWith('/widget/'));
 	const isAuth = $derived($page.url.pathname.startsWith('/auth'));
+
+	onMount(loadTracker);
 </script>
 
 <svelte:head>
