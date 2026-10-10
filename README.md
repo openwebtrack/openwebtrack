@@ -57,14 +57,6 @@ volumes:
 
 </details>
 
-<br />
-
-<p>
-  <a href="https://railway.com/deploy/c0cdXL?referralCode=ewDp_s&utm_medium=integration&utm_source=template&utm_campaign=generic">
-    <img src="https://railway.com/button.svg" alt="Deploy on Railway">
-  </a>
-</p>
-
 ## Features
 
 ### Analytics & Insights
