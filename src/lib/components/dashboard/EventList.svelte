@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Activity } from 'lucide-svelte';
+	import { avatarSrc } from '$lib/utils/avatar';
 
 	let { items = [], onEventClick } = $props();
 </script>
@@ -41,7 +42,7 @@
 					</div>
 
 					<div class="hidden w-48 items-center justify-start gap-2 sm:flex">
-						<img src={item.visitor.avatar} alt={item.visitor.name} class="h-6 w-6 rounded-full bg-secondary" />
+						<img src={avatarSrc(item.visitor.avatar)} alt={item.visitor.name} class="h-6 w-6 rounded-full bg-secondary" />
 						<span class="truncate text-xs text-muted-foreground">{item.visitor.name}</span>
 					</div>
 

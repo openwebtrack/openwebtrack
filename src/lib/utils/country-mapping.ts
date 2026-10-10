@@ -226,6 +226,8 @@ const countryToCode: Record<string, string> = {
 	Tonga: 'TO',
 	'Trinidad and Tobago': 'TT',
 	Tunisia: 'TN',
+	Türkiye: 'TR',
+	Turkiye: 'TR',
 	Turkey: 'TR',
 	Turkmenistan: 'TM',
 	'Turks and Caicos Islands': 'TC',

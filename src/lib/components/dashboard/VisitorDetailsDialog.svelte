@@ -17,6 +17,7 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { avatarSrc } from '$lib/utils/avatar';
 
 	let { websiteId, visitor, highlightEventId, onClose, demoData = null } = $props();
 
@@ -212,7 +213,7 @@
 		<div class="-mx-6 flex-1 overflow-y-auto px-6">
 			<div class="mb-6 border-b border-border pb-6">
 				<div class="flex flex-col gap-6">
-					<img src={visitor.avatar} alt={visitor.name} class="h-20 w-20 rounded-full bg-muted" />
+					<img src={avatarSrc(visitor.avatar)} alt={visitor.name} class="h-20 w-20 rounded-full bg-muted" />
 
 					<div class="flex flex-col gap-4">
 						<div class="flex items-center gap-3">
@@ -225,7 +226,7 @@
 						<div class="flex flex-col gap-2.5 text-sm text-muted-foreground">
 							<div class="flex items-center gap-3">
 								{#if visitor.country !== 'Unknown'}
-									<img src={visitor.countryFlag} alt={visitor.country} class="h-auto w-5 rounded-[2px]" />
+									{#if visitor.countryFlag}<img src={visitor.countryFlag} alt={visitor.country} class="h-auto w-5 rounded-[2px]" />{/if}
 									<span>
 										{visitor.country}
 										{#if region}, {region}{/if}
@@ -337,10 +338,10 @@
 											</div>
 
 											<div class="flex min-w-0 flex-1 items-baseline justify-between gap-4">
-												<div class="truncate text-base">
+												<div class="min-w-0 text-base">
 													{#if item.type === 'session_start'}
 														<span class="text-muted-foreground">Found via </span>
-														<Badge variant="outline" class="text-xs">
+														<Badge variant="outline" class="max-w-full justify-start rounded-md text-left break-all whitespace-normal text-xs">
 															{#if item.referrer}
 																<ExternalLink class="mr-1 inline h-3 w-3 align-text-bottom" />
 															{/if}
@@ -348,7 +349,7 @@
 														</Badge>
 													{:else if item.activityType === 'pageview' || item.pathname}
 														<span class="text-muted-foreground">Viewed page </span>
-														<Badge variant="secondary" class="font-medium">{item.pathname}</Badge>
+														<Badge variant="secondary" class="max-w-full justify-start rounded-md text-left break-all whitespace-normal font-medium">{item.pathname}</Badge>
 													{:else if item.activityType === 'payment'}
 														<span class="font-medium text-green-600 dark:text-green-400">Payment </span>
 														<Badge variant="outline" class="border-green-500/50 font-medium text-green-600 dark:text-green-400">
@@ -360,7 +361,7 @@
 														{/if}
 													{:else if item.type === 'exit_link'}
 														<span class="text-muted-foreground">Exit page </span>
-														<Badge variant="outline" class="font-medium">{getExitUrl(item.data) || 'External link'}</Badge>
+														<Badge variant="outline" class="max-w-full justify-start rounded-md text-left break-all whitespace-normal font-medium">{getExitUrl(item.data) || 'External link'}</Badge>
 													{:else}
 														<div class="flex flex-col gap-1 whitespace-normal">
 															<span>{item.name || item.type}</span>

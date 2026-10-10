@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Monitor, Users, Link, AppWindow } from 'lucide-svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { avatarSrc } from '$lib/utils/avatar';
 
 	let { items = [], onVisitorClick } = $props();
 </script>
@@ -22,7 +23,7 @@
 			{#each items as item}
 				<div onclick={() => onVisitorClick?.(item)} class="group flex cursor-pointer items-center rounded-lg px-2 py-2.5 transition-colors hover:bg-accent">
 					<div class="flex flex-1 items-start gap-3 overflow-hidden">
-						<img src={item.avatar} alt={item.name} class="h-8 w-8 shrink-0 rounded-full bg-secondary" />
+						<img src={avatarSrc(item.avatar)} alt={item.name} class="h-8 w-8 shrink-0 rounded-full bg-secondary" />
 						<div class="flex min-w-0 flex-col gap-0.5">
 							<div class="flex items-center gap-2">
 								<span class="truncate text-sm font-medium text-foreground transition-colors">{item.name}</span>
@@ -33,7 +34,7 @@
 							<div class="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
 								{#if item.country !== 'Unknown'}
 									<div class="flex items-center gap-1">
-										<img src={item.countryFlag} alt={item.country} class="h-auto w-3 rounded-[1px]" />
+										{#if item.countryFlag}<img src={item.countryFlag} alt={item.country} class="h-auto w-3 rounded-[1px]" />{/if}
 										<span>{item.country}</span>
 									</div>
 								{/if}

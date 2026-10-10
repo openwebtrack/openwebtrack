@@ -54,14 +54,16 @@ const SUSPICIOUS_PROPS = [
 ];
 
 const BROWSER_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
-	[/Firefox\/(\S+)/, 'Firefox', (m) => m[1]],
-	[/Edg\/(\S+)/, 'Edge', (m) => m[1]],
-	[/Chrome\/(\S+)/, 'Chrome', (m) => m[1]],
+	// Order matters: Edge and Opera UAs also contain "Chrome/", and iOS variants use their own tokens
+	[/Edg(?:e|A|iOS)?\/(\S+)/, 'Edge', (m) => m[1]],
+	[/(?:Firefox|FxiOS)\/(\S+)/, 'Firefox', (m) => m[1]],
+	[/(?:OPR|OPT|Opera)\/(\S+)/, 'Opera', (m) => m[1]],
+	[/(?:Chrome|CriOS)\/(\S+)/, 'Chrome', (m) => m[1]],
 	[/Version\/(\S+).*Safari/, 'Safari', (m) => m[1]],
-	[/OPR\/(\S+)/, 'Opera', (m) => m[1]],
-	[/Opera\/(\S+)/, 'Opera', (m) => m[1]],
 	[/MSIE (\d+\.?\d*)/, 'IE', (m) => m[1]],
-	[/rv:(\d+\.?\d*)/, 'IE', (m) => m[1]]
+	[/Trident\/.*rv:(\d+\.?\d*)/, 'IE', (m) => m[1]],
+	// iOS in-app browsers (Instagram, Facebook, X...) are WebKit views without a "Version/" token
+	[/(?:iPhone|iPad|iPod).*AppleWebKit\/(\S+)/, 'Safari', (m) => m[1]]
 ];
 
 const OS_PATTERNS: [RegExp, string, (m: RegExpMatchArray) => string][] = [

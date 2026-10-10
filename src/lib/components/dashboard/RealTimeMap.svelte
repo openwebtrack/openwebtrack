@@ -7,6 +7,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import maplibregl from 'maplibre-gl';
+	import { avatarSrc } from '$lib/utils/avatar';
 
 	interface VisitorItem {
 		visitorId: string;
@@ -481,7 +482,7 @@
 					.map(
 						(v) => `
 					<div class="popup-visitor-row">
-						<img src="${esc(v.avatar)}" class="popup-avatar" />
+						<img src="${esc(avatarSrc(v.avatar))}" class="popup-avatar" />
 						<span>${esc(v.name)}</span>
 					</div>
 				`
@@ -545,7 +546,7 @@
 					el.className = 'visitor-marker';
 					el.innerHTML = `
 						<div class="marker-inner">
-							<img src="${esc(visitor.avatar)}" alt="${esc(visitor.name)}" />
+							<img src="${esc(avatarSrc(visitor.avatar))}" alt="${esc(visitor.name)}" />
 						</div>
 						<div class="marker-pulse"></div>
 					`;
@@ -557,7 +558,7 @@
 					}).setHTML(`
 						<div class="popup-inner">
 							<div class="popup-header">
-								<img src="${esc(visitor.avatar)}" class="popup-avatar" />
+								<img src="${esc(avatarSrc(visitor.avatar))}" class="popup-avatar" />
 								<span class="popup-name">${esc(visitor.name)}</span>
 							</div>
 							<div class="popup-row">
@@ -602,7 +603,7 @@
 						.map(
 							(v) => `
 						<div class="popup-visitor-row">
-							<img src="${esc(v.avatar)}" class="popup-avatar" />
+							<img src="${esc(avatarSrc(v.avatar))}" class="popup-avatar" />
 							<span>${esc(v.name)}</span>
 						</div>
 					`
@@ -908,7 +909,7 @@
 
 					{#each recentEvents as event (event.id)}
 						<div class="flex items-start gap-2">
-							<img src={event.visitor.avatar} alt={event.visitor.name} class="mt-0.5 h-6 w-6 shrink-0 rounded-full" />
+							<img src={avatarSrc(event.visitor.avatar)} alt={event.visitor.name} class="mt-0.5 h-6 w-6 shrink-0 rounded-full" />
 							<div class="min-w-0">
 								<div class="flex items-center gap-1.5">
 									{#if event.visitor.countryFlag}

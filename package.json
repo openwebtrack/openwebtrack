@@ -51,6 +51,8 @@
 	},
 	"dependencies": {
 		"@better-auth/stripe": "^1.7.3",
+		"@dicebear/collection": "^9.4.2",
+		"@dicebear/core": "^9.4.3",
 		"@modelcontextprotocol/sdk": "1.26.0",
 		"@react-email/components": "^1.0.12",
 		"@react-email/render": "^2.1.0",
