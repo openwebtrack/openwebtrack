@@ -1,9 +1,100 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import db from '$lib/server/db';
-import { analyticsSession, pageview, visitor, analyticsEvent, payment } from '$lib/server/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { analyticsSession, pageview, visitor, analyticsEvent, payment, funnel, website } from '$lib/server/db/schema';
+import { eq, desc, and, gt, asc, getTableColumns } from 'drizzle-orm';
 import { checkWebsiteAccess, isValidUUID } from '$lib/server/utils';
+import { BACKUP_FORMAT, BACKUP_VERSION, type BackupSection } from '$lib/backup';
+
+const BACKUP_PAGE_SIZE = 2000;
+
+// Every column except websiteId — the importing instance assigns its own.
+const withoutWebsiteId = <T extends { websiteId: unknown }>(columns: T): Omit<T, 'websiteId'> => {
+	const { websiteId: _, ...rest } = columns;
+	return rest;
+};
+
+const backupTables = {
+	funnels: funnel,
+	visitors: visitor,
+	sessions: analyticsSession,
+	pageviews: pageview,
+	events: analyticsEvent,
+	payments: payment
+} satisfies Record<BackupSection, unknown>;
+
+/** Yields JSON-encoded rows of one table, paging by primary key so memory stays flat on large sites. */
+async function* backupRows(section: BackupSection, websiteId: string): AsyncGenerator<string> {
+	const table = backupTables[section] as typeof visitor;
+	const columns = withoutWebsiteId(getTableColumns(table));
+	let after: string | null = null;
+	let first = true;
+
+	while (true) {
+		const rows: { id: string }[] = await db
+			.select(columns)
+			.from(table)
+			.where(after ? and(eq(table.websiteId, websiteId), gt(table.id, after)) : eq(table.websiteId, websiteId))
+			.orderBy(asc(table.id))
+			.limit(BACKUP_PAGE_SIZE);
+
+		if (rows.length > 0) {
+			yield (first ? '' : ',') + rows.map((row) => JSON.stringify(row)).join(',');
+			first = false;
+		}
+		if (rows.length < BACKUP_PAGE_SIZE) return;
+		after = rows[rows.length - 1].id;
+	}
+}
+
+async function* backupChunks(site: typeof website.$inferSelect): AsyncGenerator<string> {
+	const settings = {
+		domain: site.domain,
+		timezone: site.timezone,
+		currency: site.currency,
+		excludedIps: site.excludedIps,
+		excludedPaths: site.excludedPaths,
+		excludedCountries: site.excludedCountries,
+		extraDomains: site.extraDomains
+	};
+
+	yield `{"format":${JSON.stringify(BACKUP_FORMAT)},"version":${BACKUP_VERSION},"exportedAt":${JSON.stringify(new Date().toISOString())},"website":${JSON.stringify(settings)}`;
+	for (const section of Object.keys(backupTables) as BackupSection[]) {
+		yield `,${JSON.stringify(section)}:[`;
+		yield* backupRows(section, site.id);
+		yield ']';
+	}
+	yield '}';
+}
+
+const backupResponse = (site: typeof website.$inferSelect) => {
+	const chunks = backupChunks(site);
+	const encoder = new TextEncoder();
+
+	const stream = new ReadableStream<Uint8Array>({
+		async pull(controller) {
+			try {
+				const { value, done } = await chunks.next();
+				if (done) controller.close();
+				else controller.enqueue(encoder.encode(value));
+			} catch (e) {
+				console.error('Backup export failed:', e);
+				controller.error(e);
+			}
+		},
+		async cancel() {
+			await chunks.return(undefined);
+		}
+	});
+
+	return new Response(stream, {
+		headers: {
+			'Content-Type': 'application/json; charset=utf-8',
+			'Cache-Control': 'private, no-store',
+			'Content-Disposition': `attachment; filename="${site.domain.replace(/[^a-z0-9]/gi, '_')}_openwebtrack_${new Date().toISOString().split('T')[0]}.json"`
+		}
+	});
+};
 
 const escapeCSV = (value: unknown): string => {
 	if (value === null || value === undefined) return '';
@@ -14,7 +105,7 @@ const escapeCSV = (value: unknown): string => {
 	return str;
 };
 
-export const GET: RequestHandler = async ({ locals, params }) => {
+export const GET: RequestHandler = async ({ locals, params, url }) => {
 	if (!locals.user) {
 		throw error(401, 'Unauthorized');
 	}
@@ -34,6 +125,10 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	}
 
 	const site = access.site;
+
+	if (url.searchParams.get('format') === 'json') {
+		return backupResponse(site);
+	}
 
 	const [sessions, pageviews, events, visitors, payments] = await Promise.all([
 		db
@@ -161,6 +256,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	return new Response(csv, {
 		headers: {
 			'Content-Type': 'text/csv;charset=utf-8;',
+			'Cache-Control': 'private, no-store',
 			'Content-Disposition': `attachment; filename="${site.domain.replace(/[^a-z0-9]/gi, '_')}_analytics_${new Date().toISOString().split('T')[0]}.csv"`
 		}
 	});

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MAX_STRING_LENGTHS } from '@/utils/constants';
+import { BACKUP_MAX_ROWS_PER_CHUNK } from '$lib/backup';
 
 const uuidSchema = z.string().uuid();
 
@@ -159,3 +160,110 @@ export const validateQuery = <T>(schema: z.ZodSchema<T>, params: URLSearchParams
 	const errors = issues.map((issue) => `${issue.path.join('.') || 'value'}: ${issue.message}`);
 	return { success: false, error: errors[0] || 'Validation failed', errors };
 };
+
+// OpenWebTrack backup import. A backup file is untrusted input (it can be edited or
+// crafted by anyone), so rows get the same treatment as tracked data: strings are
+// truncated to tracker limits with control characters stripped, numbers are kept in
+// Postgres int range, and timestamps can't be in the future.
+const L = MAX_STRING_LENGTHS;
+const cleanText = (max: number) => z.string().transform((s) => s.substring(0, max).replace(/[\x00-\x1F\x7F]/g, ''));
+const backupText = (max: number) => cleanText(max).nullish();
+const backupInt = z.number().int().min(0).max(2_147_483_647).nullish();
+const backupDate = z.coerce.date().refine((d) => d.getTime() >= 0 && d.getTime() <= Date.now() + 24 * 60 * 60 * 1000, 'Date out of range');
+const backupRows = <T extends z.ZodType>(row: T) => z.array(row).max(BACKUP_MAX_ROWS_PER_CHUNK).default([]);
+const backupStringList = z.array(cleanText(500)).max(100).default([]);
+
+export const backupImportSchema = z.object({
+	website: z
+		.object({
+			excludedIps: backupStringList,
+			excludedPaths: backupStringList,
+			excludedCountries: backupStringList
+		})
+		.optional(),
+	funnels: backupRows(
+		z.object({
+			id: uuidSchema,
+			name: cleanText(200).pipe(z.string().min(1)),
+			steps: z.array(z.object({ name: cleanText(200), type: z.enum(['page_visit', 'goal']), value: cleanText(L.href) })).max(50),
+			createdAt: backupDate
+		})
+	),
+	visitors: backupRows(
+		z.object({
+			id: uuidSchema,
+			name: backupText(L.eventName),
+			avatar: backupText(L.href),
+			isCustomer: z.boolean().default(false),
+			firstSeen: backupDate,
+			lastSeen: backupDate
+		})
+	),
+	sessions: backupRows(
+		z.object({
+			id: uuidSchema,
+			visitorId: uuidSchema,
+			startedAt: backupDate,
+			expiresAt: z.coerce.date(),
+			lastActivityAt: backupDate,
+			referrer: backupText(L.referrer),
+			utmSource: backupText(L.eventName),
+			utmMedium: backupText(L.eventName),
+			utmCampaign: backupText(L.eventName),
+			screenWidth: backupInt,
+			screenHeight: backupInt,
+			language: backupText(L.language),
+			timezone: backupText(L.timezone),
+			browser: backupText(L.browser),
+			browserVersion: backupText(L.browserVersion),
+			os: backupText(L.os),
+			osVersion: backupText(L.osVersion),
+			deviceType: backupText(L.deviceType),
+			isPwa: z.boolean().nullish(),
+			country: backupText(100),
+			region: backupText(100),
+			city: backupText(100)
+		})
+	),
+	pageviews: backupRows(
+		z.object({
+			id: uuidSchema,
+			sessionId: uuidSchema,
+			url: cleanText(L.href),
+			pathname: cleanText(L.href),
+			referrer: backupText(L.referrer),
+			title: backupText(L.title),
+			viewportWidth: backupInt,
+			viewportHeight: backupInt,
+			timestamp: backupDate
+		})
+	),
+	events: backupRows(
+		z.object({
+			id: uuidSchema,
+			sessionId: uuidSchema,
+			type: cleanText(50),
+			name: backupText(L.eventName),
+			data: z
+				.record(z.string(), z.unknown())
+				.refine((d) => JSON.stringify(d).length <= 16 * 1024, 'Event data too large')
+				// Postgres jsonb rejects NUL characters, so drop them instead of failing the batch.
+				.transform((d) => JSON.parse(JSON.stringify(d, (_, v) => (typeof v === 'string' ? v.replace(/\x00/g, '') : v))) as Record<string, unknown>)
+				.nullish(),
+			timestamp: backupDate
+		})
+	),
+	payments: backupRows(
+		z.object({
+			id: uuidSchema,
+			visitorId: uuidSchema,
+			sessionId: uuidSchema,
+			amount: z.number().int().min(0).max(2_147_483_647),
+			currency: cleanText(L.currency),
+			transactionId: backupText(L.transactionId),
+			timestamp: backupDate
+		})
+	)
+});
+
+export type BackupImport = z.infer<typeof backupImportSchema>;

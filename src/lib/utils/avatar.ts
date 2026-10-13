@@ -7,6 +7,9 @@ const cache = new Map<string, string>();
 
 const DICEBEAR_ADVENTURER = /^https:\/\/api\.dicebear\.com\/[^/]+\/adventurer\/svg\?/;
 
+/** True for avatar URLs OpenWebTrack generates itself; anything else is untrusted. */
+export const isGeneratedAvatar = (avatar: string) => DICEBEAR_ADVENTURER.test(avatar);
+
 export const avatarSrc = (avatar: string | null | undefined, fallbackSeed?: string) => {
 	let seed: string | null = null;
 	if (avatar && DICEBEAR_ADVENTURER.test(avatar)) {
