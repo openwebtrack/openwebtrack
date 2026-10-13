@@ -383,7 +383,7 @@ http_headers = {
 							<Card.Content class="space-y-4">
 								{#if profileError}
 									<Alert.Root variant="destructive">
-										{profileError}
+										<Alert.Description>{profileError}</Alert.Description>
 									</Alert.Root>
 								{/if}
 								{#if profileSuccess}
@@ -444,7 +444,7 @@ http_headers = {
 							<Card.Content class="space-y-4">
 								{#if passwordError}
 									<Alert.Root variant="destructive">
-										{passwordError}
+										<Alert.Description>{passwordError}</Alert.Description>
 									</Alert.Root>
 								{/if}
 								{#if passwordSuccess}
@@ -832,7 +832,7 @@ http_headers = {
 												<div class="space-y-4">
 													{#if deleteError}
 														<Alert.Root variant="destructive">
-															{deleteError}
+															<Alert.Description>{deleteError}</Alert.Description>
 														</Alert.Root>
 													{/if}
 													<div class="space-y-2">
