@@ -263,11 +263,76 @@ export const getCodeFromCountryCode = (code: string): string | null => {
 	return codeToCountry[code.toUpperCase()] || null;
 };
 
+// Other spellings used by the geo providers (ipwho.is, ip-api.com) and common short forms.
+// Kept out of countryToCode so getCodeFromCountryCode keeps returning the canonical names.
+const countryAliases: Record<string, string> = {
+	'Viet Nam': 'VN',
+	Czechia: 'CZ',
+	Iran: 'IR',
+	Syria: 'SY',
+	Laos: 'LA',
+	"Lao People's Democratic Republic": 'LA',
+	Tanzania: 'TZ',
+	Taiwan: 'TW',
+	'North Macedonia': 'MK',
+	Macedonia: 'MK',
+	'DR Congo': 'CD',
+	'Democratic Republic of the Congo': 'CD',
+	'Republic of the Congo': 'CG',
+	'Congo Republic': 'CG',
+	'Ivory Coast': 'CI',
+	"Cote d'Ivoire": 'CI',
+	Brunei: 'BN',
+	Palestine: 'PS',
+	'State of Palestine': 'PS',
+	'Palestinian Territories': 'PS',
+	Micronesia: 'FM',
+	'Federated States of Micronesia': 'FM',
+	'Cabo Verde': 'CV',
+	Eswatini: 'SZ',
+	'Vatican City': 'VA',
+	'Bolivia, Plurinational State of': 'BO',
+	'Venezuela, Bolivarian Republic of': 'VE',
+	Macau: 'MO',
+	Curacao: 'CW',
+	'Saint Barthelemy': 'BL',
+	'East Timor': 'TL',
+	Burma: 'MM',
+	'Sint Maarten': 'SX',
+	'Saint Martin': 'MF',
+	'Falkland Islands': 'FK',
+	'U.S. Virgin Islands': 'VI',
+	'British Virgin Islands': 'VG',
+	Libya: 'LY',
+	'Svalbard and Jan Mayen': 'SJ',
+	'Bonaire, Sint Eustatius, and Saba': 'BQ',
+	'Bonaire, Sint Eustatius and Saba': 'BQ',
+	'Caribbean Netherlands': 'BQ',
+	Aland: 'AX'
+};
+
+// Case-, accent- and punctuation-insensitive key: "Côte d'Ivoire" -> "cote d'ivoire", "The Bahamas" -> "bahamas".
+const normalize = (name: string) =>
+	name
+		.normalize('NFD')
+		.replace(/[̀-ͯ]/g, '')
+		.toLowerCase()
+		.replace(/&/g, 'and')
+		.replace(/^the\s+/, '')
+		.replace(/^st\.?\s+/, 'saint ')
+		.replace(/\s+/g, ' ')
+		.trim();
+
+const normalizedToCode = new Map<string, string>();
+for (const [name, code] of [...Object.entries(countryToCode), ...Object.entries(countryAliases)]) {
+	if (!normalizedToCode.has(normalize(name))) normalizedToCode.set(normalize(name), code);
+}
+
 const getCountryCode = (name: string | null): string | null => {
 	if (!name) return null;
 	if (countryToCode[name]) return countryToCode[name];
-	const found = Object.keys(countryToCode).find((key) => key.toLowerCase() === name.toLowerCase());
-	if (found) return countryToCode[found];
+	const found = normalizedToCode.get(normalize(name));
+	if (found) return found;
 
 	if (name.length === 2) return name.toUpperCase();
 
