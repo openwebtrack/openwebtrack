@@ -14,6 +14,9 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import ImportDataCard from '$lib/components/ImportDataCard.svelte';
+
+	const steps = ['Add site', 'Import data', 'Install script'];
 
 	let createdWebsite = $state<{ id: string; domain: string } | null>(null);
 	let copySuccess = $state(false);
@@ -92,23 +95,19 @@
 			Dashboard
 		</Button>
 
-		<div class="mb-12 ml-1 flex items-center gap-8">
-			<div class="flex items-center gap-2">
-				<div class={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${step >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-					{#if step > 1}
-						<Check class="h-3 w-3" />
-					{/if}
+		<div class="mb-12 ml-1 flex flex-wrap items-center gap-x-8 gap-y-3">
+			{#each steps as label, i}
+				<div class="flex items-center gap-2">
+					<div
+						class={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${step >= i + 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+					>
+						{#if step > i + 1}
+							<Check class="h-3 w-3" />
+						{/if}
+					</div>
+					<span class={`text-sm font-medium ${step >= i + 1 ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span>
 				</div>
-				<span class={`text-sm font-medium ${step >= 1 ? 'text-foreground' : 'text-muted-foreground'}`}>Add site</span>
-			</div>
-			<div class="flex items-center gap-2">
-				<div class={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${step >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-					{#if step > 2}
-						<Check class="h-3 w-3" />
-					{/if}
-				</div>
-				<span class={`text-sm font-medium ${step >= 2 ? 'text-foreground' : 'text-muted-foreground'}`}>Install script</span>
-			</div>
+			{/each}
 		</div>
 
 		{#if step === 1}
@@ -165,7 +164,17 @@
 					</Card.Content>
 				</Card.Root>
 			</div>
-		{:else if step === 2}
+		{:else if step === 2 && createdWebsite}
+			<div class="space-y-4" in:fade={{ duration: 200 }}>
+				<p class="text-sm text-muted-foreground">
+					Moving from another analytics tool? Bring your history with you. You can also do this later from the website's <strong>Settings &gt; Data</strong>.
+				</p>
+				<ImportDataCard websiteId={createdWebsite.id} />
+				<Button variant="outline" class="w-full gap-2" onclick={nextStep}>
+					Continue to install script <ArrowLeft class="h-4 w-4 rotate-180" />
+				</Button>
+			</div>
+		{:else if step === 3}
 			<div class="space-y-4" in:fade={{ duration: 200 }}>
 				<Card.Root>
 					<Card.Content>
