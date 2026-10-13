@@ -11,7 +11,22 @@
 	import Logo from '$lib/components/Logo.svelte';
 	import { BACKUP_FORMAT, BACKUP_VERSION, BACKUP_SECTIONS, BACKUP_MAX_ROWS_PER_CHUNK } from '$lib/backup';
 
-	let { websiteId, class: className = '' }: { websiteId: string; class?: string } = $props();
+	let {
+		websiteId,
+		class: className = '',
+		showSubmit = true,
+		ready = $bindable(false),
+		busy = $bindable(false)
+	}: {
+		websiteId: string;
+		class?: string;
+		/** Show each source's own import button. Turn off when the parent drives the import through submit(). */
+		showSubmit?: boolean;
+		/** True when the selected source has a file or API key to import. */
+		ready?: boolean;
+		/** True while an import is running. */
+		busy?: boolean;
+	} = $props();
 
 	let isImporting = $state(false);
 	let importError = $state('');
@@ -36,6 +51,14 @@
 		importError = '';
 		importSuccess = '';
 	};
+
+	$effect(() => {
+		ready = selectedPlatform === 'datafast' ? datafastApiKey.trim() !== '' : selectedPlatform === 'plausible' ? importFiles.length > 0 : importFile !== null;
+	});
+
+	$effect(() => {
+		busy = isImporting;
+	});
 
 	const handleFileSelect = (e: Event) => {
 		const target = e.target as HTMLInputElement;
@@ -207,6 +230,13 @@
 			importProgress = null;
 		}
 	};
+
+	/** Imports whatever the selected source has. Resolves to the success message, or null if it failed. */
+	export const submit = async (): Promise<string | null> => {
+		if (selectedPlatform === 'openwebtrack') await importBackup();
+		else await handleImport();
+		return importError ? null : importSuccess;
+	};
 </script>
 
 <Card.Root class={className}>
@@ -260,15 +290,17 @@
 							<div class="h-full bg-primary transition-all" style="width: {Math.round(importProgress * 100)}%"></div>
 						</div>
 					{/if}
-					<Button onclick={importBackup} disabled={!importFile || isImporting}>
-						{#if isImporting}
-							<Loader2 size={14} class="mr-2 animate-spin" />
-							Importing{importProgress !== null ? ` ${Math.round(importProgress * 100)}%` : ''}
-						{:else}
-							<Upload size={14} class="mr-2" />
-							Import from OpenWebTrack
-						{/if}
-					</Button>
+					{#if showSubmit}
+						<Button onclick={importBackup} disabled={!importFile || isImporting}>
+							{#if isImporting}
+								<Loader2 size={14} class="mr-2 animate-spin" />
+								Importing{importProgress !== null ? ` ${Math.round(importProgress * 100)}%` : ''}
+							{:else}
+								<Upload size={14} class="mr-2" />
+								Import from OpenWebTrack
+							{/if}
+						</Button>
+					{/if}
 				</div>
 			</Tabs.Content>
 
@@ -297,14 +329,16 @@
 				{/if}
 				<div class="flex flex-col gap-4">
 					<Input id="import-file-input-umami" type="file" accept=".csv" onchange={handleFileSelect} />
-					<Button onclick={handleImport} disabled={!importFile || isImporting}>
-						{#if isImporting}
-							<Loader2 size={14} class="mr-2 animate-spin" />
-						{:else}
-							<Upload size={14} class="mr-2" />
-						{/if}
-						Import from Umami
-					</Button>
+					{#if showSubmit}
+						<Button onclick={handleImport} disabled={!importFile || isImporting}>
+							{#if isImporting}
+								<Loader2 size={14} class="mr-2 animate-spin" />
+							{:else}
+								<Upload size={14} class="mr-2" />
+							{/if}
+							Import from Umami
+						</Button>
+					{/if}
 				</div>
 			</Tabs.Content>
 
@@ -337,14 +371,16 @@
 					{#if importFiles.length > 0}
 						<p class="text-sm text-muted-foreground">{importFiles.length} file(s) selected</p>
 					{/if}
-					<Button onclick={handleImport} disabled={importFiles.length === 0 || isImporting}>
-						{#if isImporting}
-							<Loader2 size={14} class="mr-2 animate-spin" />
-						{:else}
-							<Upload size={14} class="mr-2" />
-						{/if}
-						Import from Plausible
-					</Button>
+					{#if showSubmit}
+						<Button onclick={handleImport} disabled={importFiles.length === 0 || isImporting}>
+							{#if isImporting}
+								<Loader2 size={14} class="mr-2 animate-spin" />
+							{:else}
+								<Upload size={14} class="mr-2" />
+							{/if}
+							Import from Plausible
+						</Button>
+					{/if}
 				</div>
 			</Tabs.Content>
 
@@ -385,14 +421,16 @@
 							}}
 						/>
 					</div>
-					<Button onclick={handleImport} disabled={!datafastApiKey.trim() || isImporting}>
-						{#if isImporting}
-							<Loader2 size={14} class="mr-2 animate-spin" />
-						{:else}
-							<Upload size={14} class="mr-2" />
-						{/if}
-						Import from DataFast
-					</Button>
+					{#if showSubmit}
+						<Button onclick={handleImport} disabled={!datafastApiKey.trim() || isImporting}>
+							{#if isImporting}
+								<Loader2 size={14} class="mr-2 animate-spin" />
+							{:else}
+								<Upload size={14} class="mr-2" />
+							{/if}
+							Import from DataFast
+						</Button>
+					{/if}
 				</div>
 			</Tabs.Content>
 		</Tabs.Root>

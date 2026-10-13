@@ -26,6 +26,22 @@
 	let error = $state('');
 	let step = $state(1);
 
+	let importCard = $state<ImportDataCard>();
+	let importReady = $state(false);
+	let importBusy = $state(false);
+	let importMessage = $state('');
+
+	// One button for the import step: imports first when something is selected, then moves on.
+	// A failed import keeps the user here, with the error shown in the card.
+	const importAndContinue = async () => {
+		if (importReady && importCard) {
+			const message = await importCard.submit();
+			if (message === null) return;
+			importMessage = message;
+		}
+		step = 3;
+	};
+
 	onMount(() => {
 		try {
 			const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -144,12 +160,12 @@
 
 						{#if error}
 							<Alert.Root variant="destructive">
-								<div class="flex flex-col gap-2">
+								<Alert.Description class="gap-2">
 									<span>{error}</span>
 									{#if error.toLowerCase().includes('subscription') || error.toLowerCase().includes('limit reached')}
 										<Button href="/account?tab=billing" size="sm" variant="outline" class="w-fit">View plans</Button>
 									{/if}
-								</div>
+								</Alert.Description>
 							</Alert.Root>
 						{/if}
 
@@ -169,13 +185,25 @@
 				<p class="text-sm text-muted-foreground">
 					Moving from another analytics tool? Bring your history with you. You can also do this later from the website's <strong>Settings &gt; Data</strong>.
 				</p>
-				<ImportDataCard websiteId={createdWebsite.id} />
-				<Button variant="outline" class="w-full gap-2" onclick={nextStep}>
-					Continue to install script <ArrowLeft class="h-4 w-4 rotate-180" />
+				<ImportDataCard bind:this={importCard} bind:ready={importReady} bind:busy={importBusy} websiteId={createdWebsite.id} showSubmit={false} />
+				<Button variant={importReady ? 'default' : 'outline'} class="w-full gap-2" onclick={importAndContinue} disabled={importBusy}>
+					{#if importBusy}
+						<Loader2 class="h-4 w-4 animate-spin" />
+						Importing...
+					{:else}
+						{importReady ? 'Import and continue to install script' : 'Skip and continue to install script'}
+						<ArrowLeft class="h-4 w-4 rotate-180" />
+					{/if}
 				</Button>
 			</div>
 		{:else if step === 3}
 			<div class="space-y-4" in:fade={{ duration: 200 }}>
+				{#if importMessage}
+					<Alert.Root class="border-green-500/50 bg-green-500/10 text-green-500">
+						<Check size={16} />
+						<Alert.Description>{importMessage}</Alert.Description>
+					</Alert.Root>
+				{/if}
 				<Card.Root>
 					<Card.Content>
 						<p class="mb-3 text-sm text-muted-foreground">
