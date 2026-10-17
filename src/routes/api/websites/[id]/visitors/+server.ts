@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import db from '$lib/server/db';
 import { analyticsSession, website, visitor } from '$lib/server/db/schema';
 import { eq, desc, sql, and, gte, lte } from 'drizzle-orm';
-import { checkWebsiteAccess, isValidUUID, parseDateRange } from '$lib/server/utils';
+import { buildSessionFilterConditions, checkWebsiteAccess, isValidUUID, parseDateRange, parseFilters } from '$lib/server/utils';
 
 export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const isWidget = url.searchParams.get('isWidget') === 'true';
@@ -43,10 +43,11 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 
 	const siteTimezone = access.site.timezone;
 	const { start, end } = parseDateRange(startDate, endDate, siteTimezone);
+	const filterConditions = buildSessionFilterConditions(parseFilters(url.searchParams.get('filters')));
 	const whereClause =
 		startDate || endDate
-			? and(eq(analyticsSession.websiteId, params.id), gte(analyticsSession.lastActivityAt, start), lte(analyticsSession.lastActivityAt, end))
-			: eq(analyticsSession.websiteId, params.id);
+			? and(eq(analyticsSession.websiteId, params.id), gte(analyticsSession.lastActivityAt, start), lte(analyticsSession.lastActivityAt, end), ...filterConditions)
+			: and(eq(analyticsSession.websiteId, params.id), ...filterConditions);
 
 	const uniqueVisitors = await db
 		.select({

@@ -315,11 +315,22 @@
 		const timestamp = Date.now().toString();
 		params.set('t', timestamp);
 
+		// Visitors and events follow the selected date range and filters, like the stats.
+		const rangeParams = new URLSearchParams();
+		if (startDate) rangeParams.set('startDate', startDate);
+		if (endDate) rangeParams.set('endDate', endDate);
+		if (filters.length > 0) rangeParams.set('filters', JSON.stringify(filters));
+		rangeParams.set('t', timestamp);
+		const visitorParams = new URLSearchParams(rangeParams);
+		visitorParams.set('limit', '100');
+		const eventParams = new URLSearchParams(rangeParams);
+		eventParams.set('limit', '50');
+
 		try {
 			const [statsRes, visitorsRes, eventsRes] = await Promise.all([
 				axios.get(`/api/websites/${data.website.id}/stats?${params.toString()}`),
-				axios.get(`/api/websites/${data.website.id}/visitors?t=${timestamp}`),
-				axios.get(`/api/websites/${data.website.id}/events?limit=50&t=${timestamp}`)
+				axios.get(`/api/websites/${data.website.id}/visitors?${visitorParams.toString()}`),
+				axios.get(`/api/websites/${data.website.id}/events?${eventParams.toString()}`)
 			]);
 			if (seq !== fetchSeq) return;
 			const statsData = statsRes.data;

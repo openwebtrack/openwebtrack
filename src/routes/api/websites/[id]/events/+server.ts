@@ -1,7 +1,7 @@
 import { website, visitor, analyticsSession, analyticsEvent } from '$lib/server/db/schema';
 import { generateAvatarUrl, generateVisitorName } from '$lib/utils/visitor';
 import { eventsQuerySchema, validateQuery } from '$lib/server/validation';
-import { checkWebsiteAccess, isValidUUID, parseDateRange } from '$lib/server/utils';
+import { buildFilterConditions, buildSessionFilterConditions, checkWebsiteAccess, isValidUUID, parseDateRange, parseFilters } from '$lib/server/utils';
 import getCountryCode from '$lib/utils/country-mapping';
 import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
@@ -32,8 +32,13 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 
 	const { limit, offset, startDate, endDate } = queryValidation.data;
 	const { start, end } = parseDateRange(startDate ?? null, endDate ?? null, site.timezone);
+	const filters = parseFilters(url.searchParams.get('filters'));
+	// Goal filters match the event itself; everything else narrows by the event's session.
+	const filterConditions = [...buildSessionFilterConditions(filters, { includeGoals: false }), ...buildFilterConditions(filters).eventConditions];
 	const whereClause =
-		startDate || endDate ? and(eq(analyticsEvent.websiteId, site.id), gte(analyticsEvent.timestamp, start), lte(analyticsEvent.timestamp, end)) : eq(analyticsEvent.websiteId, site.id);
+		startDate || endDate
+			? and(eq(analyticsEvent.websiteId, site.id), gte(analyticsEvent.timestamp, start), lte(analyticsEvent.timestamp, end), ...filterConditions)
+			: and(eq(analyticsEvent.websiteId, site.id), ...filterConditions);
 
 	// Fetch recent events with visitor details
 	const events = await db

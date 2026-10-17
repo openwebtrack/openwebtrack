@@ -1,6 +1,6 @@
 import { SEARCH_ENGINES, SOCIAL_NETWORKS, MAX_STRING_LENGTHS, MAX_DATE_RANGE_DAYS } from '@/utils/constants';
 import type { Filter, DateRange, Granularity } from './types';
-import { ilike, and, or, eq, sql } from 'drizzle-orm';
+import { ilike, and, or, eq, sql, exists } from 'drizzle-orm';
 import { pageview, analyticsSession, analyticsEvent, website, teamMember, visitor } from './db/schema';
 import db from './db';
 
@@ -288,6 +288,36 @@ export const buildFilterConditions = (filters: Filter[]) => {
 	}
 
 	return { sessionConditions, pageviewConditions, eventConditions };
+};
+
+// Filters expressed on analytics_session rows, for lists keyed by session (visitors, events).
+// Page and goal filters become "the session has a matching pageview / event".
+export const buildSessionFilterConditions = (filters: Filter[], { includeGoals = true } = {}) => {
+	const conditions = [...buildFilterConditions(filters).sessionConditions];
+
+	for (const filter of filters) {
+		if (filter.type === 'hostname' || filter.type === 'page' || filter.type === 'entryPage') {
+			conditions.push(
+				exists(
+					db
+						.select({ one: sql`1` })
+						.from(pageview)
+						.where(and(eq(pageview.sessionId, analyticsSession.id), ilike(pageview.pathname, `%${filter.value}%`)))
+				)
+			);
+		} else if (filter.type === 'goal' && includeGoals) {
+			conditions.push(
+				exists(
+					db
+						.select({ one: sql`1` })
+						.from(analyticsEvent)
+						.where(and(eq(analyticsEvent.sessionId, analyticsSession.id), ilike(analyticsEvent.name, `%${filter.value}%`)))
+				)
+			);
+		}
+	}
+
+	return conditions;
 };
 
 export const extractPathname = (url: string): string => {

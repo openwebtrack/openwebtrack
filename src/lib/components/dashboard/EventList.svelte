@@ -15,7 +15,7 @@
 	{#if items.length === 0}
 		<div class="flex h-64 flex-col items-center justify-center text-muted-foreground">
 			<Activity class="mb-2 h-6 w-6 opacity-40" />
-			<p class="text-sm">No events yet.</p>
+			<p class="text-sm">No events in this period.</p>
 		</div>
 	{:else}
 		<div class="flex flex-col">
