@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Plus, Trash2, Globe, Target } from 'lucide-svelte';
+	import { Plus, Trash2, Globe, Target, Pencil, PencilLine, LayoutTemplate } from 'lucide-svelte';
+	import { funnelTemplates, type FunnelTemplate } from '$lib/funnel-templates';
 	import type { FunnelStepDef } from '$lib/server/db/schema';
 	import { untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -35,19 +36,67 @@
 	let newStepName = $state('');
 	let newStepType = $state<'page_visit' | 'goal'>('page_visit');
 	let newStepValue = $state('');
+	let editingIndex = $state<number | null>(null);
+
+	// Template picker is shown for new funnels until a template is picked or the user starts from scratch
+	let showTemplates = $state(untrack(() => !funnel));
+	let stepNameInput = $state<HTMLInputElement | null>(null);
+
+	function applyTemplate(template: FunnelTemplate) {
+		funnelName = template.name;
+		steps = template.steps.map((step) => ({ ...step }));
+		resetStepForm();
+		showTemplates = false;
+	}
+
+	function startFromScratch() {
+		showTemplates = false;
+		stepNameInput?.focus();
+	}
+
+	function openTemplates() {
+		if (steps.length > 0 && !confirm('Discard the current steps and pick a template?')) return;
+		steps = [];
+		funnelName = '';
+		resetStepForm();
+		showTemplates = true;
+	}
+
+	function resetStepForm() {
+		newStepName = '';
+		newStepValue = '';
+		newStepType = 'page_visit';
+		editingIndex = null;
+	}
 
 	function addStep() {
 		const name = newStepName.trim();
 		const value = newStepValue.trim();
 		if (!name || !value) return;
 
-		steps = [...steps, { name, type: newStepType, value }];
-		newStepName = '';
-		newStepValue = '';
+		const step: FunnelStepDef = { name, type: newStepType, value };
+		if (editingIndex !== null) {
+			steps = steps.map((s, i) => (i === editingIndex ? step : s));
+		} else {
+			steps = [...steps, step];
+		}
+		resetStepForm();
+		showTemplates = false;
+	}
+
+	function editStep(index: number) {
+		const step = steps[index];
+		editingIndex = index;
+		newStepName = step.name;
+		newStepType = step.type;
+		newStepValue = step.value;
+		stepNameInput?.focus();
 	}
 
 	function removeStep(index: number) {
 		steps = steps.filter((_, i) => i !== index);
+		if (editingIndex === index) resetStepForm();
+		else if (editingIndex !== null && editingIndex > index) editingIndex--;
 	}
 
 	function moveStep(from: number, to: number) {
@@ -56,6 +105,8 @@
 		const [item] = arr.splice(from, 1);
 		arr.splice(to, 0, item);
 		steps = arr;
+		if (editingIndex === from) editingIndex = to;
+		else if (editingIndex === to) editingIndex = from;
 	}
 
 	// ── Save ────────────────────────────────────────────────────────────────────
@@ -97,12 +148,12 @@
 					<Input id="funnel-name" bind:value={funnelName} placeholder="Funnel name..." class="h-8 max-w-xs text-sm" />
 				</div>
 
-				<h3 class="text-sm font-semibold text-foreground">Add new step</h3>
+				<h3 class="text-sm font-semibold text-foreground">{editingIndex !== null ? `Edit step ${editingIndex + 1}` : 'Add new step'}</h3>
 
 				<!-- Step name -->
 				<div class="flex flex-col gap-1.5">
 					<label for="new-step-name" class="text-xs font-medium text-muted-foreground">Step name</label>
-					<Input id="new-step-name" bind:value={newStepName} placeholder="Step name..." class="text-sm" onkeydown={(e) => e.key === 'Enter' && addStep()} />
+					<Input id="new-step-name" bind:ref={stepNameInput} bind:value={newStepName} placeholder="Step name..." class="text-sm" onkeydown={(e) => e.key === 'Enter' && addStep()} />
 				</div>
 
 				<!-- Type toggle -->
@@ -145,18 +196,68 @@
 					</div>
 				{/if}
 
-				<!-- Add step button -->
-				<Button onclick={addStep} disabled={!newStepName.trim() || !newStepValue.trim()} class="w-full gap-2">
-					<Plus class="h-4 w-4" />
-					Add step
-				</Button>
+				<!-- Add / save step button -->
+				{#if editingIndex !== null}
+					<div class="flex gap-2">
+						<Button variant="ghost" onclick={resetStepForm} class="flex-1">Cancel</Button>
+						<Button onclick={addStep} disabled={!newStepName.trim() || !newStepValue.trim()} class="flex-1 gap-2">
+							<Pencil class="h-4 w-4" />
+							Save step
+						</Button>
+					</div>
+				{:else}
+					<Button onclick={addStep} disabled={!newStepName.trim() || !newStepValue.trim()} class="w-full gap-2">
+						<Plus class="h-4 w-4" />
+						Add step
+					</Button>
+				{/if}
 			</div>
 
 			<!-- Right: steps list -->
 			<div class="flex flex-1 flex-col overflow-hidden px-6 py-5">
-				<h3 class="mb-4 shrink-0 text-sm font-semibold text-foreground">Funnel steps</h3>
+				<div class="mb-4 flex shrink-0 items-center justify-between gap-2">
+					<h3 class="text-sm font-semibold text-foreground">{showTemplates ? 'Start from a template' : 'Funnel steps'}</h3>
+					{#if !funnel && !showTemplates}
+						<button onclick={openTemplates} class="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
+							<LayoutTemplate class="h-3.5 w-3.5" />
+							{steps.length > 0 ? 'Start over' : 'Templates'}
+						</button>
+					{/if}
+				</div>
 
-				{#if steps.length === 0}
+				{#if showTemplates && steps.length === 0}
+					<div class="-mx-1 flex flex-col gap-2 overflow-y-auto px-1 pb-1">
+						{#each funnelTemplates as template (template.id)}
+							<button
+								onclick={() => applyTemplate(template)}
+								class="group flex items-start gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/60"
+							>
+								<span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:text-foreground">
+									<template.icon class="h-3.5 w-3.5" />
+								</span>
+								<div class="flex min-w-0 flex-1 flex-col gap-0.5">
+									<div class="flex items-center justify-between gap-2">
+										<span class="truncate text-sm font-semibold text-foreground">{template.name}</span>
+										<span class="shrink-0 text-[11px] text-muted-foreground">{template.steps.length} steps</span>
+									</div>
+									<span class="text-[11px] text-muted-foreground">{template.description}</span>
+								</div>
+							</button>
+						{/each}
+						<button
+							onclick={startFromScratch}
+							class="flex items-center gap-3 rounded-xl border border-dashed border-border px-4 py-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/30"
+						>
+							<span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+								<PencilLine class="h-3.5 w-3.5" />
+							</span>
+							<div class="flex min-w-0 flex-col gap-0.5">
+								<span class="text-sm font-semibold text-foreground">Start from scratch</span>
+								<span class="text-[11px] text-muted-foreground">Build your own steps on the left.</span>
+							</div>
+						</button>
+					</div>
+				{:else if steps.length === 0}
 					<div class="flex flex-1 flex-col items-center justify-center text-center text-sm text-muted-foreground">
 						<p>No steps yet.</p>
 						<p class="mt-1 text-xs">Add steps to build your funnel.</p>
@@ -164,7 +265,7 @@
 				{:else}
 					<ol class="flex flex-col gap-2 overflow-y-auto">
 						{#each steps as step, i}
-							<li class="group flex items-start gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+							<li class="group flex items-start gap-3 rounded-xl border bg-muted/30 px-4 py-3 {editingIndex === i ? 'border-primary' : 'border-border'}">
 								<!-- Reorder buttons -->
 								<div class="flex flex-col gap-0.5 pt-0.5">
 									<button
@@ -198,6 +299,15 @@
 										<code class="font-mono">{step.value}</code>
 									</span>
 								</div>
+
+								<!-- Edit -->
+								<button
+									onclick={() => editStep(i)}
+									class="mt-0.5 ml-1 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground {editingIndex === i ? 'opacity-100' : ''}"
+									aria-label="Edit step"
+								>
+									<Pencil class="h-3.5 w-3.5" />
+								</button>
 
 								<!-- Remove -->
 								<button
