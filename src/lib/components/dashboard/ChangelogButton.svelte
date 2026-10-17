@@ -23,12 +23,11 @@
 
 	const formatDate = (date: string) => new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 
-	const typeLabel = { feature: 'New', fix: 'Fix', improvement: 'Improved' } as const;
-	const typeClass = {
-		feature: 'bg-primary/10 text-primary',
-		fix: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-		improvement: 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
-	} as const;
+	const groups = [
+		{ type: 'feature', label: 'New', dot: 'bg-primary' },
+		{ type: 'improvement', label: 'Improved', dot: 'bg-sky-500' },
+		{ type: 'fix', label: 'Fixed', dot: 'bg-emerald-500' }
+	] as const;
 
 	onMount(() => {
 		try {
@@ -86,11 +85,14 @@
 <Dialog.Root bind:open>
 	<Dialog.Content class="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
 		<Dialog.Header class="shrink-0 border-b border-border px-6 py-4">
-			<Dialog.Title class="text-sm font-medium">Changelog</Dialog.Title>
-			<Dialog.Description class="text-xs">You are running OpenWebTrack v{APP_VERSION}</Dialog.Description>
+			<Dialog.Title class="flex items-center gap-2 text-sm font-medium">
+				<Sparkles size={15} class="text-primary" />
+				What's new
+			</Dialog.Title>
+			<Dialog.Description class="sr-only">Release notes for every OpenWebTrack version</Dialog.Description>
 		</Dialog.Header>
 
-		<div class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+		<div class="min-h-0 flex-1 overflow-y-auto px-6 py-6">
 			{#if updateAvailable}
 				<div class="mb-6 rounded-lg border border-primary/30 bg-primary/5 p-4">
 					<div class="flex items-center gap-2 text-sm font-medium">
@@ -112,24 +114,45 @@
 				</div>
 			{/if}
 
-			<ol class="flex flex-col gap-6">
-				{#each CHANGELOG as entry (entry.version)}
-					<li>
-						<div class="flex items-baseline gap-2">
-							<h3 class="text-sm font-semibold">v{entry.version}</h3>
-							{#if entry.version === APP_VERSION}
-								<span class="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">Current</span>
-							{/if}
-							<span class="ml-auto text-xs text-muted-foreground tabular-nums">{formatDate(entry.date)}</span>
+			<ol class="relative">
+				{#each CHANGELOG as entry, i (entry.version)}
+					{@const isCurrent = entry.version === APP_VERSION}
+					<li class="relative grid grid-cols-[1rem_1fr] gap-x-4 pb-8 last:pb-0">
+						{#if i < CHANGELOG.length - 1}
+							<span class="absolute top-4 bottom-0 left-[7px] w-px bg-border"></span>
+						{/if}
+						<span class="relative mt-1 flex size-4 items-center justify-center">
+							<span class="size-2.5 rounded-full {isCurrent ? 'bg-primary ring-4 ring-primary/15' : 'border border-muted-foreground/40 bg-background'}"></span>
+						</span>
+
+						<div class="min-w-0">
+							<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+								<h3 class="text-sm font-semibold tracking-tight">v{entry.version}</h3>
+								{#if isCurrent}
+									<span class="rounded-full border border-primary/30 bg-primary/10 px-2 py-px text-[10px] font-medium text-primary">Your version</span>
+								{/if}
+								<span class="text-xs text-muted-foreground tabular-nums">{formatDate(entry.date)}</span>
+							</div>
+
+							<div class="mt-3 flex flex-col gap-3">
+								{#each groups as group (group.type)}
+									{@const items = entry.changes.filter((c) => c.type === group.type)}
+									{#if items.length}
+										<div>
+											<p class="mb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground/70 uppercase">{group.label}</p>
+											<ul class="flex flex-col gap-1.5">
+												{#each items as change}
+													<li class="flex items-start gap-2.5 text-sm leading-snug text-foreground/85">
+														<span class="mt-[7px] size-1 shrink-0 rounded-full {group.dot}"></span>
+														<span class="min-w-0">{change.text}</span>
+													</li>
+												{/each}
+											</ul>
+										</div>
+									{/if}
+								{/each}
+							</div>
 						</div>
-						<ul class="mt-2 flex flex-col gap-1.5">
-							{#each entry.changes as change}
-								<li class="flex items-start gap-2 text-sm text-muted-foreground">
-									<span class="mt-0.5 w-15 shrink-0 rounded px-1.5 py-px text-center text-[10px] font-medium {typeClass[change.type]}">{typeLabel[change.type]}</span>
-									<span class="min-w-0">{change.text}</span>
-								</li>
-							{/each}
-						</ul>
 					</li>
 				{/each}
 			</ol>
