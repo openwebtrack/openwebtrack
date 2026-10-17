@@ -13,6 +13,16 @@ export interface ChangelogEntry {
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '2.2.0',
+		date: '2026-10-17',
+		changes: [
+			{ type: 'feature', text: 'Funnel templates and inline step editing when creating a funnel' },
+			{ type: 'feature', text: "What's new dialog with release notes for every version" },
+			{ type: 'feature', text: 'Notice in the dashboard when a newer Docker image is available' },
+			{ type: 'improvement', text: 'Visitor and event lists now follow the active date range and filters' }
+		]
+	},
+	{
 		version: '2.1.0',
 		date: '2026-10-13',
 		changes: [
