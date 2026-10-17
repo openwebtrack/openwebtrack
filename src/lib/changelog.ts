@@ -13,6 +13,14 @@ export interface ChangelogEntry {
 // Newest first. Add an entry here whenever the version in package.json is bumped.
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '2.2.1',
+		date: '2026-10-17',
+		changes: [
+			{ type: 'fix', text: 'Expired subscriptions now get the correct 5-day grace period' },
+			{ type: 'improvement', text: 'Clearer grace period banner with a countdown and progress bar' }
+		]
+	},
+	{
 		version: '2.2.0',
 		date: '2026-10-17',
 		changes: [
