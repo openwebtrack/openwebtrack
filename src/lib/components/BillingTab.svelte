@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { CreditCard, ExternalLink, Loader2, AlertCircle, Check, RefreshCw, X } from 'lucide-svelte';
+	import { CreditCard, ExternalLink, Loader2, AlertCircle, Check, Clock, RefreshCw, X } from 'lucide-svelte';
 	import { replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import authClient from '$lib/auth-client';
@@ -268,6 +268,18 @@
 		}
 	}
 
+	function graceDaysLabel(days: number) {
+		const d = Math.ceil(days);
+		if (d <= 1) return 'less than a day';
+		return `${d} more days`;
+	}
+
+	const GRACE_DAYS = 5;
+
+	function graceLockDate(expiredAt: string) {
+		return new Date(new Date(expiredAt).getTime() + GRACE_DAYS * 24 * 60 * 60 * 1000).toLocaleDateString(undefined, { dateStyle: 'medium' });
+	}
+
 	function displayPlanName(plan: string) {
 		const tier = tiers.find((t) => t.slug.toLowerCase() === plan.toLowerCase());
 		return tier?.name ?? plan;
@@ -296,14 +308,31 @@
 			>
 		</Alert.Root>
 	{:else if entitlement && entitlement.graceDaysRemaining !== null && !activeSub}
-		<Alert.Root class="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300">
-			<AlertCircle size={16} />
-			<Alert.Title>Subscription expired - grace period</Alert.Title>
-			<Alert.Description
-				>Events are no longer collected. You have {entitlement.graceDaysRemaining} day{entitlement.graceDaysRemaining !== 1 ? 's' : ''} left before dashboard access is locked. Subscribe again to
-				restore full access before {entitlement.expiredAt ? new Date(new Date(entitlement.expiredAt).getTime() + 5 * 24 * 60 * 60 * 1000).toLocaleDateString() : 'then'}.</Alert.Description
-			>
-		</Alert.Root>
+		{@const daysLeft = Math.max(0, Math.ceil(entitlement.graceDaysRemaining))}
+		{@const elapsedPct = Math.min(100, Math.max(0, ((GRACE_DAYS - entitlement.graceDaysRemaining) / GRACE_DAYS) * 100))}
+		<div class="overflow-hidden rounded-xl border border-amber-500/40 bg-amber-500/10" in:fly={{ y: -6, duration: 200 }}>
+			<div class="flex items-start gap-4 p-4">
+				<div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
+					<Clock size={18} />
+				</div>
+				<div class="min-w-0 flex-1 space-y-1">
+					<div class="flex flex-wrap items-center justify-between gap-2">
+						<p class="text-sm font-semibold text-amber-800 dark:text-amber-200">Your subscription has expired</p>
+						<span class="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium tabular-nums text-amber-700 dark:text-amber-300">
+							{daysLeft <= 1 ? 'Last day' : `${daysLeft} days left`}
+						</span>
+					</div>
+					<p class="text-sm text-amber-900/80 dark:text-amber-100/70">
+						Event collection is paused. Your dashboard stays available for {graceDaysLabel(entitlement.graceDaysRemaining)}{entitlement.expiredAt
+							? ` (until ${graceLockDate(entitlement.expiredAt)})`
+							: ''}. Subscribe again to resume tracking - your existing data is safe.
+					</p>
+				</div>
+			</div>
+			<div class="h-1 w-full bg-amber-500/15">
+				<div class="h-full bg-amber-500 transition-all" style="width: {elapsedPct}%"></div>
+			</div>
+		</div>
 	{/if}
 	{#if loading}
 		<Card.Root>

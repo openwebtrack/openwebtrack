@@ -102,11 +102,15 @@ async function getSubscriptionsForUser(userId: string): Promise<SubscriptionRow[
 function getLastSubscriptionEnd(subs: SubscriptionRow[]): Date | null {
 	if (!subs.length) return null;
 	let latest: Date | null = null;
+	const now = new Date();
 	for (const s of subs) {
-		const raw = s.endedAt ?? s.periodEnd ?? s.cancelAt ?? s.canceledAt;
+		// Prefer when access actually ended; periodEnd can lie in the future for canceled/incomplete subs
+		const raw = s.endedAt ?? s.canceledAt ?? s.cancelAt ?? s.periodEnd;
 		if (!raw) continue;
-		const d = raw instanceof Date ? raw : new Date(raw);
+		let d = raw instanceof Date ? raw : new Date(raw);
 		if (isNaN(d.getTime())) continue;
+		// A non-active subscription cannot have ended in the future
+		if (d > now) d = now;
 		if (!latest || d > latest) latest = d;
 	}
 	return latest;
