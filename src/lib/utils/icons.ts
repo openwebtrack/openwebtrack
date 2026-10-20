@@ -44,11 +44,13 @@ export const getDeviceIcon = (device: string | null) => {
 	return 'https://api.iconify.design/lucide:monitor.svg?color=%2371717a';
 };
 
+export const getFlagUrl = (code: string | null | undefined) => (code ? `https://flagcdn.com/w80/${code.toLowerCase()}.png` : '');
+
 export const getCountryFlag = (countryName: string | null) => {
 	if (!countryName || countryName === 'Unknown') return undefined;
 	const code = getCountryCode(countryName);
 	if (!code) return undefined;
-	return `https://flagsapi.com/${code}/flat/64.png`;
+	return getFlagUrl(code);
 };
 
 export const getRegionIcon = () => 'https://api.iconify.design/lucide:map.svg?color=%2371717a';

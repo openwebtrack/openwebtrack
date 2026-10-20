@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getBrowserIcon, getOsIcon, getDeviceIcon, getCountryFlag, getRegionIcon, getCityIcon } from '$lib/utils/icons';
+	import { getBrowserIcon, getOsIcon, getDeviceIcon, getCountryFlag, getFlagUrl, getRegionIcon, getCityIcon } from '$lib/utils/icons';
 	import type { FilterType } from '$lib/components/dashboard/FilterPicker.svelte';
 	import { generateAvatarUrl, generateVisitorName } from '$lib/utils/visitor';
 	import Dashboard from '$lib/components/dashboard/Dashboard.svelte';
@@ -352,7 +352,7 @@
 					avatar: v.avatar || generateAvatarUrl(v.visitorId),
 					name: v.name || generateVisitorName(v.visitorId),
 					isCustomer: v.isCustomer || false,
-					countryFlag: countryCode ? `https://flagsapi.com/${countryCode}/flat/64.png` : '',
+					countryFlag: getFlagUrl(countryCode),
 					country: v.country || 'Unknown',
 					device: v.device || 'Desktop',
 					osIcon: getOsIcon(v.os),

@@ -4,6 +4,7 @@
 	import Logo from '$lib/components/Logo.svelte';
 	import { generateAvatarUrl, generateVisitorName } from '$lib/utils/visitor';
 	import getCountryCode from '$lib/utils/country-mapping';
+	import { getFlagUrl } from '$lib/utils/icons';
 	import { onMount, onDestroy } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import maplibregl from 'maplibre-gl';
@@ -230,7 +231,7 @@
 			avatar: v.avatar || generateAvatarUrl(v.visitorId),
 			name: v.name || generateVisitorName(v.visitorId),
 			isCustomer: v.isCustomer || false,
-			countryFlag: countryCode ? `https://flagsapi.com/${countryCode}/flat/64.png` : '',
+			countryFlag: getFlagUrl(countryCode),
 			country: v.country || 'Unknown',
 			device: v.device || 'Desktop',
 			osIcon: '',

@@ -3,6 +3,7 @@ import { generateAvatarUrl, generateVisitorName } from '$lib/utils/visitor';
 import { eventsQuerySchema, validateQuery } from '$lib/server/validation';
 import { buildFilterConditions, buildSessionFilterConditions, checkWebsiteAccess, isValidUUID, parseDateRange, parseFilters } from '$lib/server/utils';
 import getCountryCode from '$lib/utils/country-mapping';
+import { getFlagUrl } from '$lib/utils/icons';
 import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
@@ -68,7 +69,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 
 	const formattedEvents = events.map((e) => {
 		const countryCode = getCountryCode(e.location.country);
-		const countryFlag = countryCode ? `https://flagsapi.com/${countryCode}/flat/64.png` : '';
+		const countryFlag = getFlagUrl(countryCode);
 
 		return {
 			id: e.id,
