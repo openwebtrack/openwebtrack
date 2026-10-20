@@ -1,5 +1,14 @@
 [
 	{
+		"version": "2.2.2",
+		"date": "2026-10-20",
+		"changes": [
+			{ "type": "improvement", "text": "Release notes now load from GitHub, so you can see what's new before upgrading" },
+			{ "type": "improvement", "text": "Releases newer than your install are marked in the What's new dialog" },
+			{ "type": "fix", "text": "Country flags no longer show as broken images" }
+		]
+	},
+	{
 		"version": "2.2.1",
 		"date": "2026-10-17",
 		"changes": [
