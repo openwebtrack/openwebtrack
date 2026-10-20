@@ -4,7 +4,7 @@
 	import { Sparkles, ArrowUpCircle, Copy, Check } from 'lucide-svelte';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { APP_VERSION, CHANGELOG, DOCKER_IMAGE, compareVersions } from '$lib/changelog';
+	import { APP_VERSION, CHANGELOG, CHANGELOG_URL, DOCKER_IMAGE, compareVersions, mergeChangelogs, parseChangelog } from '$lib/changelog';
 	import { SAAS_MODE } from '$lib/config';
 
 	const SEEN_KEY = 'owt:changelog-seen';
@@ -13,6 +13,7 @@
 	let seenVersion = $state<string | null>(null);
 	let mounted = $state(false);
 	let latest = $state<string | null>(null);
+	let changelog = $state(CHANGELOG);
 	let copied = $state(false);
 
 	const updateAvailable = $derived(!SAAS_MODE && latest !== null && compareVersions(latest, APP_VERSION) > 0);
@@ -34,6 +35,15 @@
 			seenVersion = localStorage.getItem(SEEN_KEY);
 		} catch {}
 		mounted = true;
+
+		// Fetch the latest release notes from GitHub so older versions can see what's in newer releases
+		fetch(CHANGELOG_URL, { cache: 'no-cache' })
+			.then((res) => (res.ok ? res.json() : null))
+			.then((data) => {
+				const remote = parseChangelog(data);
+				if (remote.length) changelog = mergeChangelogs(CHANGELOG, remote);
+			})
+			.catch(() => {});
 
 		// The cloud app is always on the latest version, so only the changelog is shown there
 		if (SAAS_MODE) return;
@@ -115,14 +125,21 @@
 			{/if}
 
 			<ol class="relative">
-				{#each CHANGELOG as entry, i (entry.version)}
+				{#each changelog as entry, i (entry.version)}
 					{@const isCurrent = entry.version === APP_VERSION}
+					{@const isNewer = compareVersions(entry.version, APP_VERSION) > 0}
 					<li class="relative grid grid-cols-[1rem_1fr] gap-x-4 pb-8 last:pb-0">
-						{#if i < CHANGELOG.length - 1}
+						{#if i < changelog.length - 1}
 							<span class="absolute top-4 bottom-0 left-[7px] w-px bg-border"></span>
 						{/if}
 						<span class="relative mt-1 flex size-4 items-center justify-center">
-							<span class="size-2.5 rounded-full {isCurrent ? 'bg-primary ring-4 ring-primary/15' : 'border border-muted-foreground/40 bg-background'}"></span>
+							<span
+								class="size-2.5 rounded-full {isCurrent
+									? 'bg-primary ring-4 ring-primary/15'
+									: isNewer
+										? 'border-2 border-primary bg-background'
+										: 'border border-muted-foreground/40 bg-background'}"
+							></span>
 						</span>
 
 						<div class="min-w-0">
@@ -130,6 +147,8 @@
 								<h3 class="text-sm font-semibold tracking-tight">v{entry.version}</h3>
 								{#if isCurrent}
 									<span class="rounded-full border border-primary/30 bg-primary/10 px-2 py-px text-[10px] font-medium text-primary">Your version</span>
+								{:else if isNewer}
+									<span class="rounded-full border border-border px-2 py-px text-[10px] font-medium text-muted-foreground">Not installed</span>
 								{/if}
 								<span class="text-xs text-muted-foreground tabular-nums">{formatDate(entry.date)}</span>
 							</div>
