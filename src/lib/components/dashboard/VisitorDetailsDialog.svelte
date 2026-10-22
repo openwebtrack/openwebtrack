@@ -18,6 +18,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { avatarSrc } from '$lib/utils/avatar';
+	import { getBrowserIcon, getOsIcon } from '$lib/utils/icons';
 
 	let { websiteId, visitor, highlightEventId, onClose, demoData = null } = $props();
 
@@ -153,28 +154,6 @@
 	};
 
 	let timelineGroups = $derived(details ? getTimelineGroups(details.journey, activeFilters) : []);
-
-	const getOsIcon = (os: string | null) => {
-		if (!os || os === 'Unknown') return 'https://api.iconify.design/lucide:monitor.svg?color=%2371717a';
-		const lower = os.toLowerCase();
-		if (lower.includes('win')) return 'https://api.iconify.design/logos:microsoft-windows.svg';
-		if (lower.includes('mac')) return 'https://api.iconify.design/logos:apple.svg?color=white';
-		if (lower.includes('android')) return 'https://api.iconify.design/logos:android-icon.svg';
-		if (lower.includes('ios')) return 'https://api.iconify.design/logos:apple.svg?color=white';
-		if (lower.includes('linux')) return 'https://api.iconify.design/logos:linux-tux.svg';
-		return 'https://api.iconify.design/lucide:monitor.svg?color=%2371717a';
-	};
-
-	const getBrowserIcon = (browser: string | null) => {
-		if (!browser || browser === 'Unknown') return 'https://api.iconify.design/lucide:globe.svg?color=%2371717a';
-		const lower = browser.toLowerCase();
-		if (lower.includes('chrome')) return 'https://api.iconify.design/logos:chrome.svg';
-		if (lower.includes('firefox')) return 'https://api.iconify.design/logos:firefox.svg';
-		if (lower.includes('safari')) return 'https://api.iconify.design/logos:safari.svg';
-		if (lower.includes('edge')) return 'https://api.iconify.design/logos:microsoft-edge.svg';
-		if (lower.includes('opera')) return 'https://api.iconify.design/logos:opera.svg';
-		return 'https://api.iconify.design/lucide:globe.svg?color=%2371717a';
-	};
 
 	let region = $derived(visitor.region || details?.journey?.[0]?.region);
 	let city = $derived(visitor.city || details?.journey?.[0]?.city);
