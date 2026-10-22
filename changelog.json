@@ -1,5 +1,13 @@
 [
 	{
+		"version": "2.2.3",
+		"date": "2026-10-22",
+		"changes": [
+			{ "type": "fix", "text": "Browser and OS icons load from your own instance instead of the Iconify API, which stopped serving several logos" },
+			{ "type": "improvement", "text": "Browser detection covers Brave, Vivaldi and Arc, and OS detection covers Ubuntu and Fedora" }
+		]
+	},
+	{
 		"version": "2.2.2",
 		"date": "2026-10-20",
 		"changes": [
